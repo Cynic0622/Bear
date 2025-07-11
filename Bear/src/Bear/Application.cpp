@@ -13,7 +13,7 @@ namespace Bear {
 	{
 		while (true)
 		{
-			printf("helloxx!");
+			//printf("helloxx!");
 		}
 	}
 
