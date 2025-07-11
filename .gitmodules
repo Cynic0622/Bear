@@ -1,0 +1,3 @@
+[submodule "Bear/extern/spdlog"]
+	path = Bear/extern/spdlog
+	url = https://github.com/gabime/spdlog
