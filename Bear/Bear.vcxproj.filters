@@ -33,6 +33,9 @@
     <ClInclude Include="src\Bear\Log.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="src\bearpch.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\test.cpp">
@@ -42,6 +45,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\Bear\Log.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bearpch.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

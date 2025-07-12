@@ -1,5 +1,5 @@
 #include "test.h"
-#include <stdio.h>
+#include "bearpch.h"
 namespace Bear {
 
 	void Print() {
