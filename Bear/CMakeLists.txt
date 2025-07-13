@@ -42,6 +42,10 @@ if(WIN32)
         BEAR_PLATFORM_WINDOWS
         _CRT_SECURE_NO_WARNINGS
     )
+    # --- 在这里添加预编译头文件设置 ---
+    # 将 bearpch.h 指定为 Bear 目标的预编译头文件。
+    # PRIVATE 表示这个 PCH 设置只对 Bear 目标内部生效，不会影响链接到它的其他目标（如 Sandbox）。
+    target_precompile_headers(Bear PRIVATE src/bearpch.h)
     
     target_link_libraries(Bear PRIVATE
         kernel32 user32 gdi32 winspool comdlg32 
