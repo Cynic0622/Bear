@@ -37,9 +37,34 @@ foreach(CONFIG ${CMAKE_CONFIGURATION_TYPES})
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${CONFIG_UPPER} ${CMAKE_BINARY_DIR}/lib/${CONFIG})
 endforeach()
 
+# 添加文件夹支持
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+# 设置GLFW构建选项（在添加子目录之前）
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+
 # 添加子项目
 add_subdirectory(Bear)
 add_subdirectory(Sandbox)
+add_subdirectory(Bear/extern/glfw)
+add_subdirectory(Bear/extern/spdlog)
+
+# 组织外部依赖到文件夹中
+set_target_properties(glfw PROPERTIES FOLDER "External")
+if(TARGET update_mappings)
+    set_target_properties(update_mappings PROPERTIES FOLDER "External")
+endif()
+if(TARGET uninstall)
+    set_target_properties(uninstall PROPERTIES FOLDER "External")
+endif()
+# 添加 spdlog 到 External 文件夹
+if(TARGET spdlog)
+    set_target_properties(spdlog PROPERTIES FOLDER "External")
+endif()
+
 
 # 设置启动项目
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Sandbox)
