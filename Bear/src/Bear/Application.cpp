@@ -7,6 +7,7 @@ namespace Bear {
 
 	Application::Application()
 	{
+		m_Window = std::unique_ptr<Window>(Window::Create(WindowProps("Bear", 1280, 720)));
 	}
 	Application::~Application()
 	{
@@ -14,15 +15,9 @@ namespace Bear {
 
 	void Application::Run()
 	{
-		Bear::WindowResizeEvent e(1280, 720);
-		BEAR_CORE_INFO(e);
-		BEAR_CORE_INFO(e.ToString());
-		KeyPressedEvent e2(32, 0);
-		BEAR_CORE_INFO(e2);
-		BEAR_CORE_INFO(e2.ToString());
-		while (true)
+		while (m_Running)
 		{
-			//printf("helloxx!");
+			m_Window->OnUpdate();
 		}
 	}
 

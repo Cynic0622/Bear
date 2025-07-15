@@ -11,10 +11,16 @@ file(GLOB BEAR_EVENT_SOURCES
     "src/Bear/Events/*.h"
 )
 
+file(GLOB BEAR_PLATFORM_SOURCES
+    "src/Platform/*.cpp"
+    "src/Platform/*.h"
+)
+
 
 set(BEAR_ALL_SOURCES
     ${BEAR_SOURCES}
     ${BEAR_EVENT_SOURCES}
+    ${BEAR_PLATFORM_SOURCES}
 )
 
 # 创建Bear动态库
@@ -23,9 +29,11 @@ add_library(Bear SHARED ${BEAR_ALL_SOURCES})
 # 设置VS中的源文件分组
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Bear" PREFIX "Bear" FILES ${BEAR_SOURCES})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Bear/Events" PREFIX "Bear/Events" FILES ${BEAR_EVENT_SOURCES})
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Platform" PREFIX "Platform/Windows" FILES ${BEAR_PLATFORM_SOURCES})
 
 # 链接GLFW
 target_link_libraries(Bear PUBLIC glfw)
+target_link_libraries(Bear PUBLIC spdlog)
 
 # 设置包含目录
 target_include_directories(Bear
@@ -38,8 +46,9 @@ target_include_directories(Bear
 
 # DLL导出设置
 target_compile_definitions(Bear 
-    PRIVATE 
-        BEAR_BUILD_DLL
+    PRIVATE
+        BEAR_ENABLE_ASSERTS
+        # BEAR_BUILD_DLL
         BEAR_API_EXPORTS
     PUBLIC
         $<$<CONFIG:Debug>:BEAR_DEBUG>

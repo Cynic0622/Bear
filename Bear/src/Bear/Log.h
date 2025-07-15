@@ -23,6 +23,7 @@ namespace Bear {
 #define BEAR_CORE_INFO(...)  ::Bear::Log::GetCoreLogger()->info(__VA_ARGS__)
 #define BEAR_CORE_WARN(...)  ::Bear::Log::GetCoreLogger()->warn(__VA_ARGS__)
 #define BEAR_CORE_ERROR(...) ::Bear::Log::GetCoreLogger()->error(__VA_ARGS__)
+#define BEAR_CORE_ASSERT(...) ::Bear::Log::GetCoreLogger()->critical(__VA_ARGS__)
 // Client log
 #define BEAR_CLIENT_TRACE(...) ::Bear::Log::GetClientLogger()->trace(__VA_ARGS__)
 #define BEAR_CLIENT_INFO(...)  ::Bear::Log::GetClientLogger()->info(__VA_ARGS__)
