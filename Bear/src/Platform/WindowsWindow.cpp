@@ -2,6 +2,9 @@
 #include "WindowsWindow.h"
 #include "Bear/Core.h"
 #include "Assert.h"
+#include "Bear/Events/ApplicationEvent.h"
+#include "Bear/Events/KeyEvent.h"
+#include "Bear/Events/MouseEvent.h"
 
 namespace Bear {
 	static bool s_GLFWInitialized = false;
@@ -10,6 +13,104 @@ namespace Bear {
 	{
 		return new WindowsWindow(props);
 	}
+
+	void WindowsWindow::WindowSizeCallback(GLFWwindow* window, int width, int height)
+	{
+		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+		data.Width = width; // 更新宽度
+		data.Height = height; // 更新高度
+		BEAR_CLIENT_INFO("Window resized to {0}, {1}", width, height);
+		
+		// 触发窗口大小改变事件
+		WindowResizeEvent event(width, height);
+		data.EventCallback(event);
+	}
+
+	void WindowsWindow::WindowCloseCallback(GLFWwindow* window)
+	{
+		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+		BEAR_CLIENT_INFO("Window closed: {0}", data.Title);
+		
+		// 触发窗口关闭事件
+		WindowCloseEvent event;
+		data.EventCallback(event);
+		
+		// 关闭窗口
+		glfwSetWindowShouldClose(window, true);
+	}
+
+	void WindowsWindow::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+	{
+		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+
+		// 处理按键事件，创建KeyEvent对象并调用回调函数
+		switch (action) {
+		case GLFW_PRESS: {
+			BEAR_CLIENT_INFO("Key pressed: {0}", key);
+			KeyPressedEvent event(key, false);
+			data.EventCallback(event); // 调用事件回调函数处理按键事件
+			break;
+		}
+		case GLFW_RELEASE: {
+			BEAR_CLIENT_INFO("Key released: {0}", key);
+			KeyReleasedEvent event(key);
+			data.EventCallback(event);
+			break;
+		}
+		case GLFW_REPEAT: {
+			BEAR_CLIENT_INFO("Key repeated: {0}", key);
+			KeyPressedEvent event(key, true); // 重复按键事件，设置isRepeat为true
+			data.EventCallback(event);
+			break;
+		}
+		default:
+			BEAR_CLIENT_ERROR("Unknown key action: {0}", action);
+			return; // 不处理未知动作
+		};
+	}
+
+	void WindowsWindow::MouseMoveCallback(GLFWwindow* window, double xpos, double ypos)
+	{
+		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+		BEAR_CLIENT_INFO("Mouse moved to ({0}, {1})", xpos, ypos);
+		
+		// 触发鼠标移动事件
+		MouseMovedEvent event((float)xpos, (float)ypos);
+		data.EventCallback(event);
+	}
+
+	void WindowsWindow::MouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+	{
+		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+		BEAR_CLIENT_INFO("Mouse scrolled by ({0}, {1})", xoffset, yoffset);
+		
+		// 触发鼠标滚轮事件
+		MouseScrolledEvent event((float)xoffset, (float)yoffset);
+		data.EventCallback(event);
+	}
+
+	void WindowsWindow::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+	{
+		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+		switch (action) {
+		case GLFW_PRESS: {
+			BEAR_CLIENT_INFO("Mouse button pressed: {0}", button);
+			MouseButtonPressedEvent event(button);
+			data.EventCallback(event); // 调用事件回调函数处理鼠标按键事件
+			break;
+		}
+		case GLFW_RELEASE: {
+			BEAR_CLIENT_INFO("Mouse button released: {0}", button);
+			MouseButtonReleasedEvent event(button);
+			data.EventCallback(event);
+			break;
+		}
+		default:
+			BEAR_CLIENT_ERROR("Unknown mouse button action: {0}", action);
+			return; // 不处理未知动作
+		};
+	}
+	
 	Bear::WindowsWindow::WindowsWindow(const WindowProps& props)
 	{
 		Init(props);
@@ -57,6 +158,16 @@ namespace Bear {
 		// 设置GLFW窗口的用户数据为WindowData结构体的指针，这里主要是为了glfw在检测到事件调用回调函数时，通过glfwGetWindowUserPointer获取到这个指针（&m_Data），然后根据事件进行包装调用具体的事件处理函数
 		glfwSetWindowUserPointer(m_Window, &m_Data);
 		SetVSync(true);
+
+		// callbacks
+		glfwSetWindowSizeCallback(m_Window, WindowSizeCallback);
+		glfwSetWindowCloseCallback(m_Window, WindowCloseCallback);
+
+		glfwSetKeyCallback(m_Window, KeyCallback);
+
+		glfwSetCursorPosCallback(m_Window, MouseMoveCallback);
+		glfwSetScrollCallback(m_Window, MouseScrollCallback);
+		glfwSetMouseButtonCallback(m_Window, MouseButtonCallback);
 	}
 	void WindowsWindow::Shutdown()
 	{

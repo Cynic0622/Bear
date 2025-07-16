@@ -22,6 +22,7 @@ namespace Bear {
 		// 这里的const 表示这个函数只可以读取而不能修改成员变量，同理也不能调用非const的成员函数
 		// 这意味着这个函数不会改变对象的状态
 		inline bool IsVSync() const override;
+		//void WindowSizeCallback(GLFWwindow* window, int width, int height) override;
 
 	private:
 		// 设为private是为了防止其他类直接访问这个函数，通过public基类函数调用
@@ -41,6 +42,13 @@ namespace Bear {
 		};
 
 		WindowData m_Data;
+
+		static void WindowSizeCallback(GLFWwindow* window, int width, int height);
+		static void WindowCloseCallback(GLFWwindow* window);
+		static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+		static void MouseMoveCallback(GLFWwindow* window, double xpos, double ypos);
+		static void MouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+		static void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 	};
 
 }

@@ -40,6 +40,7 @@ namespace Bear {
 	class BEAR_API Event
 	{
 		// friend class EventDispatcher;
+		friend class EventDispatcher;
 	public:
 		virtual ~Event() = default;
 		virtual EventType GetEventType() const = 0;

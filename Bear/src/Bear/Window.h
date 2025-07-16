@@ -30,7 +30,7 @@ namespace Bear {
 		// 包含virtual的是虚函数，=0表示纯虚函数，必须在派生类中实现，且包含纯虚函数的类是抽象类，不能实例化
 		virtual unsigned int GetWidth() const = 0;
 		virtual unsigned int GetHeight() const = 0;
-		virtual void SetEventCallback(const std::function<void(Event&)>& callback) = 0;
+		virtual void SetEventCallback(const EventCallbackFn& callback) = 0;
 		virtual void SetVSync(bool enabled) = 0;
 		virtual bool IsVSync() const = 0;
 
