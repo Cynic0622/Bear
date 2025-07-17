@@ -34,6 +34,7 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Platform" PREFIX "Platform/Wi
 # 链接GLFW
 target_link_libraries(Bear PUBLIC glfw)
 target_link_libraries(Bear PUBLIC spdlog)
+target_link_libraries(Bear PUBLIC imgui)
 
 # 设置包含目录
 target_include_directories(Bear
@@ -42,6 +43,8 @@ target_include_directories(Bear
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Bear
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/spdlog/include
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/glfw/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/extern/imgui
+        ${CMAKE_CURRENT_SOURCE_DIR}/extern/imgui/backends
 )
 
 # DLL导出设置

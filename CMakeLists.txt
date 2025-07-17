@@ -52,6 +52,29 @@ add_subdirectory(Sandbox)
 add_subdirectory(Bear/extern/glfw)
 add_subdirectory(Bear/extern/spdlog)
 
+# 创建ImGui库.lib
+add_library(imgui STATIC
+
+    Bear/extern/imgui/imgui.cpp
+    Bear/extern/imgui/imgui_draw.cpp
+    Bear/extern/imgui/imgui_tables.cpp
+    Bear/extern/imgui/imgui_widgets.cpp
+
+    Bear/extern/imgui/backends/imgui_impl_glfw.cpp
+    Bear/extern/imgui/backends/imgui_impl_opengl3.cpp
+)
+
+# 设置包含目录
+target_include_directories(imgui PUBLIC
+    Bear/extern/imgui
+    Bear/extern/imgui/backends
+)
+
+# 为ImGui链接必要的依赖
+target_link_libraries(imgui PUBLIC
+    glfw
+)
+
 # 组织外部依赖到文件夹中
 set_target_properties(glfw PROPERTIES FOLDER "External")
 if(TARGET update_mappings)
@@ -60,11 +83,14 @@ endif()
 if(TARGET uninstall)
     set_target_properties(uninstall PROPERTIES FOLDER "External")
 endif()
-# 添加 spdlog 到 External 文件夹
+
 if(TARGET spdlog)
     set_target_properties(spdlog PROPERTIES FOLDER "External")
 endif()
 
+if (TARGET imgui)
+    set_target_properties(imgui PROPERTIES FOLDER "External")
+endif()
 
 # 设置启动项目
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Sandbox)
