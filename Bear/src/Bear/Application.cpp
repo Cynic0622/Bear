@@ -20,16 +20,46 @@ namespace Bear {
 	void Application::OnEvent(Event& e)
 	{
 		EventDispatcher dispatcher(e);
-		dispatcher.Dispatch<WindowCloseEvent>([this](WindowCloseEvent& e) { return this->OnWindowClose(e); });
+		bool isHandled =  dispatcher.Dispatch<WindowCloseEvent>([this](WindowCloseEvent& e) { return this->OnWindowClose(e); });
 		BEAR_CORE_TRACE("Event: {0}", e);
+		if (isHandled)
+			return;
+		for (auto it = m_LayerStack.rbegin(); it != m_LayerStack.rend(); ++it)
+		{
+			(*it)->OnEvent(e);
+			if (e.IsHandled())
+				return;
+		}
 	}
 
 	void Application::Run()
 	{
+		int deltaTime = 0;
 		while (m_Running)
 		{
+			// Calculate delta time
+			static int lastTime = 0;
+			int currentTime = static_cast<int>(glfwGetTime() * 1000); // Convert to milliseconds
+			deltaTime = currentTime - lastTime;
 			m_Window->OnUpdate();
+			for (Layer* layer : m_LayerStack)
+			{
+				layer->OnUpdate(deltaTime);
+			}
+			lastTime = currentTime;
 		}
+	}
+
+	void Application::PushLayer(Layer* layer)
+	{
+		m_LayerStack.PushLayer(layer);
+		layer->OnAttach();
+	}
+
+	void Application::PushOverlay(Layer* overlay)
+	{
+		m_LayerStack.PushOverlay(overlay);
+		overlay->OnAttach();
 	}
 
 	bool Application::OnWindowClose(WindowCloseEvent& e)

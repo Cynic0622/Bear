@@ -52,6 +52,7 @@ add_subdirectory(Sandbox)
 add_subdirectory(Bear/extern/glfw)
 add_subdirectory(Bear/extern/spdlog)
 
+find_package(Vulkan REQUIRED)
 # 创建ImGui库.lib
 add_library(imgui STATIC
 
@@ -61,7 +62,8 @@ add_library(imgui STATIC
     Bear/extern/imgui/imgui_widgets.cpp
 
     Bear/extern/imgui/backends/imgui_impl_glfw.cpp
-    Bear/extern/imgui/backends/imgui_impl_opengl3.cpp
+    # Bear/extern/imgui/backends/imgui_impl_opengl3.cpp
+    Bear/extern/imgui/backends/imgui_impl_vulkan.cpp
 )
 
 # 设置包含目录
@@ -71,9 +73,11 @@ target_include_directories(imgui PUBLIC
 )
 
 # 为ImGui链接必要的依赖
-target_link_libraries(imgui PUBLIC
+target_link_libraries(imgui PRIVATE
     glfw
+    Vulkan::Vulkan
 )
+target_include_directories(imgui PRIVATE ${Vulkan_INCLUDE_DIRS})
 
 # 组织外部依赖到文件夹中
 set_target_properties(glfw PROPERTIES FOLDER "External")

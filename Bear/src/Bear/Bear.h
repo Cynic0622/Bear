@@ -5,3 +5,5 @@
 
 #include "Bear/Log.h"
 #include "Bear/EntryPoint.h"
+
+#include "Bear/Layer.h"

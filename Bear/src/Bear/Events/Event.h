@@ -52,6 +52,8 @@ namespace Bear {
 		{
 			return GetCategoryFlags() & category;
 		}
+		
+		bool IsHandled() const { return Handled; }
 	protected:
 		// 事件处理标志，表示事件是否被处理
 		bool Handled = false;
