@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Windows.h>
+#include <windows.h>
 
 #include <stdio.h>
 
@@ -11,3 +11,5 @@
 #include <functional>
 
 #include <sstream>
+
+#include <GLFW/glfw3.h>

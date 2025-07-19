@@ -40,6 +40,7 @@ namespace Bear {
 	class BEAR_API Event
 	{
 		// friend class EventDispatcher;
+		friend class EventDispatcher;
 	public:
 		virtual ~Event() = default;
 		virtual EventType GetEventType() const = 0;
@@ -51,6 +52,8 @@ namespace Bear {
 		{
 			return GetCategoryFlags() & category;
 		}
+		
+		bool IsHandled() const { return Handled; }
 	protected:
 		// 事件处理标志，表示事件是否被处理
 		bool Handled = false;
