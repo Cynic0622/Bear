@@ -1,10 +1,12 @@
 #include "bearpch.h"
 #include "WindowsWindow.h"
 #include "Bear/Core.h"
-#include "Assert.h"
+#include "BearAssert.h"
 #include "Bear/Events/ApplicationEvent.h"
 #include "Bear/Events/KeyEvent.h"
 #include "Bear/Events/MouseEvent.h"
+
+#include <glad/glad.h>
 
 namespace Bear {
 	static bool s_GLFWInitialized = false;
@@ -19,7 +21,7 @@ namespace Bear {
 		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 		data.Width = width; // 更新宽度
 		data.Height = height; // 更新高度
-		BEAR_CLIENT_INFO("Window resized to {0}, {1}", width, height);
+		//BEAR_CLIENT_INFO("Window resized to {0}, {1}", width, height);
 		
 		// 触发窗口大小改变事件
 		WindowResizeEvent event(width, height);
@@ -29,7 +31,7 @@ namespace Bear {
 	void WindowsWindow::WindowCloseCallback(GLFWwindow* window)
 	{
 		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
-		BEAR_CLIENT_INFO("Window closed: {0}", data.Title);
+		//BEAR_CLIENT_INFO("Window closed: {0}", data.Title);
 		
 		// 触发窗口关闭事件
 		WindowCloseEvent event;
@@ -46,25 +48,25 @@ namespace Bear {
 		// 处理按键事件，创建KeyEvent对象并调用回调函数
 		switch (action) {
 		case GLFW_PRESS: {
-			BEAR_CLIENT_INFO("Key pressed: {0}", key);
+			//BEAR_CLIENT_INFO("Key pressed: {0}", key);
 			KeyPressedEvent event(key, false);
 			data.EventCallback(event); // 调用事件回调函数处理按键事件
 			break;
 		}
 		case GLFW_RELEASE: {
-			BEAR_CLIENT_INFO("Key released: {0}", key);
+			//BEAR_CLIENT_INFO("Key released: {0}", key);
 			KeyReleasedEvent event(key);
 			data.EventCallback(event);
 			break;
 		}
 		case GLFW_REPEAT: {
-			BEAR_CLIENT_INFO("Key repeated: {0}", key);
+			//BEAR_CLIENT_INFO("Key repeated: {0}", key);
 			KeyPressedEvent event(key, true); // 重复按键事件，设置isRepeat为true
 			data.EventCallback(event);
 			break;
 		}
 		default:
-			BEAR_CLIENT_ERROR("Unknown key action: {0}", action);
+			//BEAR_CLIENT_ERROR("Unknown key action: {0}", action);
 			return; // 不处理未知动作
 		};
 	}
@@ -72,7 +74,7 @@ namespace Bear {
 	void WindowsWindow::MouseMoveCallback(GLFWwindow* window, double xpos, double ypos)
 	{
 		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
-		BEAR_CLIENT_INFO("Mouse moved to ({0}, {1})", xpos, ypos);
+		//BEAR_CLIENT_INFO("Mouse moved to ({0}, {1})", xpos, ypos);
 		
 		// 触发鼠标移动事件
 		MouseMovedEvent event((float)xpos, (float)ypos);
@@ -82,7 +84,7 @@ namespace Bear {
 	void WindowsWindow::MouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 	{
 		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
-		BEAR_CLIENT_INFO("Mouse scrolled by ({0}, {1})", xoffset, yoffset);
+		//BEAR_CLIENT_INFO("Mouse scrolled by ({0}, {1})", xoffset, yoffset);
 		
 		// 触发鼠标滚轮事件
 		MouseScrolledEvent event((float)xoffset, (float)yoffset);
@@ -94,19 +96,19 @@ namespace Bear {
 		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 		switch (action) {
 		case GLFW_PRESS: {
-			BEAR_CLIENT_INFO("Mouse button pressed: {0}", button);
+			//BEAR_CLIENT_INFO("Mouse button pressed: {0}", button);
 			MouseButtonPressedEvent event(button);
 			data.EventCallback(event); // 调用事件回调函数处理鼠标按键事件
 			break;
 		}
 		case GLFW_RELEASE: {
-			BEAR_CLIENT_INFO("Mouse button released: {0}", button);
+			//BEAR_CLIENT_INFO("Mouse button released: {0}", button);
 			MouseButtonReleasedEvent event(button);
 			data.EventCallback(event);
 			break;
 		}
 		default:
-			BEAR_CLIENT_ERROR("Unknown mouse button action: {0}", action);
+			//BEAR_CLIENT_ERROR("Unknown mouse button action: {0}", action);
 			return; // 不处理未知动作
 		};
 	}
@@ -151,10 +153,12 @@ namespace Bear {
 			s_GLFWInitialized = true;
 		}
 
-		BEAR_CLIENT_INFO("Creating window {0} ({1}, {2})", m_Data.Title, m_Data.Width, m_Data.Height);
+		//BEAR_CLIENT_INFO("Creating window {0} ({1}, {2})", m_Data.Title, m_Data.Width, m_Data.Height);
 
 		m_Window = glfwCreateWindow((int)m_Data.Width, (int)m_Data.Height, m_Data.Title.c_str(), nullptr, nullptr);
 		glfwMakeContextCurrent(m_Window);
+		int status = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+		BEAR_CORE_ASSERT(status, "Failed to initialize Glad!");
 		// 设置GLFW窗口的用户数据为WindowData结构体的指针，这里主要是为了glfw在检测到事件调用回调函数时，通过glfwGetWindowUserPointer获取到这个指针（&m_Data），然后根据事件进行包装调用具体的事件处理函数
 		glfwSetWindowUserPointer(m_Window, &m_Data);
 		SetVSync(true);

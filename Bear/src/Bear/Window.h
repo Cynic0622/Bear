@@ -33,6 +33,7 @@ namespace Bear {
 		virtual void SetEventCallback(const EventCallbackFn& callback) = 0;
 		virtual void SetVSync(bool enabled) = 0;
 		virtual bool IsVSync() const = 0;
+		virtual void* GetNativeWindow() const = 0; // 返回原生窗口指针，通常是平台相关的窗口句柄或指针
 
 		static Window* Create(const WindowProps& props = WindowProps());
 	};

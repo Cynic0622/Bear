@@ -7,3 +7,5 @@
 #include "Bear/EntryPoint.h"
 
 #include "Bear/Layer.h"
+
+#include "Bear/Gui/GuiLayer.h"
