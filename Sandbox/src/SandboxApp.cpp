@@ -22,7 +22,7 @@ class SandboxApp : public Bear::Application
 	SandboxApp()
 	{
 		//PushLayer(new ExampleLayer());
-		PushOverlay(new Bear::GuiLayer());
+		//PushOverlay(new Bear::GuiLayer());
 		//PushLayer(new Bear::GuiLayer());
 	}
 	~SandboxApp()

@@ -5,6 +5,9 @@
 #include "Log.h"
 
 #include <glad/glad.h>
+#include "Pipeline/VulkanShader.h"
+#include "Pipeline/PipelineConfig.h"
+
 
 namespace Bear {
 
@@ -16,6 +19,22 @@ namespace Bear {
 			this->OnEvent(e);
 			});
 		s_Instance = this;
+		//instance("a", "b", 1);
+		//instance = VulkanInstance("a", "b", 1);
+		m_VulkanInstance = std::make_unique<VulkanInstance>("Bear", "Bear Engine", 1);
+		m_VulkanSurface = std::make_unique<VulkanSurface>(*m_VulkanInstance, static_cast<GLFWwindow*>(m_Window->GetNativeWindow()));
+		m_VulkanDevice = std::make_unique<VulkanDevice>(*m_VulkanInstance, *m_VulkanSurface);
+		m_VulkanSwapchain = std::make_unique<VulkanSwapchain>(*m_VulkanDevice, *m_VulkanSurface, m_Window.get());
+		m_VulkanRenderPass = std::make_unique<VulkanRenderPass>(*m_VulkanDevice, *m_VulkanSwapchain);
+		/*auto vertexShader = std::make_unique<VulkanShader>(*m_VulkanDevice, "C:/Users/shw/Desktop/engine/Bear/Bear/src/Bear/Shaders/tri.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+		auto fragmentShader = std::make_unique<VulkanShader>(*m_VulkanDevice, "C:/Users/shw/Desktop/engine/Bear/Bear/src/Bear/Shaders/tri.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+		std::vector<std::unique_ptr<VulkanShader>> shaders;
+		shaders.push_back(std::move(vertexShader));
+		shaders.push_back(std::move(fragmentShader));
+		PipelineConfigInfo pipelineConfigInfo{};
+		PipelineConfigInfo::GetDefaultConfig(pipelineConfigInfo);
+		pipelineConfigInfo.renderPass = m_VulkanRenderPass->GetHandle();
+		m_VulkanPipeline = std::make_unique<VulkanPipeline>(*m_VulkanDevice, shaders, pipelineConfigInfo);*/
 	}
 	Application::~Application()
 	{
@@ -41,8 +60,8 @@ namespace Bear {
 		int deltaTime = 0;
 		while (m_Running)
 		{
-			glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			/*glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);*/
 			// Calculate delta time
 			static int lastTime = 0;
 			int currentTime = static_cast<int>(glfwGetTime() * 1000); // Convert to milliseconds

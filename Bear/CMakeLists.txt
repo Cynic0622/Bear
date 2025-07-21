@@ -26,7 +26,57 @@ file(GLOB BEAR_BACKEND_OPENGL_SOURCES
     "src/Backend/OpenGL/*.h"
 )
 
+set(VULKAN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend/Vulkan")
+file(GLOB CORE_SOURCES
+    "${VULKAN_DIR}/Core/*.cpp"
+    "${VULKAN_DIR}/Core/*.h"
+)
 
+file(GLOB RESOURCES_SOURCES
+    "${VULKAN_DIR}/Resources/*.cpp"
+    "${VULKAN_DIR}/Resources/*.h"
+)
+
+file(GLOB PIPELINE_SOURCES
+    "${VULKAN_DIR}/Pipeline/*.cpp"
+    "${VULKAN_DIR}/Pipeline/*.h"
+)
+
+file(GLOB PRESENTATION_SOURCES
+    "${VULKAN_DIR}/Presentation/*.cpp"
+    "${VULKAN_DIR}/Presentation/*.h"
+)
+
+file(GLOB COMMAND_SOURCES
+    "${VULKAN_DIR}/Command/*.cpp"
+    "${VULKAN_DIR}/Command/*.h"
+)
+
+file(GLOB SYNC_SOURCES
+    "${VULKAN_DIR}/Sync/*.cpp"
+    "${VULKAN_DIR}/Sync/*.h"
+)
+
+file(GLOB INTEGRATION_SOURCES
+    "${VULKAN_DIR}/Integration/*.cpp"
+    "${VULKAN_DIR}/Integration/*.h"
+)
+
+set(BEAR_BACKEND_VULKAN_SOURCES
+    ${CORE_SOURCES}
+    ${RESOURCES_SOURCES}
+    ${PIPELINE_SOURCES}
+    ${PRESENTATION_SOURCES}
+    ${COMMAND_SOURCES}
+    ${SYNC_SOURCES}
+    ${INTEGRATION_SOURCES}
+)
+
+file(GLOB BEAR_SHADERS_SOURCES
+    "src/Bear/Shaders/*.vert"
+    "src/Bear/Shaders/*.frag"
+    "src/Bear/Shaders/*.comp"
+)
 set(BEAR_ALL_SOURCES
     ${BEAR_SOURCES}
     ${BEAR_EVENT_SOURCES}
@@ -34,6 +84,8 @@ set(BEAR_ALL_SOURCES
     ${BEAR_GUI_SOURCES}
     ${BEAR_BACKEND_OPENGL_SOURCES}
     ${CMAKE_CURRENT_SOURCE_DIR}/extern/glad/src/glad.c
+    ${BEAR_BACKEND_VULKAN_SOURCES}
+    ${BEAR_SHADERS_SOURCES}
 )
 
 # set(GLAD_SOURCES
@@ -54,13 +106,37 @@ set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/extern/glad/src/glad.c
 # 创建Bear动态库
 add_library(Bear SHARED ${BEAR_ALL_SOURCES})
 
+
+
+# target_include_directories(Vulkan PUBLIC
+#     "${VULKAN_DIR}/Core"
+#     "${VULKAN_DIR}/Resources"
+#     "${VULKAN_DIR}/Pipeline"
+#     "${VULKAN_DIR}/Presentation"
+#     "${VULKAN_DIR}/Command"
+#     "${VULKAN_DIR}/Sync"
+#     "${VULKAN_DIR}/Integration"
+# )
+
+find_package(Vulkan REQUIRED)
+target_include_directories(Bear PUBLIC ${Vulkan_INCLUDE_DIRS})
+target_link_libraries(Bear PRIVATE ${Vulkan_LIBRARIES})
+
 # 设置VS中的源文件分组
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Bear" PREFIX "Bear" FILES ${BEAR_SOURCES})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Bear/Events" PREFIX "Bear/Events" FILES ${BEAR_EVENT_SOURCES})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Platform/Windows" PREFIX "Platform/Windows" FILES ${BEAR_PLATFORM_WIN_SOURCES})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Bear/Gui" PREFIX "Bear/Gui" FILES ${BEAR_GUI_SOURCES})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Backend/OpenGL" PREFIX "Backend/OpenGL" FILES ${BEAR_BACKEND_OPENGL_SOURCES})
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Bear/Shaders" PREFIX "Bear/Shaders" FILES ${BEAR_SHADERS_SOURCES})
 
+source_group(TREE "${VULKAN_DIR}/Core" PREFIX "Backend/Vulkan/Core" FILES ${CORE_SOURCES})
+source_group(TREE "${VULKAN_DIR}/Resources" PREFIX "Backend/Vulkan/Resources" FILES ${RESOURCES_SOURCES})
+source_group(TREE "${VULKAN_DIR}/Pipeline" PREFIX "Backend/Vulkan/Pipeline" FILES ${PIPELINE_SOURCES})
+source_group(TREE "${VULKAN_DIR}/Presentation" PREFIX "Backend/Vulkan/Presentation" FILES ${PRESENTATION_SOURCES})
+source_group(TREE "${VULKAN_DIR}/Command" PREFIX "Backend/Vulkan/Command" FILES ${COMMAND_SOURCES})
+source_group(TREE "${VULKAN_DIR}/Sync" PREFIX "Backend/Vulkan/Sync" FILES ${SYNC_SOURCES})
+source_group(TREE "${VULKAN_DIR}/Integration" PREFIX "Backend/Vulkan/Integration" FILES ${INTEGRATION_SOURCES})
 # 链接GLFW
 target_link_libraries(Bear PUBLIC
     glfw
@@ -73,6 +149,8 @@ target_include_directories(Bear
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src  # 公共接口
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Bear
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend/Vulkan
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/spdlog/include
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/glfw/include
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/imgui

@@ -153,12 +153,19 @@ namespace Bear {
 			s_GLFWInitialized = true;
 		}
 
-		//BEAR_CLIENT_INFO("Creating window {0} ({1}, {2})", m_Data.Title, m_Data.Width, m_Data.Height);
+		if (props.UseVulkan) {
+			glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // 禁用OpenGL，使用Vulkan
+			glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE); // 允许窗口调整大小
+			m_Window = glfwCreateWindow((int)m_Data.Width, (int)m_Data.Height, m_Data.Title.c_str(), nullptr, nullptr);
+		}
+		else {
+			glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API); // 使用OpenGL
+			m_Window = glfwCreateWindow((int)m_Data.Width, (int)m_Data.Height, m_Data.Title.c_str(), nullptr, nullptr);
+			glfwMakeContextCurrent(m_Window);
+			int status = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+			BEAR_CORE_ASSERT(status, "Failed to initialize Glad!");
+		}
 
-		m_Window = glfwCreateWindow((int)m_Data.Width, (int)m_Data.Height, m_Data.Title.c_str(), nullptr, nullptr);
-		glfwMakeContextCurrent(m_Window);
-		int status = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
-		BEAR_CORE_ASSERT(status, "Failed to initialize Glad!");
 		// 设置GLFW窗口的用户数据为WindowData结构体的指针，这里主要是为了glfw在检测到事件调用回调函数时，通过glfwGetWindowUserPointer获取到这个指针（&m_Data），然后根据事件进行包装调用具体的事件处理函数
 		glfwSetWindowUserPointer(m_Window, &m_Data);
 		SetVSync(true);

@@ -1,10 +1,12 @@
 #pragma once
 
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 #include <windows.h>
 
 #include <stdio.h>
 
-#include <GLFW/glfw3.h>
+#include <iostream>
 
 #include <string>
 
@@ -12,4 +14,9 @@
 
 #include <sstream>
 
-#include <GLFW/glfw3.h>
+#include <set>
+
+#include "Log.h"
+
+#include <algorithm>
+#include <array>

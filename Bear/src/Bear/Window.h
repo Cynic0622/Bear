@@ -10,6 +10,7 @@ namespace Bear {
 		std::string Title;
 		unsigned int Width;
 		unsigned int Height;
+		bool UseVulkan = true;
 		WindowProps(const std::string& title = "Bear Engine", unsigned int width = 1280, unsigned int height = 720)
 			: Title(title), Width(width), Height(height) {}
 	};
