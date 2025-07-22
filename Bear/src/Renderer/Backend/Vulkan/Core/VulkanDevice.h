@@ -23,6 +23,8 @@ namespace Bear {
         VkQueue GetGraphicsQueue() const { return m_GraphicsQueue; }
         VkQueue GetPresentQueue() const { return m_PresentQueue; }
         const QueueFamilyIndices& GetQueueFamilyIndices() const { return m_QueueIndices; }
+
+        uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
         
 
     private:

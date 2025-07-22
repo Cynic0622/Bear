@@ -26,6 +26,19 @@ namespace Bear {
 #endif // BEAR_DEBUG
 		}
 	}
+	uint32_t VulkanDevice::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const
+	{
+		VkPhysicalDeviceMemoryProperties memProperties;
+		vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &memProperties);
+		for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+		{
+			if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+			{
+				return i;
+			}
+		}
+		BEAR_CORE_ERROR("Failed to find suitable memory type!");
+	}
 	void VulkanDevice::CreateLogicalDevice(VkInstance instance, VkSurfaceKHR surface)
 	{
 		QueueFamilyIndices indices = FindQueueFamilies(m_PhysicalDevice, surface);

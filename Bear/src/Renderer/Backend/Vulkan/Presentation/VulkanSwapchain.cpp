@@ -4,6 +4,9 @@
 #include "Core/VulkanDevice.h"
 #include "Bear/Window.h"
 #include "VulkanSwapchain.h"
+#include "Pipeline/VulkanRenderPass.h"
+#include "Pipeline/VulkanFramebuffer.h"
+#include "Resources/VulkanImage.h"
 
 namespace Bear {
 
@@ -11,6 +14,7 @@ namespace Bear {
 		:m_Device(device), m_Surface(surface)
 	{
 		Init(window);
+		CreateDepthResources();
 #ifdef BEAR_DEBUG
 		BEAR_CORE_INFO("Vulkan Swapchain created successfully.");
 #endif // BEAR_DEBUG
@@ -21,6 +25,19 @@ namespace Bear {
 		Cleanup();
 #ifdef BEAR_DEBUG
 		BEAR_CORE_INFO("Vulkan Swapchain destroyed successfully.");
+#endif // BEAR_DEBUG
+	}
+
+	void VulkanSwapchain::CreateFramebuffers(const VulkanRenderPass& renderPass)
+	{
+		m_Framebuffers.resize(m_ImageCount);
+
+		for (size_t i = 0; i < m_ImageCount; ++i) {
+			std::vector<VkImageView> attachments = { m_ImageViews[i], m_DepthImage->GetView()};
+			m_Framebuffers[i] = std::make_unique<VulkanFramebuffer>(m_Device, renderPass, attachments, m_Extent.width, m_Extent.height);
+		}
+#ifdef BEAR_DEBUG
+		BEAR_CORE_INFO("Vulkan Framebuffers created successfully.");
 #endif // BEAR_DEBUG
 	}
 
@@ -47,10 +64,13 @@ namespace Bear {
 	{
 		// 在重建之前，等待设备空闲，确保所有资源都不在被使用
 		vkDeviceWaitIdle(m_Device.GetHandle());
-
+		CleanupFramebuffers();
 		Cleanup();
+		
 		// 重新初始化交换链
 		Init(window);
+
+		CreateDepthResources();
 	}
 
 	void VulkanSwapchain::Init(Window* window)
@@ -72,6 +92,19 @@ namespace Bear {
 			vkDestroySwapchainKHR(m_Device.GetHandle(), m_Swapchain, nullptr);
 			m_Swapchain = VK_NULL_HANDLE;
 		}
+	}
+
+	void VulkanSwapchain::CleanupFramebuffers()
+	{
+		if (m_DepthImage) {
+			m_DepthImage.reset(); // 使用智能指针自动管理资源
+		}
+		// 销毁所有帧缓冲区
+		m_Framebuffers.clear();
+#ifdef BEAR_DEBUG
+		BEAR_CORE_INFO("Framebuffer destoryed successfully.");
+#endif // BEAR_DEBUG
+
 	}
 
 	void VulkanSwapchain::ChooseSurfaceFormat()
@@ -141,14 +174,14 @@ namespace Bear {
 	{
 		VkSurfaceCapabilitiesKHR capabilities;
 		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_Device.GetPhysicalDevice(), m_Surface.GetHandle(), &capabilities);
-		uint32_t imageCount = capabilities.minImageCount + 1; // 至少需要一个图像
-		if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount) {
-			imageCount = capabilities.maxImageCount;
+		m_MinImageCount = capabilities.minImageCount + 1; // 至少需要一个图像
+		if (capabilities.maxImageCount > 0 && m_MinImageCount > capabilities.maxImageCount) {
+			m_MinImageCount = capabilities.maxImageCount;
 		}
 		VkSwapchainCreateInfoKHR createInfo = {};
 		createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 		createInfo.surface = m_Surface.GetHandle();
-		createInfo.minImageCount = imageCount;
+		createInfo.minImageCount = m_MinImageCount;
 		createInfo.imageFormat = m_SurfaceFormat.format;
 		createInfo.imageColorSpace = m_SurfaceFormat.colorSpace;
 		createInfo.imageExtent = m_Extent;
@@ -182,7 +215,8 @@ namespace Bear {
 		uint32_t swapchainImageCount = 0;
 		vkGetSwapchainImagesKHR(m_Device.GetHandle(), m_Swapchain, &swapchainImageCount, nullptr);
 		BEAR_CORE_ASSERT(swapchainImageCount > 0, "No swapchain images available.");
-		m_Images.resize(swapchainImageCount);
+		m_ImageCount = swapchainImageCount;
+		m_Images.resize(m_ImageCount);
 		vkGetSwapchainImagesKHR(m_Device.GetHandle(), m_Swapchain, &swapchainImageCount, m_Images.data());
 
 		m_ImageFormat = m_SurfaceFormat.format;
@@ -208,5 +242,24 @@ namespace Bear {
 
 			BEAR_CORE_ASSERT(vkCreateImageView(m_Device.GetHandle(), &createInfo, nullptr, &m_ImageViews[i]) == VK_SUCCESS, "Failed to create image view.");
 		}
+	}
+	void VulkanSwapchain::CreateDepthResources()
+	{
+		VkFormat depthFormat = FindDepthFormat();
+
+		m_DepthImage = std::make_unique<VulkanImage>(m_Device, m_Extent.width, m_Extent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, 
+			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	}
+	VkFormat VulkanSwapchain::FindDepthFormat() const
+	{
+		std::vector<VkFormat> candidates = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
+		for (VkFormat format : candidates) {
+			VkFormatProperties props;
+			vkGetPhysicalDeviceFormatProperties(m_Device.GetPhysicalDevice(), format, &props);
+			if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+				return format;
+			}
+		}
+		BEAR_CORE_ERROR("Failed to find a suitable depth format.");
 	}
 }

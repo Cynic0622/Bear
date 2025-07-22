@@ -100,7 +100,8 @@ namespace Bear {
         VkCommandPoolCreateInfo cmdPoolInfo = {};
         cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        cmdPoolInfo.queueFamilyIndex = m_VulkanDevice->GetGraphicsQueue();
+        //cmdPoolInfo.queueFamilyIndex = m_VulkanDevice->GetGraphicsQueue();
+		cmdPoolInfo.queueFamilyIndex = m_VulkanDevice->GetQueueFamilyIndices().graphicsFamily.value();
         
         result = vkCreateCommandPool(m_VulkanDevice->GetHandle(), &cmdPoolInfo, nullptr, &m_CommandPool);
         BEAR_CORE_ASSERT(result == VK_SUCCESS, "Failed to create command pool for ImGui!");
@@ -132,7 +133,7 @@ namespace Bear {
         init_info.Instance = m_VulkanInstance->GetHandle();
         init_info.PhysicalDevice = m_VulkanDevice->GetPhysicalDevice();
         init_info.Device = m_VulkanDevice->GetHandle();
-        init_info.QueueFamily = m_VulkanDevice->GetGraphicsQueueFamily();
+        init_info.QueueFamily = m_VulkanDevice->GetQueueFamilyIndices().graphicsFamily.value();
         init_info.Queue = m_VulkanDevice->GetGraphicsQueue();
         init_info.PipelineCache = VK_NULL_HANDLE;
         init_info.DescriptorPool = m_DescriptorPool;
@@ -152,29 +153,29 @@ namespace Bear {
     void VulkanGuiLayer::ShutdownImGui() {
         // 1. 销毁同步对象
         if (m_ImageAvailableSemaphore != VK_NULL_HANDLE) {
-            vkDestroySemaphore(m_VulkanDevice->GetLogicalDevice(), m_ImageAvailableSemaphore, nullptr);
+            vkDestroySemaphore(m_VulkanDevice->GetHandle(), m_ImageAvailableSemaphore, nullptr);
             m_ImageAvailableSemaphore = VK_NULL_HANDLE;
         }
         
         if (m_RenderFinishedSemaphore != VK_NULL_HANDLE) {
-            vkDestroySemaphore(m_VulkanDevice->GetLogicalDevice(), m_RenderFinishedSemaphore, nullptr);
+            vkDestroySemaphore(m_VulkanDevice->GetHandle(), m_RenderFinishedSemaphore, nullptr);
             m_RenderFinishedSemaphore = VK_NULL_HANDLE;
         }
         
         if (m_InFlightFence != VK_NULL_HANDLE) {
-            vkDestroyFence(m_VulkanDevice->GetLogicalDevice(), m_InFlightFence, nullptr);
+            vkDestroyFence(m_VulkanDevice->GetHandle(), m_InFlightFence, nullptr);
             m_InFlightFence = VK_NULL_HANDLE;
         }
         
         // 2. 销毁命令池（自动释放命令缓冲区）
         if (m_CommandPool != VK_NULL_HANDLE) {
-            vkDestroyCommandPool(m_VulkanDevice->GetLogicalDevice(), m_CommandPool, nullptr);
+            vkDestroyCommandPool(m_VulkanDevice->GetHandle(), m_CommandPool, nullptr);
             m_CommandPool = VK_NULL_HANDLE;
         }
         
         // 3. 销毁描述符池
         if (m_DescriptorPool != VK_NULL_HANDLE) {
-            vkDestroyDescriptorPool(m_VulkanDevice->GetLogicalDevice(), m_DescriptorPool, nullptr);
+            vkDestroyDescriptorPool(m_VulkanDevice->GetHandle(), m_DescriptorPool, nullptr);
             m_DescriptorPool = VK_NULL_HANDLE;
         }
         
@@ -209,7 +210,7 @@ namespace Bear {
     
     void VulkanGuiLayer::OnUpdate(float deltaTime) {
         // 等待上一帧完成
-        vkWaitForFences(m_VulkanDevice->GetLogicalDevice(), 1, &m_InFlightFence, VK_TRUE, UINT64_MAX);
+        vkWaitForFences(m_VulkanDevice->GetHandle(), 1, &m_InFlightFence, VK_TRUE, UINT64_MAX);
         
         // 获取下一个交换链图像
         uint32_t imageIndex;
@@ -224,7 +225,7 @@ namespace Bear {
         }
         
         // 重置栅栏
-        vkResetFences(m_VulkanDevice->GetLogicalDevice(), 1, &m_InFlightFence);
+        vkResetFences(m_VulkanDevice->GetHandle(), 1, &m_InFlightFence);
         
         // 重置并开始记录命令缓冲区
         vkResetCommandBuffer(m_CommandBuffer, 0);
