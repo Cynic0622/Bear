@@ -4,16 +4,16 @@
 namespace Bear {
 
 	class VulkanDevice;
-	class VulkanSemapgore {
+	class VulkanSemaphore {
 		
 	public:
-		VulkanSemapgore(const VulkanDevice& device, const void* pNext = nullptr, const VkSemaphoreCreateFlags& flags = 0);
-		~VulkanSemapgore();
+		VulkanSemaphore(const VulkanDevice& device, const void* pNext = nullptr, const VkSemaphoreCreateFlags& flags = 0);
+		~VulkanSemaphore();
 
-		VulkanSemapgore(const VulkanSemapgore&) = delete;
-		VulkanSemapgore& operator=(const VulkanSemapgore&) = delete;
+		VulkanSemaphore(const VulkanSemaphore&) = delete;
+		VulkanSemaphore& operator=(const VulkanSemaphore&) = delete;
 
-		inline VkSemaphore GetSemaphore() const { return m_Semaphore; }
+		inline VkSemaphore GetHandle() const { return m_Semaphore; }
 
 	private:
 		const VulkanDevice& m_Device;

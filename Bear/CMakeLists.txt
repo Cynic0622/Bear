@@ -151,6 +151,13 @@ target_include_directories(Bear
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Bear
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend/Vulkan
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend/Vulkan/Core
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend/Vulkan/Command
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend/Vulkan/Integration
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend/Vulkan/Pipeline
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend/Vulkan/Presentation
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend/Vulkan/Resources
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend/Vulkan/Sync
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/spdlog/include
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/glfw/include
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/imgui

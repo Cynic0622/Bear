@@ -7,7 +7,7 @@
 #include <glad/glad.h>
 #include "Pipeline/VulkanShader.h"
 #include "Pipeline/PipelineConfig.h"
-
+#include "VulkanRenderer.h"
 
 namespace Bear {
 
@@ -19,13 +19,14 @@ namespace Bear {
 			this->OnEvent(e);
 			});
 		s_Instance = this;
+		m_VulkanRenderer = std::make_unique<VulkanRenderer>(static_cast<GLFWwindow*>(m_Window->GetNativeWindow()));
 		//instance("a", "b", 1);
 		//instance = VulkanInstance("a", "b", 1);
-		m_VulkanInstance = std::make_unique<VulkanInstance>("Bear", "Bear Engine", 1);
+		/*m_VulkanInstance = std::make_unique<VulkanInstance>("Bear", "Bear Engine", 1);
 		m_VulkanSurface = std::make_unique<VulkanSurface>(*m_VulkanInstance, static_cast<GLFWwindow*>(m_Window->GetNativeWindow()));
 		m_VulkanDevice = std::make_unique<VulkanDevice>(*m_VulkanInstance, *m_VulkanSurface);
 		m_VulkanSwapchain = std::make_unique<VulkanSwapchain>(*m_VulkanDevice, *m_VulkanSurface, m_Window.get());
-		m_VulkanRenderPass = std::make_unique<VulkanRenderPass>(*m_VulkanDevice, *m_VulkanSwapchain);
+		m_VulkanRenderPass = std::make_unique<VulkanRenderPass>(*m_VulkanDevice, *m_VulkanSwapchain);*/
 		/*auto vertexShader = std::make_unique<VulkanShader>(*m_VulkanDevice, "C:/Users/shw/Desktop/engine/Bear/Bear/src/Bear/Shaders/tri.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 		auto fragmentShader = std::make_unique<VulkanShader>(*m_VulkanDevice, "C:/Users/shw/Desktop/engine/Bear/Bear/src/Bear/Shaders/tri.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 		std::vector<std::unique_ptr<VulkanShader>> shaders;
@@ -45,6 +46,9 @@ namespace Bear {
 		EventDispatcher dispatcher(e);
 		bool isHandled =  dispatcher.Dispatch<WindowCloseEvent>([this](WindowCloseEvent& e) { return this->OnWindowClose(e); });
 		//BEAR_CORE_TRACE("Event: {0}", e);
+		if (isHandled)
+			return;
+		isHandled = dispatcher.Dispatch<WindowResizeEvent>([this](WindowResizeEvent& e) { return this->OnWindowResize(e); });
 		if (isHandled)
 			return;
 		for (auto it = m_LayerStack.rbegin(); it != m_LayerStack.rend(); ++it)
@@ -67,6 +71,8 @@ namespace Bear {
 			int currentTime = static_cast<int>(glfwGetTime() * 1000); // Convert to milliseconds
 			deltaTime = currentTime - lastTime;
 			
+			m_VulkanRenderer->DrawFrame();
+
 			for (Layer* layer : m_LayerStack)
 			{
 				layer->OnUpdate(deltaTime);
@@ -94,6 +100,14 @@ namespace Bear {
 		BEAR_CORE_TRACE("WindowCloseEvent: {0}", e);
 		m_Running = false;
 		return false;
+	}
+
+	bool Application::OnWindowResize(WindowResizeEvent& e)
+	{
+		BEAR_CORE_ASSERT(e.GetWidth() > 0 && e.GetHeight() > 0, "Window resize event with invalid dimensions!");
+		BEAR_CORE_TRACE("WindowResizeEvent: {0}, {1}", e.GetWidth(), e.GetHeight());
+		m_VulkanRenderer->OnWindowResized();
+		return true;
 	}
 
 

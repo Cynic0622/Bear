@@ -10,10 +10,10 @@
 
 namespace Bear {
 
-	Bear::VulkanSwapchain::VulkanSwapchain(VulkanDevice& device, VulkanSurface& surface, Window* window)
+	Bear::VulkanSwapchain::VulkanSwapchain(VulkanDevice& device, VulkanSurface& surface)
 		:m_Device(device), m_Surface(surface)
 	{
-		Init(window);
+		Init();
 		CreateDepthResources();
 #ifdef BEAR_DEBUG
 		BEAR_CORE_INFO("Vulkan Swapchain created successfully.");
@@ -43,7 +43,7 @@ namespace Bear {
 
 	VkResult VulkanSwapchain::AcquireNextImage(uint32_t* imageIndex, VkSemaphore semaphore)
 	{
-		BEAR_CORE_ASSERT(vkAcquireNextImageKHR(m_Device.GetHandle(), m_Swapchain, UINT64_MAX, semaphore, VK_NULL_HANDLE, imageIndex) == VK_SUCCESS, "Failed to acquire next image from swapchain.");
+		BEAR_CORE_ASSERT(vkAcquireNextImageKHR(m_Device.GetDevice(), m_Swapchain, UINT64_MAX, semaphore, VK_NULL_HANDLE, imageIndex) == VK_SUCCESS, "Failed to acquire next image from swapchain.");
 		return VK_SUCCESS;
 	}
 	VkResult VulkanSwapchain::SubmitImage(uint32_t imageIndex, VkQueue presentQueue, VkSemaphore waitSemaphore)
@@ -60,24 +60,24 @@ namespace Bear {
 		BEAR_CORE_ASSERT(vkQueuePresentKHR(presentQueue, &presentInfo) == VK_SUCCESS, "Failed to present image to swapchain.");
 		return VK_SUCCESS;
 	}
-	void VulkanSwapchain::Recreate(Window* window)
+	void VulkanSwapchain::Recreate()
 	{
 		// 在重建之前，等待设备空闲，确保所有资源都不在被使用
-		vkDeviceWaitIdle(m_Device.GetHandle());
+		vkDeviceWaitIdle(m_Device.GetDevice());
 		CleanupFramebuffers();
 		Cleanup();
 		
 		// 重新初始化交换链
-		Init(window);
+		Init();
 
 		CreateDepthResources();
 	}
 
-	void VulkanSwapchain::Init(Window* window)
+	void VulkanSwapchain::Init()
 	{
 		ChooseSurfaceFormat();
 		ChoosePresentMode();
-		ChooseExtent(window);
+		ChooseExtent();
 		CreateSwapchain();
 		CreateImageViews();
 	}
@@ -85,11 +85,11 @@ namespace Bear {
 	void VulkanSwapchain::Cleanup()
 	{
 		for (auto imageView : m_ImageViews) {
-			vkDestroyImageView(m_Device.GetHandle(), imageView, nullptr);
+			vkDestroyImageView(m_Device.GetDevice(), imageView, nullptr);
 		}
 		m_ImageViews.clear();
 		if (m_Swapchain != VK_NULL_HANDLE) {
-			vkDestroySwapchainKHR(m_Device.GetHandle(), m_Swapchain, nullptr);
+			vkDestroySwapchainKHR(m_Device.GetDevice(), m_Swapchain, nullptr);
 			m_Swapchain = VK_NULL_HANDLE;
 		}
 	}
@@ -143,7 +143,7 @@ namespace Bear {
 		// 如果没有找到常用模式，选择第一个可用模式
 		m_PresentMode = presentModes[0];
 	}
-	void VulkanSwapchain::ChooseExtent(Window* window)
+	void VulkanSwapchain::ChooseExtent()
 	{
 		VkSurfaceCapabilitiesKHR capabilities;
 		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_Device.GetPhysicalDevice(), m_Surface.GetHandle(), &capabilities);
@@ -154,7 +154,7 @@ namespace Bear {
 		else {
 			// 否则，根据窗口大小计算范围
 			int width, height;
-			glfwGetFramebufferSize(static_cast<GLFWwindow*>(window->GetNativeWindow()), &width, &height);
+			glfwGetFramebufferSize(static_cast<GLFWwindow*>(m_Surface.GetNativeWindow()), &width, &height);
 
 			m_Extent.width = std::clamp(
 				static_cast<uint32_t>(width),
@@ -209,15 +209,15 @@ namespace Bear {
 			createInfo.pQueueFamilyIndices = nullptr;
 		}
 
-		BEAR_CORE_ASSERT(vkCreateSwapchainKHR(m_Device.GetHandle(), &createInfo, nullptr, &m_Swapchain) == VK_SUCCESS, "Failed to create Vulkan swapchain.");
+		BEAR_CORE_ASSERT(vkCreateSwapchainKHR(m_Device.GetDevice(), &createInfo, nullptr, &m_Swapchain) == VK_SUCCESS, "Failed to create Vulkan swapchain.");
 
 		// 获取交换链图像
 		uint32_t swapchainImageCount = 0;
-		vkGetSwapchainImagesKHR(m_Device.GetHandle(), m_Swapchain, &swapchainImageCount, nullptr);
+		vkGetSwapchainImagesKHR(m_Device.GetDevice(), m_Swapchain, &swapchainImageCount, nullptr);
 		BEAR_CORE_ASSERT(swapchainImageCount > 0, "No swapchain images available.");
 		m_ImageCount = swapchainImageCount;
 		m_Images.resize(m_ImageCount);
-		vkGetSwapchainImagesKHR(m_Device.GetHandle(), m_Swapchain, &swapchainImageCount, m_Images.data());
+		vkGetSwapchainImagesKHR(m_Device.GetDevice(), m_Swapchain, &swapchainImageCount, m_Images.data());
 
 		m_ImageFormat = m_SurfaceFormat.format;
 	}
@@ -240,7 +240,7 @@ namespace Bear {
 			createInfo.subresourceRange.baseArrayLayer = 0;
 			createInfo.subresourceRange.layerCount = 1;
 
-			BEAR_CORE_ASSERT(vkCreateImageView(m_Device.GetHandle(), &createInfo, nullptr, &m_ImageViews[i]) == VK_SUCCESS, "Failed to create image view.");
+			BEAR_CORE_ASSERT(vkCreateImageView(m_Device.GetDevice(), &createInfo, nullptr, &m_ImageViews[i]) == VK_SUCCESS, "Failed to create image view.");
 		}
 	}
 	void VulkanSwapchain::CreateDepthResources()

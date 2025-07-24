@@ -16,7 +16,7 @@ namespace Bear {
 	VulkanRenderPass::~VulkanRenderPass()
 	{
 		if (m_RenderPass != VK_NULL_HANDLE) {
-			vkDestroyRenderPass(m_Device.GetHandle(), m_RenderPass, nullptr);
+			vkDestroyRenderPass(m_Device.GetDevice(), m_RenderPass, nullptr);
 			m_RenderPass = VK_NULL_HANDLE;
 #ifdef BEAR_DEBUG
 			BEAR_CORE_INFO("Vulkan RenderPass destroyed successfully.");
@@ -84,7 +84,7 @@ namespace Bear {
 		renderPassInfo.dependencyCount = 1;
 		renderPassInfo.pDependencies = &dependency;
 
-		BEAR_CORE_ASSERT(vkCreateRenderPass(m_Device.GetHandle(), &renderPassInfo, nullptr, &m_RenderPass) == VK_SUCCESS,
+		BEAR_CORE_ASSERT(vkCreateRenderPass(m_Device.GetDevice(), &renderPassInfo, nullptr, &m_RenderPass) == VK_SUCCESS,
 			"Failed to create render pass!");
 	}
 }

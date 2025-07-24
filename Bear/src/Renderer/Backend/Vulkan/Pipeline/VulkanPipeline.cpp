@@ -6,7 +6,7 @@
 
 namespace Bear {
 
-	VulkanPipeline::VulkanPipeline(const VulkanDevice& device, const std::vector<std::unique_ptr<VulkanShader>>& shaders, const PipelineConfigInfo& configInfo)
+	VulkanPipeline::VulkanPipeline(const VulkanDevice& device, const std::vector<std::unique_ptr<VulkanShader>>& shaders, const PipelineConfigInfo& configInfo, const VkPipelineBindPoint& bindPoint)
 		:m_Device(device)
 	{
 		BEAR_CORE_ASSERT(configInfo.renderPass != VK_NULL_HANDLE, "Render pass is null in configInfo!");
@@ -44,15 +44,19 @@ namespace Bear {
 		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
 		pipelineInfo.basePipelineIndex = -1; // Optional
 
-		BEAR_CORE_ASSERT(vkCreateGraphicsPipelines(m_Device.GetHandle(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_GraphicsPipeline) == VK_SUCCESS, "Failed to create graphics pipeline!");
+		BEAR_CORE_ASSERT(vkCreateGraphicsPipelines(m_Device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_GraphicsPipeline) == VK_SUCCESS, 
+			"Failed to create graphics pipeline!");
+#ifdef BEAR_DEBUG
+		BEAR_CORE_INFO("Vulkan Pipeline created successfully.");
+#endif
 	}
 	VulkanPipeline::~VulkanPipeline()
 	{
 		if (m_GraphicsPipeline != VK_NULL_HANDLE) {
-			vkDestroyPipeline(m_Device.GetHandle(), m_GraphicsPipeline, nullptr);
+			vkDestroyPipeline(m_Device.GetDevice(), m_GraphicsPipeline, nullptr);
 			m_GraphicsPipeline = VK_NULL_HANDLE;
 #ifdef BEAR_DEBUG
-			BEAR_CORE_INFO("Vulkan Graphics Pipeline created successfully.");
+			BEAR_CORE_INFO("Vulkan Pipeline destroyed successfully.");
 #endif // BEAR_DEBUG
 
 		}

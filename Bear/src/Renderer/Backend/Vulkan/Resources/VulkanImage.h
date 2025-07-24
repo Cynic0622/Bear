@@ -8,15 +8,8 @@ namespace Bear {
 	class VulkanImage {
 
 	public:
-		VulkanImage(
-			const VulkanDevice& device,
-			uint32_t width,
-			uint32_t height,
-			VkFormat format,
-			VkImageTiling tiling,
-			VkImageUsageFlags usage,
-			VkMemoryPropertyFlags properties
-		);
+		VulkanImage(const VulkanDevice& device, uint32_t width, uint32_t height, VkFormat format, 
+			VkImageTiling tiling,VkImageUsageFlags usage, VkMemoryPropertyFlags properties);
 		~VulkanImage();
 
 		// ½ûÖ¹¿½±´ºÍÒÆ¶¯
@@ -39,5 +32,6 @@ namespace Bear {
 		void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties);
 		void CreateImageView(VkImageUsageFlags usage);
 		void Cleanup();
+		VkImageAspectFlags GetAspectMask(VkFormat format);
 	};
 }

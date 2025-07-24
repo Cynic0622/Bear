@@ -19,12 +19,13 @@ namespace Bear {
         VulkanDevice& operator=(VulkanDevice&&) = delete;
  
         inline VkPhysicalDevice GetPhysicalDevice() const { return m_PhysicalDevice; }
-        VkDevice GetHandle() const { return m_LogicalDevice; }
+        VkDevice GetDevice() const { return m_LogicalDevice; }
         VkQueue GetGraphicsQueue() const { return m_GraphicsQueue; }
         VkQueue GetPresentQueue() const { return m_PresentQueue; }
         const QueueFamilyIndices& GetQueueFamilyIndices() const { return m_QueueIndices; }
 
         uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
+		inline void WaitIdle() const { vkDeviceWaitIdle(m_LogicalDevice); }
         
 
     private:

@@ -18,7 +18,7 @@ namespace Bear {
 	VulkanShader::~VulkanShader()
 	{
 		if (m_ShaderModule != VK_NULL_HANDLE) {
-			vkDestroyShaderModule(m_Device.GetHandle(), m_ShaderModule, nullptr);
+			vkDestroyShaderModule(m_Device.GetDevice(), m_ShaderModule, nullptr);
 			m_ShaderModule = VK_NULL_HANDLE;
 #ifdef BEAR_DEBUG
 			BEAR_CORE_INFO("Vulkan Shader module destroyed successfully.");
@@ -62,7 +62,7 @@ namespace Bear {
 		createInfo.codeSize = code.size();
 		createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 		
-		BEAR_CORE_ASSERT(vkCreateShaderModule(m_Device.GetHandle(), &createInfo, nullptr, &m_ShaderModule) == VK_SUCCESS,
+		BEAR_CORE_ASSERT(vkCreateShaderModule(m_Device.GetDevice(), &createInfo, nullptr, &m_ShaderModule) == VK_SUCCESS,
 			"failed to create shader module!");
 	}
 }

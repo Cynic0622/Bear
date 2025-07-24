@@ -4,7 +4,7 @@
 #include "VulkanRenderPass.h"
 namespace Bear {
 	VulkanFramebuffer::VulkanFramebuffer(const VulkanDevice& device, const VulkanRenderPass& renderPass, 
-		const std::vector<VkImageView>& attachments, uint32_t width, uint32_t height, uint32_t layers = 1)
+		const std::vector<VkImageView>& attachments, uint32_t width, uint32_t height, uint32_t layers)
 		:m_Device(device), m_RenderPass(renderPass)
 	{
 		VkFramebufferCreateInfo framebufferInfo = {};
@@ -16,12 +16,12 @@ namespace Bear {
 		framebufferInfo.height = height;
 		framebufferInfo.layers = layers;
 		
-		BEAR_CORE_ASSERT(vkCreateFramebuffer(device.GetHandle(), &framebufferInfo, nullptr, &m_Framebuffer) == VK_SUCCESS, "Failed to create framebuffer!");
+		BEAR_CORE_ASSERT(vkCreateFramebuffer(device.GetDevice(), &framebufferInfo, nullptr, &m_Framebuffer) == VK_SUCCESS, "Failed to create framebuffer!");
 	}
 	VulkanFramebuffer::~VulkanFramebuffer()
 	{
 		if (m_Framebuffer != VK_NULL_HANDLE) {
-			vkDestroyFramebuffer(m_Device.GetHandle(), m_Framebuffer, nullptr);
+			vkDestroyFramebuffer(m_Device.GetDevice(), m_Framebuffer, nullptr);
 			m_Framebuffer = VK_NULL_HANDLE;
 		}
 	}

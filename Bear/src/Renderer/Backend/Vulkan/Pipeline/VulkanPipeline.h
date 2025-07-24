@@ -12,14 +12,13 @@ namespace Bear {
 
 	class VulkanPipeline {
 		public:
-		VulkanPipeline(
-			const VulkanDevice& device,
-			const std::vector<std::unique_ptr<VulkanShader>>& shaders,
-			const PipelineConfigInfo& configInfo);
+		VulkanPipeline(const VulkanDevice& device, const std::vector<std::unique_ptr<VulkanShader>>& shaders, const PipelineConfigInfo& configInfo, 
+			const VkPipelineBindPoint& bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS);
 		~VulkanPipeline();
 
 		void Bind(VkCommandBuffer commandBuffer);
 		inline VkPipeline GetHandle() const { return m_GraphicsPipeline; }
+		inline VkPipelineBindPoint GetBindPoint() const { return VK_PIPELINE_BIND_POINT_GRAPHICS; }
 
 		// ½ûÖ¹¿½±´ºÍÒÆ¶¯
 		VulkanPipeline(const VulkanPipeline&) = delete;

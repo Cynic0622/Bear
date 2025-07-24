@@ -3,36 +3,36 @@
 namespace Bear {
 	void PipelineConfigInfo::GetDefaultConfig(PipelineConfigInfo& configInfo) {
 
-		// --- ÊäÈë»ã±à ---
+		// --- è¾“å…¥æ±‡ç¼– ---
 		configInfo.inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 		configInfo.inputAssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 		configInfo.inputAssemblyInfo.primitiveRestartEnable = VK_FALSE;
 
-		// --- ÊÓ¿ÚºÍ²Ã¼ô ---
-		// Í¨³£ÊÓ¿ÚºÍ²Ã¼ô¾ØĞÎÊÇ¶¯Ì¬µÄ£¬ËùÒÔÎÒÃÇÔÚÕâÀïÉèÖÃÎª¿Õ
-		// ²¢ÔÚ¶¯Ì¬×´Ì¬ÖĞÆôÓÃËüÃÇ
+		// --- è§†å£å’Œè£å‰ª ---
+		// é€šå¸¸è§†å£å’Œè£å‰ªçŸ©å½¢æ˜¯åŠ¨æ€çš„ï¼Œæ‰€ä»¥æˆ‘ä»¬åœ¨è¿™é‡Œè®¾ç½®ä¸ºç©º
+		// å¹¶åœ¨åŠ¨æ€çŠ¶æ€ä¸­å¯ç”¨å®ƒä»¬
 		configInfo.viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 		configInfo.viewportInfo.viewportCount = 1;
-		configInfo.viewportInfo.pViewports = nullptr; // ¶¯Ì¬ÉèÖÃ
+		configInfo.viewportInfo.pViewports = nullptr; // åŠ¨æ€è®¾ç½®
 		configInfo.viewportInfo.scissorCount = 1;
-		configInfo.viewportInfo.pScissors = nullptr; // ¶¯Ì¬ÉèÖÃ
+		configInfo.viewportInfo.pScissors = nullptr; // åŠ¨æ€è®¾ç½®
 
-		// --- ¹âÕ¤»¯ ---
+		// --- å…‰æ …åŒ– ---
 		configInfo.rasterizationInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 		configInfo.rasterizationInfo.depthClampEnable = VK_FALSE;
 		configInfo.rasterizationInfo.rasterizerDiscardEnable = VK_FALSE;
 		configInfo.rasterizationInfo.polygonMode = VK_POLYGON_MODE_FILL;
 		configInfo.rasterizationInfo.lineWidth = 1.0f;
 		configInfo.rasterizationInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-		configInfo.rasterizationInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+		configInfo.rasterizationInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 		configInfo.rasterizationInfo.depthBiasEnable = VK_FALSE;
 
-		// --- ¶àÖØ²ÉÑù ---
+		// --- å¤šé‡é‡‡æ · ---
 		configInfo.multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 		configInfo.multisampleInfo.sampleShadingEnable = VK_FALSE;
 		configInfo.multisampleInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
-		// --- ÑÕÉ«»ìºÏ ---
+		// --- é¢œè‰²æ··åˆ ---
 		configInfo.colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 		configInfo.colorBlendAttachment.blendEnable = VK_FALSE;
 
@@ -41,15 +41,15 @@ namespace Bear {
 		configInfo.colorBlendInfo.attachmentCount = 1;
 		configInfo.colorBlendInfo.pAttachments = &configInfo.colorBlendAttachment;
 
-		// --- Éî¶ÈºÍÄ£°å²âÊÔ ---
+		// --- æ·±åº¦å’Œæ¨¡æ¿æµ‹è¯• ---
 		configInfo.depthStencilInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-		configInfo.depthStencilInfo.depthTestEnable = VK_TRUE;
+		configInfo.depthStencilInfo.depthTestEnable = VK_FALSE;
 		configInfo.depthStencilInfo.depthWriteEnable = VK_TRUE;
 		configInfo.depthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS;
 		configInfo.depthStencilInfo.depthBoundsTestEnable = VK_FALSE;
 		configInfo.depthStencilInfo.stencilTestEnable = VK_FALSE;
 
-		// --- ¶¯Ì¬×´Ì¬ ---
+		// --- åŠ¨æ€çŠ¶æ€ ---
 		configInfo.dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 		configInfo.dynamicStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 		configInfo.dynamicStateInfo.pDynamicStates = configInfo.dynamicStateEnables.data();

@@ -23,10 +23,12 @@ namespace Bear {
 
 		// 公共接口，用于获取底层的 VkSurfaceKHR 句柄
 		inline VkSurfaceKHR GetHandle() const { return m_Surface; }
+		inline void* GetNativeWindow() const { return m_Window; }
 
 	private:
 		// 保存一份实例的引用，用于在析构时销毁表面
 		const VulkanInstance& m_Instance;
+		void* m_Window = nullptr; // 窗口指针，用于创建表面
 		VkSurfaceKHR m_Surface = VK_NULL_HANDLE;
 	};
 

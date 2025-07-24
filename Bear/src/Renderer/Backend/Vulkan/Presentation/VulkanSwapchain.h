@@ -7,13 +7,12 @@ namespace Bear {
 	class VulkanDevice;
 	class VulkanSurface;
 	class VulkanRenderPass;
-	class Window;
 	class VulkanFramebuffer;
 	class VulkanImage;
 
 	class VulkanSwapchain {
 		public:
-		VulkanSwapchain(VulkanDevice& device, VulkanSurface& surface, Window* window);
+		VulkanSwapchain(VulkanDevice& device, VulkanSurface& surface);
 		~VulkanSwapchain();
 
 		// 禁止拷贝和移动
@@ -29,7 +28,7 @@ namespace Bear {
 
 		VkResult SubmitImage(uint32_t imageIndex, VkQueue presentQueue, VkSemaphore waitSemaphore);
 
-		void Recreate(Window* window);
+		void Recreate();
 
 		VkSwapchainKHR GetHandle() const { return m_Swapchain; }
 		VkFormat GetImageFormat() const { return m_ImageFormat; }
@@ -38,14 +37,14 @@ namespace Bear {
 		uint32_t GetImageCount() const { return static_cast<uint32_t>(m_Images.size()); }
 
 	private:
-		void Init(Window* window);
+		void Init();
 		void Cleanup();
 		void CleanupFramebuffers();
 
 		// 初始化过程中的详细步骤
 		void ChooseSurfaceFormat();
 		void ChoosePresentMode();
-		void ChooseExtent(Window* window);
+		void ChooseExtent();
 		void CreateSwapchain();
 		void CreateImageViews();
 

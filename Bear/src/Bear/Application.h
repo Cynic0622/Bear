@@ -12,6 +12,7 @@
 
 namespace Bear {
 
+	class VulkanRenderer;
 	class BEAR_API Application
 	{
 	public:
@@ -39,10 +40,11 @@ namespace Bear {
 		LayerStack m_LayerStack; // 层栈，用于管理应用程序的层
 
 		static Application* s_Instance; // 静态实例指针，用于访问应用程序实例
+		std::unique_ptr<VulkanRenderer> m_VulkanRenderer; // 使用智能指针管理 Vulkan 渲染器的生命周期
 	private:
 		// 事件处理函数
 		bool OnWindowClose(WindowCloseEvent& e);
-		//bool OnWindowResize(WindowResizeEvent& e);
+		bool OnWindowResize(WindowResizeEvent& e);
 		
 		std::unique_ptr<VulkanInstance> m_VulkanInstance; // 使用智能指针管理 Vulkan 实例的生命周期
 		std::unique_ptr<VulkanSurface> m_VulkanSurface; // 使用智能指针管理 Vulkan 表面的生命周期
