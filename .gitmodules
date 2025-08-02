@@ -7,3 +7,9 @@
 [submodule "Bear/extern/imgui"]
 	path = Bear/extern/imgui
 	url = https://github.com/ocornut/imgui.git
+[submodule "Bear/extern/vma"]
+	path = Bear/extern/vma
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+[submodule "Bear/extern/glm"]
+	path = Bear/extern/glm
+	url = https://github.com/g-truc/glm.git
