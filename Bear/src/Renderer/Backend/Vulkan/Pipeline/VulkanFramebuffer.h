@@ -1,17 +1,17 @@
 #pragma once
 #include <vulkan/vulkan.h>
 #include <vector>
-
+#include "RHI/RHIFramebuffer.h"
 namespace Bear {
 	
 	class VulkanDevice;
 	class VulkanRenderPass;
-	class VulkanFramebuffer {
+	class VulkanFramebuffer : public RHIFramebuffer {
 
 	public:
 		VulkanFramebuffer(const VulkanDevice& device, const VulkanRenderPass& renderPass, const std::vector<VkImageView>& attachments,
 			uint32_t width, uint32_t height, uint32_t layers = 1);
-		~VulkanFramebuffer();
+		~VulkanFramebuffer() override;
 		
 		VulkanFramebuffer(const VulkanFramebuffer&) = delete;
 		VulkanFramebuffer& operator=(const VulkanFramebuffer&) = delete;

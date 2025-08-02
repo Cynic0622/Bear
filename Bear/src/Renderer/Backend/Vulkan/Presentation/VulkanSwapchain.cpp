@@ -7,14 +7,14 @@
 #include "Pipeline/VulkanRenderPass.h"
 #include "Pipeline/VulkanFramebuffer.h"
 #include "Resources/VulkanImage.h"
-
+#include "Core/VulkanUtils.h"
+#include "Sync/VulkanSemaphore.h"
 namespace Bear {
 
-	Bear::VulkanSwapchain::VulkanSwapchain(VulkanDevice& device, VulkanSurface& surface)
-		:m_Device(device), m_Surface(surface)
+	Bear::VulkanSwapchain::VulkanSwapchain(VulkanDevice& device, VulkanRenderPass& renderPass)
+		:m_Device(device), m_RenderPass(renderPass)
 	{
 		Init();
-		CreateDepthResources();
 #ifdef BEAR_DEBUG
 		BEAR_CORE_INFO("Vulkan Swapchain created successfully.");
 #endif // BEAR_DEBUG
@@ -26,7 +26,6 @@ namespace Bear {
 #ifdef BEAR_DEBUG
 		BEAR_CORE_INFO("Vulkan Swapchain destroyed successfully.");
 #endif // BEAR_DEBUG
-		CleanupFramebuffers();
 	}
 
 	void VulkanSwapchain::CreateFramebuffers(const VulkanRenderPass& renderPass)
@@ -47,6 +46,41 @@ namespace Bear {
 		BEAR_CORE_ASSERT(vkAcquireNextImageKHR(m_Device.GetDevice(), m_Swapchain, UINT64_MAX, semaphore, VK_NULL_HANDLE, imageIndex) == VK_SUCCESS, "Failed to acquire next image from swapchain.");
 		return VK_SUCCESS;
 	}
+	uint32_t VulkanSwapchain::AcquireNextImage(VulkanSemaphore* imageAvailableSemaphore)
+	{
+		uint32_t imageIndex = 0;
+		VkResult result = vkAcquireNextImageKHR(m_Device.GetDevice(), m_Swapchain, UINT64_MAX, imageAvailableSemaphore->GetHandle(), VK_NULL_HANDLE, &imageIndex);
+		if (result == VK_SUCCESS) {
+			return imageIndex; // 成功获取图像索引
+		}
+		else if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR) {
+			// 交换链可能需要重建
+			BEAR_CORE_WARN("Swapchain is suboptimal or out of date, need to recreate swapchain.");
+			Recreate();
+			return AcquireNextImage(imageAvailableSemaphore); // 再次调用
+		}
+	}
+
+	void VulkanSwapchain::Present(uint32_t imageIndex, VulkanSemaphore* renderFinishedSemaphore)
+	{
+		VkQueue presentQueue = m_Device.GetPresentQueue();
+		if (presentQueue == VK_NULL_HANDLE) {
+			BEAR_CORE_ERROR("Failed to get present queue from Vulkan device.");
+			return;
+		}
+		VkResult result = SubmitImage(imageIndex, presentQueue, renderFinishedSemaphore->GetHandle());
+		if (result != VK_SUCCESS) {
+			BEAR_CORE_ERROR("Failed to submit image to swapchain for presentation.");
+			return;
+		}
+	}
+
+	void VulkanSwapchain::Resize()
+	{
+		// 在窗口大小改变时调用，通常在窗口的resize事件中触发
+		Recreate();
+	}
+
 	VkResult VulkanSwapchain::SubmitImage(uint32_t imageIndex, VkQueue presentQueue, VkSemaphore waitSemaphore)
 	{
 		VkPresentInfoKHR presentInfo = {};
@@ -65,13 +99,10 @@ namespace Bear {
 	{
 		// 在重建之前，等待设备空闲，确保所有资源都不在被使用
 		vkDeviceWaitIdle(m_Device.GetDevice());
-		CleanupFramebuffers();
 		Cleanup();
 		
 		// 重新初始化交换链
 		Init();
-
-		CreateDepthResources();
 	}
 
 	void VulkanSwapchain::Init()
@@ -81,10 +112,16 @@ namespace Bear {
 		ChooseExtent();
 		CreateSwapchain();
 		CreateImageViews();
+		CreateDepthResources();
+		CreateFramebuffers(m_RenderPass);
 	}
 
 	void VulkanSwapchain::Cleanup()
 	{
+		CleanupFramebuffers();
+		if (m_DepthImage) {
+			m_DepthImage.reset(); // 使用智能指针自动管理资源
+		}
 		for (auto imageView : m_ImageViews) {
 			vkDestroyImageView(m_Device.GetDevice(), imageView, nullptr);
 		}
@@ -93,10 +130,6 @@ namespace Bear {
 			vkDestroySwapchainKHR(m_Device.GetDevice(), m_Swapchain, nullptr);
 			m_Swapchain = VK_NULL_HANDLE;
 		}
-		if (m_DepthImage) {
-			m_DepthImage.reset(); // 使用智能指针自动管理资源
-		}
-		//CleanupFramebuffers();
 	}
 
 	void VulkanSwapchain::CleanupFramebuffers()
@@ -115,10 +148,10 @@ namespace Bear {
 	void VulkanSwapchain::ChooseSurfaceFormat()
 	{
 		uint32_t formatCount = 0;
-		vkGetPhysicalDeviceSurfaceFormatsKHR(m_Device.GetPhysicalDevice(), m_Surface.GetHandle(), &formatCount, nullptr);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(m_Device.GetPhysicalDevice(), m_Device.GetSurface().GetHandle(), &formatCount, nullptr);
 		BEAR_CORE_ASSERT(formatCount > 0, "No surface formats available.");
 		std::vector<VkSurfaceFormatKHR> formats(formatCount);
-		vkGetPhysicalDeviceSurfaceFormatsKHR(m_Device.GetPhysicalDevice(), m_Surface.GetHandle(), &formatCount, formats.data());
+		vkGetPhysicalDeviceSurfaceFormatsKHR(m_Device.GetPhysicalDevice(), m_Device.GetSurface().GetHandle(), &formatCount, formats.data());
 
 		// 选择最常用的表面格式（例如：VK_FORMAT_B8G8R8A8_SRGB）
 		for (const auto& format : formats) {
@@ -134,10 +167,10 @@ namespace Bear {
 	void VulkanSwapchain::ChoosePresentMode()
 	{
 		uint32_t presentModeCount = 0;
-		vkGetPhysicalDeviceSurfacePresentModesKHR(m_Device.GetPhysicalDevice(), m_Surface.GetHandle(), &presentModeCount, nullptr);
+		vkGetPhysicalDeviceSurfacePresentModesKHR(m_Device.GetPhysicalDevice(), m_Device.GetSurface().GetHandle(), &presentModeCount, nullptr);
 		BEAR_CORE_ASSERT(presentModeCount > 0, "No present modes available.");
 		std::vector<VkPresentModeKHR> presentModes(presentModeCount);
-		vkGetPhysicalDeviceSurfacePresentModesKHR(m_Device.GetPhysicalDevice(), m_Surface.GetHandle(), &presentModeCount, presentModes.data());
+		vkGetPhysicalDeviceSurfacePresentModesKHR(m_Device.GetPhysicalDevice(), m_Device.GetSurface().GetHandle(), &presentModeCount, presentModes.data());
 		// 选择最常用的呈现模式（例如：VK_PRESENT_MODE_FIFO_KHR）
 		for (const auto& mode : presentModes) {
 			if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
@@ -151,7 +184,7 @@ namespace Bear {
 	void VulkanSwapchain::ChooseExtent()
 	{
 		VkSurfaceCapabilitiesKHR capabilities;
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_Device.GetPhysicalDevice(), m_Surface.GetHandle(), &capabilities);
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_Device.GetPhysicalDevice(), m_Device.GetSurface().GetHandle(), &capabilities);
 		if (capabilities.currentExtent.width != UINT32_MAX) {
 			// 如果表面具有固定的范围，则使用该范围
 			m_Extent = capabilities.currentExtent;
@@ -159,7 +192,7 @@ namespace Bear {
 		else {
 			// 否则，根据窗口大小计算范围
 			int width, height;
-			glfwGetFramebufferSize(static_cast<GLFWwindow*>(m_Surface.GetNativeWindow()), &width, &height);
+			glfwGetFramebufferSize(static_cast<GLFWwindow*>(m_Device.GetSurface().GetNativeWindow()), &width, &height);
 
 			m_Extent.width = std::clamp(
 				static_cast<uint32_t>(width),
@@ -178,14 +211,14 @@ namespace Bear {
 	void VulkanSwapchain::CreateSwapchain()
 	{
 		VkSurfaceCapabilitiesKHR capabilities;
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_Device.GetPhysicalDevice(), m_Surface.GetHandle(), &capabilities);
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_Device.GetPhysicalDevice(), m_Device.GetSurface().GetHandle(), &capabilities);
 		m_MinImageCount = capabilities.minImageCount + 1; // 至少需要一个图像
 		if (capabilities.maxImageCount > 0 && m_MinImageCount > capabilities.maxImageCount) {
 			m_MinImageCount = capabilities.maxImageCount;
 		}
 		VkSwapchainCreateInfoKHR createInfo = {};
 		createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-		createInfo.surface = m_Surface.GetHandle();
+		createInfo.surface = m_Device.GetSurface().GetHandle();
 		createInfo.minImageCount = m_MinImageCount;
 		createInfo.imageFormat = m_SurfaceFormat.format;
 		createInfo.imageColorSpace = m_SurfaceFormat.colorSpace;
@@ -250,21 +283,10 @@ namespace Bear {
 	}
 	void VulkanSwapchain::CreateDepthResources()
 	{
-		VkFormat depthFormat = FindDepthFormat();
+		VkFormat depthFormat = FindDepthFormat(m_Device);
 
 		m_DepthImage = std::make_unique<VulkanImage>(m_Device, m_Extent.width, m_Extent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, 
 			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 	}
-	VkFormat VulkanSwapchain::FindDepthFormat() const
-	{
-		std::vector<VkFormat> candidates = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
-		for (VkFormat format : candidates) {
-			VkFormatProperties props;
-			vkGetPhysicalDeviceFormatProperties(m_Device.GetPhysicalDevice(), format, &props);
-			if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
-				return format;
-			}
-		}
-		BEAR_CORE_ERROR("Failed to find a suitable depth format.");
-	}
+	
 }

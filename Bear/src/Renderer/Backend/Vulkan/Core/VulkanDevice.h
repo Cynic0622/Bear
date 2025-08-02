@@ -25,6 +25,7 @@ namespace Bear {
         inline VkDevice GetDevice() const { return m_LogicalDevice; }
         inline VkQueue GetGraphicsQueue() const { return m_GraphicsQueue; }
         inline VkQueue GetPresentQueue() const { return m_PresentQueue; }
+		inline const VulkanSurface& GetSurface() const { return m_Surface; }
         inline const QueueFamilyIndices& GetQueueFamilyIndices() const { return m_QueueIndices; }
 		inline VmaAllocator GetAllocator() const { return m_Allocator; }
 
@@ -38,9 +39,11 @@ namespace Bear {
         std::shared_ptr<RHIPipeline> CreatePipeline(const RHIPipelineConfig& config, const RHIRenderPass& renderPass) override;
         std::unique_ptr<RHIDescriptorSet> CreateDescriptorSet(std::shared_ptr<RHIDescriptorSetLayout> layout) override;
         std::shared_ptr<RHIRenderPass> CreateRenderPass(const std::vector <RHIAttachmentDescription>& attachments) override;
+        std::unique_ptr<RHISwapchain> CreateSwapchain(std::shared_ptr<RHIRenderPass> renderPass) override;
         
 
     private:
+		const VulkanSurface& m_Surface;
         VkPhysicalDevice m_PhysicalDevice = VK_NULL_HANDLE;
         VkDevice m_LogicalDevice = VK_NULL_HANDLE;
 

@@ -4,6 +4,7 @@
 #include "RHITypes.h"
 #include "RHIPipeline.h"
 #include "RHIRenderPass.h"
+#include "RHISwapchain.h"
 namespace Bear {
 	class RHIDevice {
 		public:
@@ -22,6 +23,8 @@ namespace Bear {
 		virtual std::unique_ptr<RHIDescriptorSet> CreateDescriptorSet(std::shared_ptr<RHIDescriptorSetLayout> layout) = 0;
 		// --- RenderPass 工厂方法 ---
 		virtual std::shared_ptr<RHIRenderPass> CreateRenderPass(const std::vector <RHIAttachmentDescription>& attachments) = 0;
+		// --- Swapchain 工厂方法 ---
+		virtual std::unique_ptr<RHISwapchain> CreateSwapchain(std::shared_ptr<RHIRenderPass> renderPass) = 0;
 		
 	};
 }

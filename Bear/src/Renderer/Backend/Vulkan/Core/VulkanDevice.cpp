@@ -14,9 +14,11 @@
 #include "Pipeline/VulkanDescriptorPool.h"
 #include "Pipeline/VulkanRenderPass.h"
 #include "Pipeline/VulkanShader.h"
+#include "Presentation/VulkanSwapchain.h"
 namespace Bear {
 
 	Bear::VulkanDevice::VulkanDevice(const VulkanInstance& instance, const VulkanSurface& surface)
+		:m_Surface(surface)
 	{
 		PickPhysicalDevice(instance.GetHandle(), surface.GetHandle());
 		CreateLogicalDevice(instance.GetHandle(), surface.GetHandle());
@@ -265,6 +267,10 @@ namespace Bear {
 		renderPassInfo.pDependencies = &dependency;
 
 		return std::make_shared<VulkanRenderPass>(*this, renderPassInfo);
+	}
+	std::unique_ptr<RHISwapchain> VulkanDevice::CreateSwapchain(std::shared_ptr<RHIRenderPass> renderPass)
+	{
+		return std::make_unique<VulkanSwapchain>(*this, renderPass);
 	}
 	void VulkanDevice::CreateLogicalDevice(VkInstance instance, VkSurfaceKHR surface)
 	{
