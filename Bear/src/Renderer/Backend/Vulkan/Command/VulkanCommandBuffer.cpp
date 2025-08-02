@@ -5,8 +5,10 @@
 #include "Pipeline/VulkanRenderPass.h"
 #include "Pipeline/VulkanPipeline.h"
 #include "Pipeline/VulkanFramebuffer.h"
-#include "VulkanDevice.h"
-
+#include "Core/VulkanDevice.h"
+#include "Resources/VulkanBuffer.h"
+#include "Pipeline/VulkanPipelineLayout.h"
+#include "Pipeline/VulkanDescriptorSet.h"
 namespace Bear {
 
 	VulkanCommandBuffer::VulkanCommandBuffer(const VulkanCommandPool& commandPool, const VkCommandBufferLevel& level, uint32_t commandBufferCount, const void* pNext)
@@ -32,12 +34,10 @@ namespace Bear {
 		m_CommandPool = nullptr;*/
 	}
 
-	void VulkanCommandBuffer::Begin(VkCommandBufferUsageFlags flags, const void* pNext)
+	void VulkanCommandBuffer::Begin()
 	{
 		VkCommandBufferBeginInfo beginInfo{};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		beginInfo.flags = flags;
-		beginInfo.pNext = pNext;
 		BEAR_CORE_ASSERT(vkBeginCommandBuffer(m_CommandBuffer, &beginInfo) == VK_SUCCESS, "Failed to begin command buffer!");
 	}
 
@@ -46,49 +46,49 @@ namespace Bear {
 		BEAR_CORE_ASSERT(vkEndCommandBuffer(m_CommandBuffer) == VK_SUCCESS, "Failed to end command buffer!");
 	}
 
-	void VulkanCommandBuffer::Reset(VkCommandBufferResetFlags flags)
+	void VulkanCommandBuffer::Reset()
 	{
-		BEAR_CORE_ASSERT(vkResetCommandBuffer(m_CommandBuffer, flags) == VK_SUCCESS, "Failed to reset command buffer!");
+		BEAR_CORE_ASSERT(vkResetCommandBuffer(m_CommandBuffer, 0) == VK_SUCCESS, "Failed to reset command buffer!");
 	}
-	// 自定义清除值
-	void VulkanCommandBuffer::BeginRenderPass(const VulkanRenderPass& renderPass, const VulkanFramebuffer& framebuffer, const VkExtent2D& swapchainExtent, const std::array<VkClearValue, 2>& clearValues, const VkSubpassContents& contents)
-	{
-		VkRenderPassBeginInfo renderPassInfo{};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = renderPass.GetHandle();
-		renderPassInfo.framebuffer = framebuffer.GetHandle();
-		renderPassInfo.renderArea.offset = { 0, 0 };
-		renderPassInfo.renderArea.extent = swapchainExtent;
-		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-		renderPassInfo.pClearValues = clearValues.data();
-		vkCmdBeginRenderPass(m_CommandBuffer, &renderPassInfo, contents);
-	}
+	
 	void VulkanCommandBuffer::EndRenderPass()
 	{
 		vkCmdEndRenderPass(m_CommandBuffer);
 	}
-	void VulkanCommandBuffer::BindPipeline(const VulkanPipeline& pipeline)
+	void VulkanCommandBuffer::BindPipeline(const RHIPipeline& pipeline)
 	{
-		BEAR_CORE_ASSERT(pipeline.GetHandle() != VK_NULL_HANDLE, "Pipeline handle is null!");
-		vkCmdBindPipeline(m_CommandBuffer, pipeline.GetBindPoint(), pipeline.GetHandle());
+		const auto& vkPipeline = static_cast<const VulkanPipeline&>(pipeline);
+		BEAR_CORE_ASSERT(vkPipeline.GetHandle() != VK_NULL_HANDLE, "Pipeline handle is null!");
+		vkCmdBindPipeline(m_CommandBuffer, vkPipeline.GetBindPoint(), vkPipeline.GetHandle());
 	}
-	// 使用默认清除值
-	void VulkanCommandBuffer::BeginRenderPass(const VulkanRenderPass& renderPass, const VulkanFramebuffer& framebuffer, const VkExtent2D& swapchainExtent, const VkSubpassContents& contents)
+
+	void VulkanCommandBuffer::BeginRenderPass(RHIRenderPass* rhiRenderPass, void* rhiFramebuffer, uint32_t width, uint32_t height, const std::vector<RHIClearValue>& clearValues)
 	{
+		auto renderPass = static_cast<VulkanRenderPass*>(rhiRenderPass);
+		auto framebuffer = static_cast<VulkanFramebuffer*>(rhiFramebuffer);
 		VkRenderPassBeginInfo renderPassInfo{};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = renderPass.GetHandle();
-		renderPassInfo.framebuffer = framebuffer.GetHandle();
+		renderPassInfo.renderPass = renderPass->GetHandle();
+		renderPassInfo.framebuffer = framebuffer->GetHandle();
 		renderPassInfo.renderArea.offset = { 0, 0 };
-		renderPassInfo.renderArea.extent = swapchainExtent;
+		renderPassInfo.renderArea.extent = { width, height };
 
-		std::array<VkClearValue, 2> clearValues{};
-		clearValues[0].color = { {0.0f, 1.f, 0.0f, 1.0f} }; // 颜色附件的清除值
-		clearValues[1].depthStencil = { 1.0f, 0 };             // 深度附件的清除值
+		std::vector<VkClearValue> vkClearValues;
+		vkClearValues.reserve(clearValues.size());
 
-		renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-		renderPassInfo.pClearValues = clearValues.data();
-		vkCmdBeginRenderPass(m_CommandBuffer, &renderPassInfo, contents);
+		for (const auto& clearValue : clearValues) {
+			VkClearValue vkClearValue{};
+			if (clearValue.isDepth)
+				vkClearValue.depthStencil = { clearValue.depthStencil.depth, clearValue.depthStencil.stencil };
+			else {
+				vkClearValue.color = { { clearValue.color.r, clearValue.color.g, clearValue.color.b, clearValue.color.a } };
+			}
+			vkClearValues.push_back(vkClearValue);
+		}
+
+		renderPassInfo.clearValueCount = static_cast<uint32_t>(vkClearValues.size());
+		renderPassInfo.pClearValues = vkClearValues.data();
+		vkCmdBeginRenderPass(m_CommandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 	}
 
 	void VulkanCommandBuffer::SetViewport(float x, float y, float width, float height, float minDepth, float maxDepth) {
@@ -103,5 +103,31 @@ namespace Bear {
 
 	void VulkanCommandBuffer::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
 		vkCmdDraw(m_CommandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+	}
+	void VulkanCommandBuffer::BindVertexBuffer(const RHIBuffer& buffer, uint32_t binding, size_t offset)
+	{
+		VkBuffer buffers[] = { static_cast<const VulkanBuffer&>(buffer).GetHandle() };
+		VkDeviceSize offsets[] = { static_cast<VkDeviceSize>(offset) };
+		vkCmdBindVertexBuffers(m_CommandBuffer, binding, 1, buffers, offsets);
+	}
+	void VulkanCommandBuffer::BindIndexBuffer(const RHIBuffer& buffer, size_t offset)
+	{
+		const auto& vkBuffer = static_cast<const VulkanBuffer&>(buffer);
+		VkDeviceSize vkOffset = static_cast<VkDeviceSize>(offset);
+		vkCmdBindIndexBuffer(m_CommandBuffer, vkBuffer.GetHandle(), vkOffset, VK_INDEX_TYPE_UINT16);
+	}
+	void VulkanCommandBuffer::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
+	{
+		vkCmdDrawIndexed(m_CommandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+	}
+	void VulkanCommandBuffer::BindDescriptorSets(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& descriptorSet, uint32_t firstSet)
+	{
+		/*BEAR_CORE_ASSERT(pipelineLayout != VK_NULL_HANDLE, "Pipeline layout is null!");
+		BEAR_CORE_ASSERT(descriptorSet != VK_NULL_HANDLE, "Descriptor set is null!");*/
+		const auto& vkPipelineLayout = static_cast<const VulkanPipelineLayout&>(pipelineLayout);
+		const auto& vkDescriptorSet = static_cast<const VulkanDescriptorSet&>(descriptorSet);
+		VkPipelineLayout pipelineLayoutHandle = vkPipelineLayout.GetHandle();
+		VkDescriptorSet descriptorSetHandle = vkDescriptorSet.GetHandle();
+		vkCmdBindDescriptorSets(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutHandle, firstSet, 1, &descriptorSetHandle, 0, nullptr);
 	}
 }

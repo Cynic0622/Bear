@@ -19,8 +19,9 @@ namespace Bear {
     class VulkanSurface;
     class VulkanSwapchain;
     class VulkanRenderPass;
+	class VulkanInstance;
     
-    class VulkanGuiLayer : public Layer {
+    class BEAR_API VulkanGuiLayer : public Layer {
     public:
         VulkanGuiLayer();
         virtual ~VulkanGuiLayer();
@@ -33,7 +34,6 @@ namespace Bear {
     private:
         void InitImGui();
         void ShutdownImGui();
-        void UploadFonts();
         
         // Vulkan错误检查回调
         static void CheckVkResult(VkResult err);

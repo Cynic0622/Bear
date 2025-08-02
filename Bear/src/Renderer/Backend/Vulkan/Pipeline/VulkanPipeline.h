@@ -6,15 +6,18 @@
 #include <memory>
 #include "PipelineConfig.h"
 #include "VulkanShader.h"
+#include "RHI/RHIPipeline.h"
+#include "RHI/RHIRenderPass.h"
 namespace Bear {
 
 	class VulkanDevice;
-
-	class VulkanPipeline {
-		public:
-		VulkanPipeline(const VulkanDevice& device, const std::vector<std::unique_ptr<VulkanShader>>& shaders, const PipelineConfigInfo& configInfo, 
-			const VkPipelineBindPoint& bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS);
-		~VulkanPipeline();
+	class VulkanRenderPass;
+	class VulkanPipeline : public RHIPipeline{
+	public:
+		/*VulkanPipeline(const VulkanDevice& device, const std::vector<std::unique_ptr<VulkanShader>>& shaders, const PipelineConfigInfo& configInfo, 
+			const VkPipelineBindPoint& bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS);*/
+		VulkanPipeline(const VulkanDevice& device, const VkGraphicsPipelineCreateInfo& pipelineInfo);
+		~VulkanPipeline() override;
 
 		void Bind(VkCommandBuffer commandBuffer);
 		inline VkPipeline GetHandle() const { return m_GraphicsPipeline; }

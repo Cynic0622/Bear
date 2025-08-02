@@ -72,10 +72,19 @@ set(BEAR_BACKEND_VULKAN_SOURCES
     ${INTEGRATION_SOURCES}
 )
 
+file(GLOB RENDERER_COMMON_SOURCES
+    "src/Renderer/Common/*.cpp"
+    "src/Renderer/Common/*.h"
+)
+# 着色器文件
 file(GLOB BEAR_SHADERS_SOURCES
     "src/Bear/Shaders/*.vert"
     "src/Bear/Shaders/*.frag"
     "src/Bear/Shaders/*.comp"
+)
+file(GLOB RENERDER_RHI_SOURCES
+    "src/Renderer/RHI/*.cpp"
+    "src/Renderer/RHI/*.h"
 )
 set(BEAR_ALL_SOURCES
     ${BEAR_SOURCES}
@@ -86,6 +95,8 @@ set(BEAR_ALL_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/extern/glad/src/glad.c
     ${BEAR_BACKEND_VULKAN_SOURCES}
     ${BEAR_SHADERS_SOURCES}
+    ${RENDERER_COMMON_SOURCES}
+    ${RENERDER_RHI_SOURCES}
 )
 
 # set(GLAD_SOURCES
@@ -127,21 +138,27 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Bear" PREFIX "Bear" FILES ${B
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Bear/Events" PREFIX "Bear/Events" FILES ${BEAR_EVENT_SOURCES})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Platform/Windows" PREFIX "Platform/Windows" FILES ${BEAR_PLATFORM_WIN_SOURCES})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Bear/Gui" PREFIX "Bear/Gui" FILES ${BEAR_GUI_SOURCES})
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Backend/OpenGL" PREFIX "Backend/OpenGL" FILES ${BEAR_BACKEND_OPENGL_SOURCES})
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Backend/OpenGL" PREFIX "Renderer/Backend/OpenGL" FILES ${BEAR_BACKEND_OPENGL_SOURCES})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Bear/Shaders" PREFIX "Bear/Shaders" FILES ${BEAR_SHADERS_SOURCES})
 
-source_group(TREE "${VULKAN_DIR}/Core" PREFIX "Backend/Vulkan/Core" FILES ${CORE_SOURCES})
-source_group(TREE "${VULKAN_DIR}/Resources" PREFIX "Backend/Vulkan/Resources" FILES ${RESOURCES_SOURCES})
-source_group(TREE "${VULKAN_DIR}/Pipeline" PREFIX "Backend/Vulkan/Pipeline" FILES ${PIPELINE_SOURCES})
-source_group(TREE "${VULKAN_DIR}/Presentation" PREFIX "Backend/Vulkan/Presentation" FILES ${PRESENTATION_SOURCES})
-source_group(TREE "${VULKAN_DIR}/Command" PREFIX "Backend/Vulkan/Command" FILES ${COMMAND_SOURCES})
-source_group(TREE "${VULKAN_DIR}/Sync" PREFIX "Backend/Vulkan/Sync" FILES ${SYNC_SOURCES})
-source_group(TREE "${VULKAN_DIR}/Integration" PREFIX "Backend/Vulkan/Integration" FILES ${INTEGRATION_SOURCES})
-# 链接GLFW
+source_group(TREE "${VULKAN_DIR}/Core" PREFIX "Renderer/Backend/Vulkan/Core" FILES ${CORE_SOURCES})
+source_group(TREE "${VULKAN_DIR}/Resources" PREFIX "Renderer/Backend/Vulkan/Resources" FILES ${RESOURCES_SOURCES})
+source_group(TREE "${VULKAN_DIR}/Pipeline" PREFIX "Renderer/Backend/Vulkan/Pipeline" FILES ${PIPELINE_SOURCES})
+source_group(TREE "${VULKAN_DIR}/Presentation" PREFIX "Renderer/Backend/Vulkan/Presentation" FILES ${PRESENTATION_SOURCES})
+source_group(TREE "${VULKAN_DIR}/Command" PREFIX "Renderer/Backend/Vulkan/Command" FILES ${COMMAND_SOURCES})
+source_group(TREE "${VULKAN_DIR}/Sync" PREFIX "Renderer/Backend/Vulkan/Sync" FILES ${SYNC_SOURCES})
+source_group(TREE "${VULKAN_DIR}/Integration" PREFIX "Renderer/Backend/Vulkan/Integration" FILES ${INTEGRATION_SOURCES})
+
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Common" PREFIX "Renderer/Common" FILES ${RENDERER_COMMON_SOURCES})
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/RHI" PREFIX "Renderer/RHI" FILES ${RENERDER_RHI_SOURCES})
+
+
 target_link_libraries(Bear PUBLIC
     glfw
     spdlog
     imgui
+    VulkanMemoryAllocator
+    glm
 )
 
 # 设置包含目录
@@ -149,6 +166,8 @@ target_include_directories(Bear
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src  # 公共接口
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Bear
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Common
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend/Vulkan
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend/Vulkan/Core
@@ -163,6 +182,9 @@ target_include_directories(Bear
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/imgui
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/imgui/backends
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/glad/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/extern/vma/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/extern/glm
+        ${CMAKE_CURRENT_SOURCE_DIR}/extern/stb
 )
 
 # DLL导出设置

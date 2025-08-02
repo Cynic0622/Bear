@@ -33,6 +33,7 @@ namespace Bear {
 		inline VulkanDevice* GetVulkanDevice() { return m_VulkanDevice.get(); } // 获取 Vulkan 设备的引用
 		inline VulkanSwapchain* GetVulkanSwapchain() { return m_VulkanSwapchain.get(); } // 获取 Vulkan 交换链的引用
 		inline VulkanRenderPass* GetVulkanRenderPass() { return m_VulkanRenderPass.get(); } // 获取 Vulkan 渲染通道的引用
+		inline VulkanRenderer* GetVulkanRenderer() { return m_VulkanRenderer.get(); } // 获取 Vulkan 渲染器的引用
 	private:
 		std::unique_ptr<Window> m_Window; // 使用智能指针管理窗口对象的生命周期，有唯一窗口指针
 		bool m_Running = true;

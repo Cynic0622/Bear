@@ -3,14 +3,30 @@
 #include "VulkanRenderPass.h"
 #include "Core/VulkanDevice.h"
 #include "Presentation/VulkanSwapchain.h"
+#include "Core/VulkanUtils.h"
+#include "RHI/RHITypes.h"
 
 namespace Bear {
 	
-	VulkanRenderPass::VulkanRenderPass(const VulkanDevice& device, const VulkanSwapchain& swapchain)
-		:m_Device(device), m_Swapchain(swapchain)
+	VulkanRenderPass::VulkanRenderPass(const VulkanDevice& device, const VkRenderPassCreateInfo& renderPassInfo)
+		:m_Device(device)
 	{
-		CreateRenderPass();
+		/*CreateRenderPass(attachments);*/
+		BEAR_CORE_ASSERT(vkCreateRenderPass(m_Device.GetDevice(), &renderPassInfo, nullptr, &m_RenderPass) == VK_SUCCESS,
+			"Failed to create render pass!");
 		BEAR_CORE_INFO("Vulkan RenderPass created successfully.");
+	}
+
+	VulkanRenderPass::VulkanRenderPass(const VulkanDevice& device, const VulkanSwapchain& swapchain)
+		:m_Device(device)
+	{
+		// 暂时写死交换链中的附件描述
+		std::vector<RHIAttachmentDescription> attachments = {
+			{ PixelFormat::B8G8R8A8_SRGB, AttachmentLoadOp::Load, AttachmentStoreOp::Store, ImageLayout::ColorAttachment, ImageLayout::PresentSrc },
+			{ PixelFormat::D32_SFLOAT, AttachmentLoadOp::Clear, AttachmentStoreOp::Store, ImageLayout::DepthStencilAttachment, ImageLayout::DepthStencilAttachment }
+		};
+		CreateRenderPass(attachments);
+		BEAR_CORE_INFO("Vulkan RenderPass created successfully with swapchain.");
 	}
 
 	VulkanRenderPass::~VulkanRenderPass()
@@ -23,29 +39,23 @@ namespace Bear {
 #endif // BEAR_DEBUG
 		}
 	}
-	void VulkanRenderPass::CreateRenderPass()
+	void VulkanRenderPass::CreateRenderPass(const std::vector<RHIAttachmentDescription>& attachments)
 	{
-		// 颜色附件 (来自交换链)
-		VkAttachmentDescription colorAttachment{};
-		colorAttachment.format = m_Swapchain.GetImageFormat();
-		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT; // 无多重采样
-		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR; // 开始时清除
-		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE; // 结束时保存
-		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; // 渲染前布局不重要
-		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR; // 渲染后用于呈现
+		std::vector<VkAttachmentDescription> vkAttachments;
+		vkAttachments.reserve(attachments.size());
 
-		// 深度附件
-		VkAttachmentDescription depthAttachment{};
-		depthAttachment.format = VK_FORMAT_D32_SFLOAT;
-		depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; // 深度信息在渲染后通常不再需要
-		depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		for (const auto& attachment : attachments) {
+			VkAttachmentDescription vkAttachment{};
+			vkAttachment.format = ToVulkanFormat(attachment.format);
+			vkAttachment.samples = VK_SAMPLE_COUNT_1_BIT; // temp
+			vkAttachment.loadOp = ToVulkanLoadOp(attachment.loadOp);
+			vkAttachment.storeOp = ToVulkanStoreOp(attachment.storeOp);
+			vkAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			vkAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			vkAttachment.initialLayout = ToVulkanImageLayout(attachment.initialLayout);
+			vkAttachment.finalLayout = ToVulkanImageLayout(attachment.finalLayout);
+			vkAttachments.push_back(vkAttachment);
+		}
 
 		// 2. 定义子流程 (Subpass) 和附件引用
 
@@ -74,11 +84,11 @@ namespace Bear {
 		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
 		// 4. 创建 Render Pass
-		std::array<VkAttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
+		//std::array<VkAttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
 		VkRenderPassCreateInfo renderPassInfo{};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-		renderPassInfo.pAttachments = attachments.data();
+		renderPassInfo.attachmentCount = static_cast<uint32_t>(vkAttachments.size());
+		renderPassInfo.pAttachments = vkAttachments.data();
 		renderPassInfo.subpassCount = 1;
 		renderPassInfo.pSubpasses = &subpass;
 		renderPassInfo.dependencyCount = 1;

@@ -26,6 +26,7 @@ namespace Bear {
 #ifdef BEAR_DEBUG
 		BEAR_CORE_INFO("Vulkan Swapchain destroyed successfully.");
 #endif // BEAR_DEBUG
+		CleanupFramebuffers();
 	}
 
 	void VulkanSwapchain::CreateFramebuffers(const VulkanRenderPass& renderPass)
@@ -92,6 +93,10 @@ namespace Bear {
 			vkDestroySwapchainKHR(m_Device.GetDevice(), m_Swapchain, nullptr);
 			m_Swapchain = VK_NULL_HANDLE;
 		}
+		if (m_DepthImage) {
+			m_DepthImage.reset(); // 使用智能指针自动管理资源
+		}
+		//CleanupFramebuffers();
 	}
 
 	void VulkanSwapchain::CleanupFramebuffers()
@@ -248,7 +253,7 @@ namespace Bear {
 		VkFormat depthFormat = FindDepthFormat();
 
 		m_DepthImage = std::make_unique<VulkanImage>(m_Device, m_Extent.width, m_Extent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, 
-			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 	}
 	VkFormat VulkanSwapchain::FindDepthFormat() const
 	{

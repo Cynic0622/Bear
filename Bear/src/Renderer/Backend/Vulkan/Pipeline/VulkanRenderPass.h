@@ -1,14 +1,16 @@
 #pragma once
 #include <vulkan/vulkan.h>
-
+#include "RHI/RHIRenderPass.h"
 namespace Bear {
 
 	class VulkanDevice;
 	class VulkanSwapchain;
+	struct RHIAttachmentDescription;
 
-	class VulkanRenderPass {
+	class VulkanRenderPass : public RHIRenderPass {
 
 	public:
+		VulkanRenderPass(const VulkanDevice& device, const VkRenderPassCreateInfo& renderPassInfo);
 		VulkanRenderPass(const VulkanDevice& device, const VulkanSwapchain& swapchain);
 		~VulkanRenderPass();
 
@@ -22,10 +24,9 @@ namespace Bear {
 
 	private:
 		const VulkanDevice& m_Device;
-		const VulkanSwapchain& m_Swapchain;
 		VkRenderPass m_RenderPass = VK_NULL_HANDLE;
 
 	private:
-		void CreateRenderPass();
+		void CreateRenderPass(const std::vector<RHIAttachmentDescription>& attachments);
 	};
 }

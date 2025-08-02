@@ -12,6 +12,13 @@
 #include "Sync/VulkanSemaphore.h"	
 #include "Sync/VulkanFence.h"
 #include <filesystem>
+#include "Resources/VulkanBuffer.h"
+#include "Core/VulkanTypes.h"
+#include "Renderer/Common/Mesh.h"
+#include "Renderer/Common/Material.h"
+#include "Renderer/Common/RenderObject.h"
+#include "RHI/RHITypes.h"
+#include "Pipeline/VulkanFramebuffer.h"
 namespace Bear {
 
 	VulkanRenderer::VulkanRenderer(GLFWwindow* window)
@@ -43,7 +50,14 @@ namespace Bear {
 
 		m_InFlightFences[m_CurrentFrame]->Reset();
 		m_CommandBuffers[m_CurrentFrame]->Reset();
-		RecordCommandBuffer(imageIndex);
+
+		UniformBufferObject ubo{};
+		ubo.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		VkExtent2D extent = m_Swapchain->GetExtent();
+		ubo.proj = glm::perspective(glm::radians(45.0f), (float)extent.width / (float)extent.height, 0.1f, 10.0f);
+		ubo.proj[1][1] *= -1;
+
+		RecordCommandBuffer(imageIndex, ubo);
 
 		VkSubmitInfo submitInfo{};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -108,18 +122,45 @@ namespace Bear {
 		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		BEAR_CORE_ASSERT(vkCreatePipelineLayout(m_Device->GetDevice(), &pipelineLayoutInfo, nullptr, &m_PipelineLayout) == VK_SUCCESS, "Failed to create pipeline layout!");
 		
-		std::vector<std::unique_ptr<VulkanShader>> shaders;
+		//std::vector<std::unique_ptr<VulkanShader>> shaders;
 
-		std::cout << std::filesystem::current_path() << std::endl;
-		shaders.push_back(std::make_unique<VulkanShader>(*m_Device, "../../../Bear/src/Bear/Shaders/tri.vert.spv", VK_SHADER_STAGE_VERTEX_BIT));
-		shaders.push_back(std::make_unique<VulkanShader>(*m_Device, "../../../Bear/src/Bear/Shaders/tri.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT));
+		////std::cout << std::filesystem::current_path() << std::endl;
+		//shaders.push_back(std::make_unique<VulkanShader>(*m_Device, "../../../Bear/src/Bear/Shaders/tri.vert.spv", VK_SHADER_STAGE_VERTEX_BIT));
+		//shaders.push_back(std::make_unique<VulkanShader>(*m_Device, "../../../Bear/src/Bear/Shaders/tri.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT));
 
-		PipelineConfigInfo configInfo{};
-		PipelineConfigInfo::GetDefaultConfig(configInfo);
-		configInfo.renderPass = m_RenderPass->GetHandle();
-		configInfo.pipelineLayout = m_PipelineLayout;
+		//PipelineConfigInfo configInfo{};
+		//PipelineConfigInfo::GetDefaultConfig(configInfo);
+		//configInfo.renderPass = m_RenderPass->GetHandle();
+		//configInfo.pipelineLayout = m_PipelineLayout;
 
-		m_Pipeline = std::make_unique<VulkanPipeline>(*m_Device, shaders, configInfo);
+		//m_Pipeline = std::make_unique<VulkanPipeline>(*m_Device, shaders, configInfo);
+		// 定义顶点数据
+		std::vector<Vertex> vertices = {
+			{{0.5f, 0.5f, 0.f}, {0.0f, 1.0f, 0.0f}},
+			{{-0.5f, 0.5f, 0.f}, {0.0f, 0.0f, 1.0f}},
+			{{-0.5f, -0.5f, 0.f}, {1.0f, 1.0f, 0.0f}},
+			{{0.5f, -0.5f, 0.f}, {1.0f, 0.0f, 1.0f}},
+		};
+		std::vector<uint16_t> indices = {
+			0, 1, 2,
+			2, 3, 0
+		};
+
+		m_SquareMesh = std::make_shared<Mesh>(*m_Device, vertices, indices);
+		std::vector<std::string> shaderPaths = {
+			"../../../Bear/src/Bear/Shaders/tri.vert.spv",
+			"../../../Bear/src/Bear/Shaders/tri.frag.spv"
+		};
+		m_SimpleMaterial = std::make_shared<Material>(*m_Device, *m_RenderPass, shaderPaths);
+		auto square1 = RenderObject::Create(m_SquareMesh, m_SimpleMaterial);
+		square1->transform.translation = { -0.5f, 0.0f, 0.0f }; // 移动到左边
+		square1->transform.scale = { 1.0f, 1.0f, 1.0f };
+		m_RenderObjects.push_back(std::move(square1));
+
+		auto square2 = RenderObject::Create(m_SquareMesh, std::make_shared<Material>(*m_Device, *m_RenderPass, shaderPaths));
+		square2->transform.translation = { 0.5f, 0.0f, 0.0f }; // 移动到右边
+		square2->transform.scale = { 0.5f, 0.5f, 0.5f }; // 缩小一半
+		m_RenderObjects.push_back(std::move(square2));
 
 		m_CommandPool = std::make_unique<VulkanCommandPool>(*m_Device);
 
@@ -143,6 +184,11 @@ namespace Bear {
 	void VulkanRenderer::Cleanup()
 	{
 		m_Device->WaitIdle();
+		//m_VertexBuffer.reset(); // 清理顶点缓冲区
+		//m_IndexBuffer.reset(); // 清理索引缓冲区
+		m_SquareMesh.reset(); // 清理 Mesh
+		m_SimpleMaterial.reset(); // 清理材质
+		m_RenderObjects.clear(); // 清理渲染对象
 		m_Swapchain.reset();
 		vkDestroyPipelineLayout(m_Device->GetDevice(), m_PipelineLayout, nullptr);
 		m_Pipeline.reset();
@@ -173,21 +219,36 @@ namespace Bear {
 		m_Swapchain->Recreate();
 		m_Swapchain->CreateFramebuffers(*m_RenderPass);
 	}
-	void VulkanRenderer::RecordCommandBuffer(uint32_t imageIndex)
+	void VulkanRenderer::RecordCommandBuffer(uint32_t imageIndex, UniformBufferObject& ubo)
 	{
 		auto cmd = m_CommandBuffers[m_CurrentFrame].get();
-		cmd->Begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-		cmd->BeginRenderPass(*m_RenderPass, m_Swapchain->GetFramebuffer(imageIndex), m_Swapchain->GetExtent());
+		cmd->Begin();
+		std::vector<RHIClearValue> clearValues = { {{}, {}, false}, {{}, {}, true} };
+		// temp
+		cmd->BeginRenderPass(m_RenderPass.get(), m_Swapchain->GetFramebuffer(imageIndex).GetHandle(), m_Swapchain->GetExtent().width, m_Swapchain->GetExtent().height, clearValues);
 
 		VkExtent2D extent = m_Swapchain->GetExtent();
 		cmd->SetViewport(0, 0, (float)extent.width, (float)extent.height, 0.0f, 1.0f);
 		cmd->SetScissor(0, 0, extent.width, extent.height);
 
-		cmd->BindPipeline(*m_Pipeline);
+		for (const auto& obj : m_RenderObjects) {
+			// 1. 更新此对象的 Model 矩阵并上传 UBO
+			ubo.model = obj->transform.GetTransform();
+			obj->material->UpdateUniformBuffer(m_CurrentFrame, ubo);
+			// 2. 绑定此对象的材质 (管线和描述符)
+			obj->material->Bind(*cmd, m_CurrentFrame);
 
-		cmd->Draw(3, 1, 0, 0); // temp
+			// 3. 绑定此对象的几何体并绘制
+			obj->mesh->Bind(*cmd);
+			obj->mesh->Draw(*cmd);
+		}
 
+		//cmd->BindPipeline(*m_Pipeline);
+		/*cmd->BindVertexBuffers(0, { m_VertexBuffer.get()}, { 0 });
+		cmd->BindIndexBuffer(*m_IndexBuffer);*/
+		//m_SquareMesh->Bind(*cmd); // temp, should be removed later
+		//cmd->Draw(3, 1, 0, 0); // temp
+		//cmd->DrawIndexed(6);
 		cmd->EndRenderPass();
 		cmd->End();
 	}

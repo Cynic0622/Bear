@@ -4,6 +4,12 @@
 #include "Bear/Log.h"
 #include "VulkanValidation.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
+
 namespace Bear {
 
 	VulkanInstance::VulkanInstance(const std::string& appName, const std::string& engineName, bool enableValidation)

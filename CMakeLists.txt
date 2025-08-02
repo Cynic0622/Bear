@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.16)
 project(Bear LANGUAGES CXX)
 
 # 设置C++标准
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 全局设置UTF-8编码（用于MSVC）
@@ -46,13 +46,23 @@ set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
 
+# 设置VMA构建选项
+set(VMA_BUILD_SAMPLE OFF CACHE BOOL "" FORCE)
+set(VMA_BUILD_SAMPLE_SHADERS OFF CACHE BOOL "" FORCE)
+set(VMA_BUILD_REPLAY OFF CACHE BOOL "" FORCE)
+set(VMA_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+set(VMA_BUILD_DOCUMENTATION OFF CACHE BOOL "" FORCE)
+set(VMA_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+
 # 添加子项目
 add_subdirectory(Bear)
 add_subdirectory(Sandbox)
 add_subdirectory(Bear/extern/glfw)
 add_subdirectory(Bear/extern/spdlog)
+add_subdirectory(Bear/extern/vma)
+add_subdirectory(Bear/extern/glm)
 
-# find_package(Vulkan REQUIRED)
+find_package(Vulkan REQUIRED)
 # 创建ImGui库.lib
 add_library(imgui STATIC
 
@@ -64,7 +74,7 @@ add_library(imgui STATIC
 
     Bear/extern/imgui/backends/imgui_impl_glfw.cpp
     Bear/extern/imgui/backends/imgui_impl_opengl3.cpp
-    # Bear/extern/imgui/backends/imgui_impl_vulkan.cpp
+    Bear/extern/imgui/backends/imgui_impl_vulkan.cpp
 )
 
 # 设置包含目录
@@ -76,11 +86,13 @@ target_include_directories(imgui PUBLIC
 # 为ImGui链接必要的依赖
 target_link_libraries(imgui PRIVATE
     glfw
-    # Vulkan::Vulkan
+    Vulkan::Vulkan
 )
 
 # 组织外部依赖到文件夹中
-set_target_properties(glfw PROPERTIES FOLDER "External")
+if (TARGET glfw)
+    set_target_properties(glfw PROPERTIES FOLDER "External")
+endif()
 if(TARGET update_mappings)
     set_target_properties(update_mappings PROPERTIES FOLDER "External")
 endif()
@@ -94,6 +106,10 @@ endif()
 
 if (TARGET imgui)
     set_target_properties(imgui PROPERTIES FOLDER "External")
+endif()
+
+if (TARGET glm)
+    set_target_properties(glm PROPERTIES FOLDER "External")
 endif()
 
 # 设置启动项目

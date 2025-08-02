@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan.h>
 #include <vector>
+#include <memory>
 namespace Bear {
 
 	class VulkanDevice;

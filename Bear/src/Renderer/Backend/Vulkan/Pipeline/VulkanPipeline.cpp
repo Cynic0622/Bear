@@ -1,49 +1,17 @@
 #include "bearpch.h"
 
 #include "VulkanPipeline.h"
-
+#include "Core/VulkanUtils.h"
 #include "Core/VulkanDevice.h"
+#include "Core/VulkanTypes.h"
+#include "Pipeline/VulkanPipelineLayout.h"
+#include "Pipeline/VulkanRenderPass.h"
 
 namespace Bear {
 
-	VulkanPipeline::VulkanPipeline(const VulkanDevice& device, const std::vector<std::unique_ptr<VulkanShader>>& shaders, const PipelineConfigInfo& configInfo, const VkPipelineBindPoint& bindPoint)
+	VulkanPipeline::VulkanPipeline(const VulkanDevice& device, const VkGraphicsPipelineCreateInfo& pipelineInfo)
 		:m_Device(device)
 	{
-		BEAR_CORE_ASSERT(configInfo.renderPass != VK_NULL_HANDLE, "Render pass is null in configInfo!");
-		BEAR_CORE_ASSERT(configInfo.pipelineLayout != VK_NULL_HANDLE, "Pipeline layout is null in configInfo!");
-
-		std::vector<VkPipelineShaderStageCreateInfo> shaderStageInfos;
-		for (const auto& shader : shaders) {
-			shaderStageInfos.push_back(shader->GetStageCreateInfo());
-		}
-
-		VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-		vertexInputInfo.vertexBindingDescriptionCount = 0;
-		vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
-		vertexInputInfo.vertexAttributeDescriptionCount = 0;
-		vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
-
-		VkGraphicsPipelineCreateInfo pipelineInfo{};
-		pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-		pipelineInfo.stageCount = static_cast<uint32_t>(shaderStageInfos.size());
-		pipelineInfo.pStages = shaderStageInfos.data();
-		pipelineInfo.pVertexInputState = &vertexInputInfo;
-		pipelineInfo.pInputAssemblyState = &configInfo.inputAssemblyInfo;
-		pipelineInfo.pViewportState = &configInfo.viewportInfo;
-		pipelineInfo.pRasterizationState = &configInfo.rasterizationInfo;
-		pipelineInfo.pMultisampleState = &configInfo.multisampleInfo;
-		pipelineInfo.pColorBlendState = &configInfo.colorBlendInfo;
-		pipelineInfo.pDepthStencilState = &configInfo.depthStencilInfo;
-		pipelineInfo.pDynamicState = &configInfo.dynamicStateInfo;
-
-		pipelineInfo.layout = configInfo.pipelineLayout;
-		pipelineInfo.renderPass = configInfo.renderPass;
-		pipelineInfo.subpass = 0; // 我们要使用的子流程索引
-
-		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
-		pipelineInfo.basePipelineIndex = -1; // Optional
-
 		BEAR_CORE_ASSERT(vkCreateGraphicsPipelines(m_Device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_GraphicsPipeline) == VK_SUCCESS, 
 			"Failed to create graphics pipeline!");
 #ifdef BEAR_DEBUG

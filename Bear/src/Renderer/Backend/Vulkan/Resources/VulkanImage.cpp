@@ -5,12 +5,12 @@
 
 namespace Bear {
 	VulkanImage::VulkanImage(const VulkanDevice& device, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, 
-		VkImageUsageFlags usage, VkMemoryPropertyFlags properties)
+		VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VmaMemoryUsage memoryUsage)
 		: m_Device(device), m_Format(format)
 	{
-		CreateImage(width, height, format, tiling, usage, properties);
+		CreateImage(width, height, format, tiling, usage, properties, memoryUsage);
 
-		CreateImageView(usage);
+		CreateImageView(m_Format);
 
 	}
 
@@ -20,14 +20,18 @@ namespace Bear {
 			vkDestroyImageView(m_Device.GetDevice(), m_ImageView, nullptr);
 		}
 		if (m_Image != VK_NULL_HANDLE) {
-			vkDestroyImage(m_Device.GetDevice(), m_Image, nullptr);
+			// 修改：使用vma来管理内存
+			//vkDestroyImage(m_Device.GetDevice(), m_Image, nullptr);
+			vmaDestroyImage(m_Device.GetAllocator(), m_Image, m_Allocation); // 使用VMA销毁图像
 		}
-		if (m_Memory != VK_NULL_HANDLE) {
+		// 修改：使用vma来管理内存
+		/*if (m_Memory != VK_NULL_HANDLE) {
 			vkFreeMemory(m_Device.GetDevice(), m_Memory, nullptr);
-		}
+		}*/
 	}
 
-	void VulkanImage::CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties)
+	void VulkanImage::CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, 
+		VkMemoryPropertyFlags properties, VmaMemoryUsage memoryUsage)
 	{
 		VkImageCreateInfo imageInfo = {};
 		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -45,7 +49,14 @@ namespace Bear {
 		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		imageInfo.flags = 0;
 
-		BEAR_CORE_ASSERT(vkCreateImage(m_Device.GetDevice(), &imageInfo, nullptr, &m_Image) == VK_SUCCESS, "Failed to create Vulkan image!");
+		VmaAllocationCreateInfo allocInfo{};
+		allocInfo.usage = memoryUsage;
+
+		BEAR_CORE_ASSERT(vmaCreateImage(m_Device.GetAllocator(), &imageInfo, &allocInfo, &m_Image, &m_Allocation, nullptr) == VK_SUCCESS,
+			"Failed to create Vulkan image with VMA!");
+
+		// 使用VMA来管理内存分配
+		/*BEAR_CORE_ASSERT(vkCreateImage(m_Device.GetDevice(), &imageInfo, nullptr, &m_Image) == VK_SUCCESS, "Failed to create Vulkan image!");
 
 		VkMemoryRequirements memRequirements;
 		vkGetImageMemoryRequirements(m_Device.GetDevice(), m_Image, &memRequirements);
@@ -57,10 +68,10 @@ namespace Bear {
 		BEAR_CORE_ASSERT(allocInfo.memoryTypeIndex != UINT32_MAX, "Failed to find suitable memory type for Vulkan image!");
 		BEAR_CORE_ASSERT(vkAllocateMemory(m_Device.GetDevice(), &allocInfo, nullptr, &m_Memory) == VK_SUCCESS, "Failed to allocate Vulkan image memory!");
 
-		vkBindImageMemory(m_Device.GetDevice(), m_Image, m_Memory, 0);
+		vkBindImageMemory(m_Device.GetDevice(), m_Image, m_Memory, 0);*/
 	}
 
-	void VulkanImage::CreateImageView(VkImageUsageFlags usage)
+	void VulkanImage::CreateImageView(VkFormat format)
 	{
 		VkImageViewCreateInfo viewInfo = {};
 		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -71,7 +82,7 @@ namespace Bear {
 		viewInfo.subresourceRange.levelCount = 1;
 		viewInfo.subresourceRange.baseArrayLayer = 0;
 		viewInfo.subresourceRange.layerCount = 1;
-		viewInfo.subresourceRange.aspectMask = GetAspectMask(m_Format); // Determine aspect mask based on format
+		viewInfo.subresourceRange.aspectMask = GetAspectMask(format); // Determine aspect mask based on format
 		BEAR_CORE_ASSERT(vkCreateImageView(m_Device.GetDevice(), &viewInfo, nullptr, &m_ImageView) == VK_SUCCESS, "Failed to create Vulkan image view!");
 	}
 

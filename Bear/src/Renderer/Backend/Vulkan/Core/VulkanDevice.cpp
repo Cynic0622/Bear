@@ -3,20 +3,54 @@
 #include "VulkanValidation.h"
 #include "VulkanDevice.h"
 #include "Bear/Log.h"
-
+#include "VulkanInstance.h"
+#include "Presentation/VulkanSurface.h"
+#include "VulkanBuffer.h"
+#include "Pipeline/VulkanDescriptorSetLayout.h"
+#include "Core/VulkanUtils.h"
+#include "Pipeline/VulkanPipelineLayout.h"
+#include "Pipeline/VulkanPipeline.h"
+#include "Pipeline/VulkanDescriptorSet.h"
+#include "Pipeline/VulkanDescriptorPool.h"
+#include "Pipeline/VulkanRenderPass.h"
+#include "Pipeline/VulkanShader.h"
 namespace Bear {
 
-	Bear::VulkanDevice::VulkanDevice(VulkanInstance& instance, VulkanSurface& surface)
+	Bear::VulkanDevice::VulkanDevice(const VulkanInstance& instance, const VulkanSurface& surface)
 	{
 		PickPhysicalDevice(instance.GetHandle(), surface.GetHandle());
 		CreateLogicalDevice(instance.GetHandle(), surface.GetHandle());
 #ifdef BEAR_DEBUG
 		BEAR_CORE_INFO("Vulkan Device created successfully.");
 #endif // BEAR_DEBUG
+
+		VmaAllocatorCreateInfo allocatorInfo = {};
+		allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_0;
+		allocatorInfo.physicalDevice = m_PhysicalDevice;
+		allocatorInfo.device = m_LogicalDevice;
+		allocatorInfo.instance = instance.GetHandle(); 
+		vmaCreateAllocator(&allocatorInfo, &m_Allocator); // vma
+
+		BEAR_CORE_ASSERT(m_Allocator != VK_NULL_HANDLE, "Failed to create VMA allocator!");
+		// ****************这里的实现不太好********************
+		std::vector<VkDescriptorPoolSize> globalPoolSizes = {
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 }
+		// 未来可以添加更多类型，比如 StorageBuffer
+		};
+		m_GlobalDescriptorPool = std::make_unique<VulkanDescriptorPool>(*this, 1000, globalPoolSizes);
 	}
 
 	VulkanDevice::~VulkanDevice()
 	{
+		if (m_Allocator != VK_NULL_HANDLE)
+		{
+			vmaDestroyAllocator(m_Allocator);
+			m_Allocator = VK_NULL_HANDLE;
+#ifdef BEAR_DEBUG
+			BEAR_CORE_INFO("VMA Allocator destroyed successfully.");
+#endif // BEAR_DEBUG
+		}
 		if (m_LogicalDevice != VK_NULL_HANDLE)
 		{
 			vkDestroyDevice(m_LogicalDevice, nullptr);
@@ -24,6 +58,7 @@ namespace Bear {
 #ifdef BEAR_DEBUG
 			BEAR_CORE_INFO("Vulkan Device destroyed successfully.");
 #endif // BEAR_DEBUG
+	
 		}
 	}
 	uint32_t VulkanDevice::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const
@@ -38,6 +73,198 @@ namespace Bear {
 			}
 		}
 		BEAR_CORE_ERROR("Failed to find suitable memory type!");
+	}
+	std::unique_ptr<RHIBuffer> VulkanDevice::CreateBuffer(size_t size, BufferUsage usage, bool cpuAccessible)
+	{
+		// 翻译usage
+		VkBufferUsageFlags vkUsage = ToVulkanBufferUsage(usage);
+		
+		VmaMemoryUsage memUsage = cpuAccessible ? VMA_MEMORY_USAGE_CPU_TO_GPU : VMA_MEMORY_USAGE_GPU_ONLY;
+		return std::make_unique<VulkanBuffer>(*this, size, vkUsage, memUsage);
+	}
+	std::shared_ptr<RHIDescriptorSetLayout> VulkanDevice::CreateDescriptorSetLayout(const std::vector<RHIDescriptorSetLayoutBinding>& bindings)
+	{
+		std::vector<VkDescriptorSetLayoutBinding> vkBindings;
+		vkBindings.reserve(bindings.size());
+		for (const auto& binding : bindings)
+		{
+			VkDescriptorSetLayoutBinding vkBinding = {};
+			vkBinding.binding = binding.binding;
+			vkBinding.descriptorType = ToVulkanDescriptorType(binding.descriptorType);
+			vkBinding.descriptorCount = binding.descriptorCount;
+			vkBinding.stageFlags = ToVulkanShaderStage(binding.stageFlags);
+			vkBinding.pImmutableSamplers = nullptr; // 不可变采样器
+			vkBindings.push_back(vkBinding);
+		}
+		/*
+		* make_shared 返回一个 std::shared_ptr<VulkanDescriptorSetLayout>，
+        * 它被自动转换为 std::shared_ptr<RHIDescriptorSetLayout> 并返回。
+		*/
+		return std::make_shared<VulkanDescriptorSetLayout>(*this, vkBindings);
+	}
+	std::shared_ptr<RHIPipelineLayout> VulkanDevice::CreatePipelineLayout(const std::vector<std::shared_ptr<RHIDescriptorSetLayout>>& descriptorSetLayouts)
+	{
+		std::vector<VkDescriptorSetLayout> layouts;
+		layouts.reserve(descriptorSetLayouts.size());
+		for (const auto& layout : descriptorSetLayouts) {
+			layouts.push_back(static_cast<const VulkanDescriptorSetLayout*>(layout.get())->GetHandle());
+		}
+		return std::make_shared<VulkanPipelineLayout>(*this, layouts);
+	}
+	std::shared_ptr<RHIPipeline> VulkanDevice::CreatePipeline(const RHIPipelineConfig& config, const RHIRenderPass& renderPass)
+	{
+		const auto& vkRenderPass = static_cast<const VulkanRenderPass&>(renderPass);
+		auto vkPipelineLayout = std::static_pointer_cast<VulkanPipelineLayout>(config.pipelineLayout);
+		std::vector<std::unique_ptr<VulkanShader>> shaders;
+		shaders.push_back(std::make_unique<VulkanShader>(*this, config.vertexShaderPath, VK_SHADER_STAGE_VERTEX_BIT));
+		shaders.push_back(std::make_unique<VulkanShader>(*this, config.fragmentShaderPath, VK_SHADER_STAGE_FRAGMENT_BIT));
+
+		std::vector<VkPipelineShaderStageCreateInfo> shaderStageInfos;
+		for (const auto& shader : shaders) {
+			shaderStageInfos.push_back(shader->GetStageCreateInfo());
+		}
+
+		VkVertexInputBindingDescription bindingDescription = Vertex::GetBindingDescription();
+		std::vector<VkVertexInputAttributeDescription> attributeDescriptions = Vertex::GetAttributeDescriptions();
+
+		VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+		vertexInputInfo.vertexBindingDescriptionCount = 1;
+		vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+		vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+		vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+		VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo{};
+		inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+		inputAssemblyInfo.topology = ToVulkanTopology(config.topology); // 
+		inputAssemblyInfo.primitiveRestartEnable = VK_FALSE;
+
+		VkPipelineViewportStateCreateInfo viewportInfo{};
+		viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+		viewportInfo.viewportCount = 1;
+		viewportInfo.scissorCount = 1;
+
+		VkPipelineRasterizationStateCreateInfo rasterizationInfo{};
+		rasterizationInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+		rasterizationInfo.polygonMode = ToVulkanPolygonMode(config.polygonMode);
+		rasterizationInfo.cullMode = ToVulkanCullMode(config.cullMode);
+		rasterizationInfo.frontFace = ToVulkanFrontFace(config.frontFace);
+		rasterizationInfo.lineWidth = 1.0f;
+
+		VkPipelineMultisampleStateCreateInfo multisampleInfo{};
+		multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+		multisampleInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT; // 默认值
+		multisampleInfo.sampleShadingEnable = VK_FALSE; // 默认值
+
+		VkPipelineColorBlendAttachmentState colorBlendAttachment{}; // 默认值
+		colorBlendAttachment.blendEnable = VK_FALSE; // 默认值
+		colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT; // 默认值
+
+		VkPipelineColorBlendStateCreateInfo colorBlendInfo{}; // 默认值
+		colorBlendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+		colorBlendInfo.logicOpEnable = VK_FALSE; // 默认值
+		colorBlendInfo.logicOp = VK_LOGIC_OP_COPY; // 默认值
+		colorBlendInfo.attachmentCount = 1; // 默认值
+		colorBlendInfo.pAttachments = &colorBlendAttachment; // 默认值
+
+		VkPipelineDepthStencilStateCreateInfo depthStencilInfo{}; // 默认值
+		depthStencilInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+		depthStencilInfo.depthTestEnable = VK_TRUE; // 启用深度测试
+		depthStencilInfo.depthWriteEnable = VK_TRUE; // 启用深度写入
+		depthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS; // 深度比较操作
+		depthStencilInfo.depthBoundsTestEnable = VK_FALSE; // 禁用深度范围测试
+		depthStencilInfo.stencilTestEnable = VK_FALSE; // 禁用模板测试
+		depthStencilInfo.front = {}; // 默认值
+		depthStencilInfo.back = {}; // 默认值
+
+		std::vector<VkDynamicState> dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+		VkPipelineDynamicStateCreateInfo dynamicStateInfo{};
+		dynamicStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+		dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+		dynamicStateInfo.pDynamicStates = dynamicStates.data();
+
+		VkGraphicsPipelineCreateInfo pipelineInfo{};
+		pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+		pipelineInfo.stageCount = static_cast<uint32_t>(shaderStageInfos.size());
+		pipelineInfo.pStages = shaderStageInfos.data();
+		pipelineInfo.pVertexInputState = &vertexInputInfo;
+		pipelineInfo.pInputAssemblyState = &inputAssemblyInfo;
+		pipelineInfo.pViewportState = &viewportInfo;
+		pipelineInfo.pRasterizationState = &rasterizationInfo;
+		pipelineInfo.pMultisampleState = &multisampleInfo;
+		pipelineInfo.pColorBlendState = &colorBlendInfo;
+		pipelineInfo.pDepthStencilState = &depthStencilInfo;
+		pipelineInfo.pDynamicState = &dynamicStateInfo;
+
+		pipelineInfo.layout = vkPipelineLayout->GetHandle();
+		pipelineInfo.renderPass = vkRenderPass.GetHandle();
+		pipelineInfo.subpass = 0; // 我们要使用的子流程索引
+
+		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
+		pipelineInfo.basePipelineIndex = -1; // Optional
+		return std::make_shared<VulkanPipeline>(*this, pipelineInfo);
+	}
+	std::unique_ptr<RHIDescriptorSet> VulkanDevice::CreateDescriptorSet(std::shared_ptr<RHIDescriptorSetLayout> layout)
+	{
+		auto vkLayout = std::dynamic_pointer_cast<VulkanDescriptorSetLayout>(layout);
+		return std::make_unique<VulkanDescriptorSet>(*this, *vkLayout, *m_GlobalDescriptorPool);
+	}
+	std::shared_ptr<RHIRenderPass> VulkanDevice::CreateRenderPass(const std::vector<RHIAttachmentDescription>& attachments)
+	{
+		std::vector<VkAttachmentDescription> vkAttachments;
+		vkAttachments.reserve(attachments.size());
+
+		for (const auto& attachment : attachments) {
+			VkAttachmentDescription vkAttachment{};
+			vkAttachment.format = ToVulkanFormat(attachment.format);
+			vkAttachment.samples = VK_SAMPLE_COUNT_1_BIT; // temp
+			vkAttachment.loadOp = ToVulkanLoadOp(attachment.loadOp);
+			vkAttachment.storeOp = ToVulkanStoreOp(attachment.storeOp);
+			vkAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			vkAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			vkAttachment.initialLayout = ToVulkanImageLayout(attachment.initialLayout);
+			vkAttachment.finalLayout = ToVulkanImageLayout(attachment.finalLayout);
+			vkAttachments.push_back(vkAttachment);
+		}
+
+		// 2. 定义子流程 (Subpass) 和附件引用
+
+		VkAttachmentReference colorAttachmentRef{};
+		colorAttachmentRef.attachment = 0; // 附件数组中的索引
+		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference depthAttachmentRef{};
+		depthAttachmentRef.attachment = 1;
+		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		VkSubpassDescription subpass{};
+		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		subpass.colorAttachmentCount = 1;
+		subpass.pColorAttachments = &colorAttachmentRef;
+		subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+		// 3. 定义子流程依赖 (Subpass Dependency)
+		// 确保在我们可以写入颜色之前，图像已经从呈现引擎转换到适合渲染的布局
+		VkSubpassDependency dependency{};
+		dependency.srcSubpass = VK_SUBPASS_EXTERNAL; // 隐含的外部子流程
+		dependency.dstSubpass = 0; // 我们的子流程
+		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		dependency.srcAccessMask = 0;
+		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+		// 4. 创建 Render Pass
+		//std::array<VkAttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
+		VkRenderPassCreateInfo renderPassInfo{};
+		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+		renderPassInfo.attachmentCount = static_cast<uint32_t>(vkAttachments.size());
+		renderPassInfo.pAttachments = vkAttachments.data();
+		renderPassInfo.subpassCount = 1;
+		renderPassInfo.pSubpasses = &subpass;
+		renderPassInfo.dependencyCount = 1;
+		renderPassInfo.pDependencies = &dependency;
+
+		return std::make_shared<VulkanRenderPass>(*this, renderPassInfo);
 	}
 	void VulkanDevice::CreateLogicalDevice(VkInstance instance, VkSurfaceKHR surface)
 	{
