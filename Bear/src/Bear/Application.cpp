@@ -7,8 +7,8 @@
 #include <glad/glad.h>
 #include "Pipeline/VulkanShader.h"
 #include "Pipeline/PipelineConfig.h"
-#include "VulkanRenderer.h"
-
+#include "Renderer/Renderer.h"
+#include "Renderer/RHI/RHITypes.h"
 namespace Bear {
 
 	Application* Application::s_Instance = nullptr;
@@ -19,7 +19,7 @@ namespace Bear {
 			this->OnEvent(e);
 			});
 		s_Instance = this;
-		m_VulkanRenderer = std::make_unique<VulkanRenderer>(static_cast<GLFWwindow*>(m_Window->GetNativeWindow()));
+		m_Renderer = std::make_unique<Renderer>(static_cast<GLFWwindow*>(m_Window->GetNativeWindow()), GraphicsAPI::Vulkan);
 	}
 	Application::~Application()
 	{
@@ -29,7 +29,6 @@ namespace Bear {
 	{
 		EventDispatcher dispatcher(e);
 		bool isHandled =  dispatcher.Dispatch<WindowCloseEvent>([this](WindowCloseEvent& e) { return this->OnWindowClose(e); });
-		//BEAR_CORE_TRACE("Event: {0}", e);
 		if (isHandled)
 			return;
 		isHandled = dispatcher.Dispatch<WindowResizeEvent>([this](WindowResizeEvent& e) { return this->OnWindowResize(e); });
@@ -53,8 +52,7 @@ namespace Bear {
 			int currentTime = static_cast<int>(glfwGetTime() * 1000); // Convert to milliseconds
 			deltaTime = currentTime - lastTime;
 			
-			m_VulkanRenderer->DrawFrame();
-
+			m_Renderer->DrawFrame();
 			for (Layer* layer : m_LayerStack)
 			{
 				layer->OnUpdate(deltaTime);
@@ -88,7 +86,7 @@ namespace Bear {
 	{
 		BEAR_CORE_ASSERT(e.GetWidth() > 0 && e.GetHeight() > 0, "Window resize event with invalid dimensions!");
 		BEAR_CORE_TRACE("WindowResizeEvent: {0}, {1}", e.GetWidth(), e.GetHeight());
-		m_VulkanRenderer->OnWindowResized();
+		m_Renderer->OnWindowResized();
 		return true;
 	}
 

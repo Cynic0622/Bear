@@ -19,7 +19,7 @@ namespace Bear {
 	class VulkanSwapchain : public RHISwapchain {
 		public:
 		VulkanSwapchain(VulkanDevice& device, VulkanRenderPass& renderPass);
-		~VulkanSwapchain();
+		~VulkanSwapchain() override;
 
 		// ½ûÖ¹¿½±´ºÍÒÆ¶¯
 		VulkanSwapchain(const VulkanSwapchain&) = delete;
@@ -28,12 +28,13 @@ namespace Bear {
 		VulkanSwapchain& operator=(VulkanSwapchain&&) = delete;
 
 		
-		RHIFramebuffer* GetFramebuffer(uint32_t index) const override { return m_Framebuffers[index].get(); }
+		RHIFramebuffer* GetFramebuffer(uint32_t index) const override { return m_Framebuffers[index].get(); } // rhi
 
-		VkResult AcquireNextImage(uint32_t* imageIndex, VkSemaphore semaphore);
-		uint32_t AcquireNextImage(VulkanSemaphore& imageAvailableSemaphore); // rhi
+		uint32_t AcquireNextImage(VulkanSemaphore& imageAvailableSemaphore);
+		uint32_t AcquireNextImage() override; // rhi
+		void Present(uint32_t imageIndex) override; // rhi
 		void Present(uint32_t imageIndex, VulkanSemaphore& renderFinishedSemaphore); // rhi
-		void Resize(); // rhi
+		void Resize() override; // rhi
 
 		uint32_t GetWidth() const override { return m_Extent.width; } // rhi
 		uint32_t GetHeight() const override { return m_Extent.height; } // rhi

@@ -21,11 +21,12 @@
 #include "Sync/VulkanSemaphore.h"
 namespace Bear {
 
-	Bear::VulkanDevice::VulkanDevice(const VulkanInstance& instance, const VulkanSurface& surface)
-		:m_Surface(surface)
+	Bear::VulkanDevice::VulkanDevice(GLFWwindow* window)
 	{
-		PickPhysicalDevice(instance.GetHandle(), surface.GetHandle());
-		CreateLogicalDevice(instance.GetHandle(), surface.GetHandle());
+		m_Instance = std::make_unique<VulkanInstance>("app", "engine", true);
+		m_Surface = std::make_unique<VulkanSurface>(*m_Instance, window);
+		PickPhysicalDevice(m_Instance->GetHandle(), m_Surface->GetHandle());
+		CreateLogicalDevice(m_Instance->GetHandle(), m_Surface->GetHandle());
 #ifdef BEAR_DEBUG
 		BEAR_CORE_INFO("Vulkan Device created successfully.");
 #endif // BEAR_DEBUG
@@ -34,7 +35,7 @@ namespace Bear {
 		allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_0;
 		allocatorInfo.physicalDevice = m_PhysicalDevice;
 		allocatorInfo.device = m_LogicalDevice;
-		allocatorInfo.instance = instance.GetHandle(); 
+		allocatorInfo.instance = m_Instance->GetHandle();
 		vmaCreateAllocator(&allocatorInfo, &m_Allocator); // vma
 
 		BEAR_CORE_ASSERT(m_Allocator != VK_NULL_HANDLE, "Failed to create VMA allocator!");
@@ -53,7 +54,7 @@ namespace Bear {
 		m_InFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
 
 		for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-			m_CommandBuffers[i] = std::make_unique<VulkanCommandBuffer>(*this, *m_CommandPool);
+			m_CommandBuffers[i] = std::make_unique<VulkanCommandBuffer>(*m_CommandPool);
 			m_ImageAvailableSemaphores[i] = std::make_unique<VulkanSemaphore>(*this);
 			m_RenderFinishedSemaphores[i] = std::make_unique<VulkanSemaphore>(*this);
 			m_InFlightFences[i] = std::make_unique<VulkanFence>(*this, true);
@@ -70,6 +71,13 @@ namespace Bear {
 			BEAR_CORE_INFO("VMA Allocator destroyed successfully.");
 #endif // BEAR_DEBUG
 		}
+		m_CommandBuffers.clear();
+		m_ImageAvailableSemaphores.clear();
+		m_RenderFinishedSemaphores.clear();
+		m_InFlightFences.clear();
+		m_CommandPool.reset();
+		m_GlobalDescriptorPool.reset();
+
 		if (m_LogicalDevice != VK_NULL_HANDLE)
 		{
 			vkDestroyDevice(m_LogicalDevice, nullptr);
@@ -79,21 +87,11 @@ namespace Bear {
 #endif // BEAR_DEBUG
 	
 		}
+		m_Surface.reset();
+		m_Instance.reset();
 	}
-	uint32_t VulkanDevice::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const
-	{
-		VkPhysicalDeviceMemoryProperties memProperties;
-		vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &memProperties);
-		for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
-		{
-			if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
-			{
-				return i;
-			}
-		}
-		BEAR_CORE_ERROR("Failed to find suitable memory type!");
-	}
-	void VulkanDevice::SubmitCommands(RHICommandList* cmd)
+	
+	void VulkanDevice::SubmitCommands(RHICommandList& cmd)
 	{
 		auto imageAvailableSemaphore = m_ImageAvailableSemaphores[m_CurrentFrame]->GetHandle();
 		auto renderFinishedSemaphore = m_RenderFinishedSemaphores[m_CurrentFrame]->GetHandle();
@@ -107,9 +105,9 @@ namespace Bear {
 		submitInfo.pWaitSemaphores = &imageAvailableSemaphore;
 		submitInfo.pWaitDstStageMask = waitStages;
 
-		auto vkCmd = static_cast<VulkanCommandBuffer*>(cmd);
+		auto& vkCmd = static_cast<VulkanCommandBuffer&>(cmd);
 		submitInfo.commandBufferCount = 1;
-		auto vkCmdHandle = vkCmd->GetHandle();
+		auto vkCmdHandle = vkCmd.GetHandle();
 		submitInfo.pCommandBuffers = &vkCmdHandle;
 
 		submitInfo.signalSemaphoreCount = 1;
@@ -309,47 +307,29 @@ namespace Bear {
 
 		return std::make_shared<VulkanRenderPass>(*this, renderPassInfo);
 	}
-	std::unique_ptr<RHISwapchain> VulkanDevice::CreateSwapchain(std::shared_ptr<RHIRenderPass> renderPass)
+	std::unique_ptr<RHISwapchain> VulkanDevice::CreateSwapchain(RHIRenderPass& renderPass)
 	{
-		return std::make_unique<VulkanSwapchain>(*this, renderPass);
+		auto& vkRenderPass = static_cast<VulkanRenderPass&>(renderPass);
+		return std::make_unique<VulkanSwapchain>(*this, vkRenderPass);
 	}
-	RHICommandList* VulkanDevice::BeginFrame()
+	RHICommandList& VulkanDevice::BeginFrame()
 	{
 		m_InFlightFences[m_CurrentFrame]->Wait(); // 等待上一个帧的命令完成
-		BEAR_CORE_ASSERT(m_Swapchain, "Swapchain is not initialized!");
-
-		m_CurrentImageIndex = m_Swapchain->AcquireNextImage(*m_ImageAvailableSemaphores[m_CurrentFrame]); // 获取下一个可用图像索引
 
 		m_InFlightFences[m_CurrentFrame]->Reset(); // 重置当前帧的信号量
-		RHICommandList* cmd = m_CommandBuffers[m_CurrentFrame].get();
-		cmd->Reset(); // 重置命令缓冲区
-		cmd->Begin(); // 开始命令缓冲区的录制
+		RHICommandList& cmd = *m_CommandBuffers[m_CurrentFrame];
+		cmd.Reset(); // 重置命令缓冲区
+		cmd.Begin(); // 开始命令缓冲区的录制
 		return cmd;
 	}
-	void VulkanDevice::EndFrame()
+	void VulkanDevice::EndFrame(RHISwapchain& swapchain, uint32_t imageIndex)
 	{
-		RHICommandList* cmd = m_CommandBuffers[m_CurrentFrame].get();
-		cmd->End(); // 结束命令缓冲区的录制
+		RHICommandList& cmd = *m_CommandBuffers[m_CurrentFrame];
+		cmd.End(); // 结束命令缓冲区的录制
 
-		VkSubmitInfo submitInfo{};
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submitInfo.commandBufferCount = 1;
-		auto vkCmdHandle = m_CommandBuffers[m_CurrentFrame]->GetHandle();
-		submitInfo.pCommandBuffers = &vkCmdHandle;
-		VkSemaphore waitSemaphore = m_ImageAvailableSemaphores[m_CurrentFrame]->GetHandle();
-		submitInfo.waitSemaphoreCount = 1;
-		submitInfo.pWaitSemaphores = &waitSemaphore; // 等待图像可用
-		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-		submitInfo.pWaitDstStageMask = waitStages; // 等待渲染完成
-		VkSemaphore signalSemaphore = m_RenderFinishedSemaphores[m_CurrentFrame]->GetHandle();
-		submitInfo.signalSemaphoreCount = 1;
-		submitInfo.pSignalSemaphores = &signalSemaphore; // 信号渲染完成
-		m_InFlightFences[m_CurrentFrame]->Reset(); // 重置当前帧的信号量
-		vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, m_InFlightFences[m_CurrentFrame]->GetHandle());
+		SubmitCommands(cmd); // 提交命令缓冲区到图形队列
 
-		m_Swapchain->Present(m_CurrentImageIndex, *m_RenderFinishedSemaphores[m_CurrentFrame]);
-
-		m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT; // 更新当前帧索引
+		Present(swapchain, imageIndex); // 提交交换链的呈现请求
 	}
 	uint32_t VulkanDevice::AcquireNextImage(RHISwapchain& swapchain) const
 	{

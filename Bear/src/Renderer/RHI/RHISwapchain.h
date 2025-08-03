@@ -11,9 +11,9 @@ namespace Bear {
 		virtual uint32_t AcquireNextImage() = 0;
 		virtual void Present(uint32_t imageIndex) = 0;
 
-		virtual void Resize(uint32_t newWidth, uint32_t newHeight) = 0;
-
-		virtual RHIFramebuffer* GetFramebuffer() const = 0;
+		//virtual void Resize(uint32_t newWidth, uint32_t newHeight) = 0;
+		virtual void Resize() = 0;
+		//virtual RHIFramebuffer* GetFramebuffer() const = 0;
 		virtual RHIFramebuffer* GetFramebuffer(uint32_t index) const = 0;
 		// virtual RHITexture* GetImage(uint32_t index) const = 0; // 未来可以添加
 		virtual uint32_t GetWidth() const = 0;

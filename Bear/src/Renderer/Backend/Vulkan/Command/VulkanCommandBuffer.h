@@ -23,7 +23,7 @@ namespace Bear {
 		void Begin() override;
 		void End() override;
 		void Reset();
-		void BeginRenderPass(RHIRenderPass* rhiRenderPass, void* rhiFramebuffer, uint32_t width, uint32_t height, const std::vector<RHIClearValue>& clearValues) override;
+		void BeginRenderPass(RHIRenderPass& rhiRenderPass, RHIFramebuffer& rhiFramebuffer, uint32_t width, uint32_t height, const std::vector<RHIClearValue>& clearValues) override;
 		
 		void EndRenderPass();
 		void BindPipeline(const RHIPipeline& pipeline) override;
@@ -33,7 +33,7 @@ namespace Bear {
 		void BindVertexBuffer(const RHIBuffer& buffer, uint32_t binding = 0, size_t offset = 0) override; // 实现RHI接口
 		void BindIndexBuffer(const RHIBuffer& buffer, size_t offset = 0) override; // 实现RHI接口
 		void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t firstIndex = 0, int32_t vertexOffset = 0, uint32_t firstInstance = 0) override;
-		void BindDescriptorSet(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& descriptorSet, uint32_t firstSet = 0) override;
+		void BindDescriptorSet(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& set, uint32_t setIndex = 0) override;
 
 		inline VkCommandBuffer GetHandle() const { return m_CommandBuffer; }
 

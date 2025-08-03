@@ -62,14 +62,14 @@ namespace Bear {
 		vkCmdBindPipeline(m_CommandBuffer, vkPipeline.GetBindPoint(), vkPipeline.GetHandle());
 	}
 
-	void VulkanCommandBuffer::BeginRenderPass(RHIRenderPass* rhiRenderPass, void* rhiFramebuffer, uint32_t width, uint32_t height, const std::vector<RHIClearValue>& clearValues)
+	void VulkanCommandBuffer::BeginRenderPass(RHIRenderPass& rhiRenderPass, RHIFramebuffer& rhiFramebuffer, uint32_t width, uint32_t height, const std::vector<RHIClearValue>& clearValues)
 	{
-		auto renderPass = static_cast<VulkanRenderPass*>(rhiRenderPass);
-		auto framebuffer = static_cast<VulkanFramebuffer*>(rhiFramebuffer);
+		auto& renderPass = static_cast<VulkanRenderPass&>(rhiRenderPass);
+		auto& framebuffer = static_cast<VulkanFramebuffer&>(rhiFramebuffer);
 		VkRenderPassBeginInfo renderPassInfo{};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = renderPass->GetHandle();
-		renderPassInfo.framebuffer = framebuffer->GetHandle();
+		renderPassInfo.renderPass = renderPass.GetHandle();
+		renderPassInfo.framebuffer = framebuffer.GetHandle();
 		renderPassInfo.renderArea.offset = { 0, 0 };
 		renderPassInfo.renderArea.extent = { width, height };
 

@@ -41,10 +41,17 @@ namespace Bear {
 #endif // BEAR_DEBUG
 	}
 
-	VkResult VulkanSwapchain::AcquireNextImage(uint32_t* imageIndex, VkSemaphore semaphore)
+	/*VkResult VulkanSwapchain::AcquireNextImage(uint32_t* imageIndex, VkSemaphore semaphore)
 	{
 		BEAR_CORE_ASSERT(vkAcquireNextImageKHR(m_Device.GetDevice(), m_Swapchain, UINT64_MAX, semaphore, VK_NULL_HANDLE, imageIndex) == VK_SUCCESS, "Failed to acquire next image from swapchain.");
 		return VK_SUCCESS;
+	}*/
+	uint32_t VulkanSwapchain::AcquireNextImage()
+	{
+		return 0;
+	}
+	void VulkanSwapchain::Present(uint32_t imageIndex)
+	{
 	}
 	uint32_t VulkanSwapchain::AcquireNextImage(VulkanSemaphore& imageAvailableSemaphore)
 	{
@@ -57,8 +64,8 @@ namespace Bear {
 			// 交换链可能需要重建
 			BEAR_CORE_WARN("Swapchain is suboptimal or out of date, need to recreate swapchain.");
 			Recreate();
-			return AcquireNextImage(imageAvailableSemaphore); // 再次调用
 		}
+		return UINT32_MAX; // 获取图像索引失败或重建交换链，跳过该帧
 	}
 
 	void VulkanSwapchain::Present(uint32_t imageIndex, VulkanSemaphore& renderFinishedSemaphore)

@@ -7,6 +7,9 @@ namespace Bear {
 	class RHIBuffer;
 	struct RHIClearValue;
 	class RHIRenderPass;
+	class RHIPipelineLayout;
+	class RHIDescriptorSet;
+	class RHIFramebuffer;
 	class RHICommandList {
 	public:
 		virtual ~RHICommandList() = default;
@@ -15,7 +18,7 @@ namespace Bear {
 		virtual void End() = 0;
 		virtual void Reset() = 0;
 
-		virtual void BeginRenderPass(RHIRenderPass* rhiRenderPass, void* rhiFramebuffer, uint32_t width, uint32_t height, const std::vector<RHIClearValue>& clearValues) = 0;
+		virtual void BeginRenderPass(RHIRenderPass& rhiRenderPass, RHIFramebuffer& rhiFramebuffer, uint32_t width, uint32_t height, const std::vector<RHIClearValue>& clearValues) = 0;
 		virtual void EndRenderPass() = 0;
 
 		virtual void BindPipeline(const RHIPipeline& pipeline) = 0;
