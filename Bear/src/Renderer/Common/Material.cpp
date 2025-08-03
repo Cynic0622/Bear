@@ -39,9 +39,6 @@ namespace Bear {
 	}
 	Material::~Material()
 	{
-		/*if (m_PipelineLayout != VK_NULL_HANDLE) {
-			vkDestroyPipelineLayout(m_Device.GetDevice(), m_PipelineLayout, nullptr);
-		}*/
 	}
 	void Material::Bind(RHICommandList& commandBuffer, uint32_t currentFrame)
 	{
@@ -51,7 +48,7 @@ namespace Bear {
 		//BEAR_CORE_ASSERT(m_DescriptorSets[currentFrame].get() != nullptr, "Descriptor set is not created in Material!");
 		auto& vkCommandBuffer = static_cast<VulkanCommandBuffer&>(commandBuffer);
 		vkCommandBuffer.BindPipeline(*m_Pipeline);
-		vkCommandBuffer.BindDescriptorSets(*m_PipelineLayout, *m_DescriptorSets[currentFrame]);
+		vkCommandBuffer.BindDescriptorSet(*m_PipelineLayout, *m_DescriptorSets[currentFrame]);
 	}
 	void Material::UpdateUniformBuffer(uint32_t currentFrame, const UniformBufferObject& ubo)
 	{

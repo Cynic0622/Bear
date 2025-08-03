@@ -130,4 +130,16 @@ namespace Bear {
         ImageLayout initialLayout = ImageLayout::Undefined;
         ImageLayout finalLayout = ImageLayout::ColorAttachment;
     };
+
+    enum class GraphicsAPI {
+        OpenGL,
+        Vulkan,
+        DirectX12,
+        Metal,
+        Null // 用于测试或不支持的情况
+	};
+
+    struct RHIPlatformData {
+		void* windowHandle = nullptr;
+    };
 }

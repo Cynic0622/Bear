@@ -19,7 +19,7 @@ namespace Bear {
 		virtual void EndRenderPass() = 0;
 
 		virtual void BindPipeline(const RHIPipeline& pipeline) = 0;
-		// virtual void BindDescriptorSet(const RHIDescriptorSet& set) = 0;
+		virtual void BindDescriptorSet(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& set, uint32_t setIndex = 0) = 0;
 		virtual void BindVertexBuffer(const RHIBuffer& buffer, uint32_t binding = 0, size_t offset = 0) = 0;
 		virtual void BindIndexBuffer(const RHIBuffer& buffer, size_t offset = 0) = 0;
 

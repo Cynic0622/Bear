@@ -120,10 +120,8 @@ namespace Bear {
 	{
 		vkCmdDrawIndexed(m_CommandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 	}
-	void VulkanCommandBuffer::BindDescriptorSets(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& descriptorSet, uint32_t firstSet)
+	void VulkanCommandBuffer::BindDescriptorSet(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& descriptorSet, uint32_t firstSet)
 	{
-		/*BEAR_CORE_ASSERT(pipelineLayout != VK_NULL_HANDLE, "Pipeline layout is null!");
-		BEAR_CORE_ASSERT(descriptorSet != VK_NULL_HANDLE, "Descriptor set is null!");*/
 		const auto& vkPipelineLayout = static_cast<const VulkanPipelineLayout&>(pipelineLayout);
 		const auto& vkDescriptorSet = static_cast<const VulkanDescriptorSet&>(descriptorSet);
 		VkPipelineLayout pipelineLayoutHandle = vkPipelineLayout.GetHandle();

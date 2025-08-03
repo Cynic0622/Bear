@@ -86,6 +86,10 @@ file(GLOB RENERDER_RHI_SOURCES
     "src/Renderer/RHI/*.cpp"
     "src/Renderer/RHI/*.h"
 )
+file(GLOB RENDERER_SOURCES
+    "src/Renderer/*.cpp"
+    "src/Renderer/*.h"
+)
 set(BEAR_ALL_SOURCES
     ${BEAR_SOURCES}
     ${BEAR_EVENT_SOURCES}
@@ -97,6 +101,7 @@ set(BEAR_ALL_SOURCES
     ${BEAR_SHADERS_SOURCES}
     ${RENDERER_COMMON_SOURCES}
     ${RENERDER_RHI_SOURCES}
+    ${RENDERER_SOURCES}
 )
 
 # set(GLAD_SOURCES
@@ -151,6 +156,7 @@ source_group(TREE "${VULKAN_DIR}/Integration" PREFIX "Renderer/Backend/Vulkan/In
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Common" PREFIX "Renderer/Common" FILES ${RENDERER_COMMON_SOURCES})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/RHI" PREFIX "Renderer/RHI" FILES ${RENERDER_RHI_SOURCES})
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer" PREFIX "Renderer" FILES ${RENDERER_SOURCES})
 
 
 target_link_libraries(Bear PUBLIC

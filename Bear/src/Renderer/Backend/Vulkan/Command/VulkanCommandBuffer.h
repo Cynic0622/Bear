@@ -33,7 +33,7 @@ namespace Bear {
 		void BindVertexBuffer(const RHIBuffer& buffer, uint32_t binding = 0, size_t offset = 0) override; // 实现RHI接口
 		void BindIndexBuffer(const RHIBuffer& buffer, size_t offset = 0) override; // 实现RHI接口
 		void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t firstIndex = 0, int32_t vertexOffset = 0, uint32_t firstInstance = 0) override;
-		void BindDescriptorSets(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& descriptorSet, uint32_t firstSet = 0);
+		void BindDescriptorSet(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& descriptorSet, uint32_t firstSet = 0) override;
 
 		inline VkCommandBuffer GetHandle() const { return m_CommandBuffer; }
 

@@ -15,6 +15,10 @@
 #include "Pipeline/VulkanRenderPass.h"
 #include "Pipeline/VulkanShader.h"
 #include "Presentation/VulkanSwapchain.h"
+#include "Command/VulkanCommandPool.h"
+#include "Command/VulkanCommandBuffer.h"
+#include "Sync/VulkanFence.h"
+#include "Sync/VulkanSemaphore.h"
 namespace Bear {
 
 	Bear::VulkanDevice::VulkanDevice(const VulkanInstance& instance, const VulkanSurface& surface)
@@ -41,6 +45,19 @@ namespace Bear {
 		// 未来可以添加更多类型，比如 StorageBuffer
 		};
 		m_GlobalDescriptorPool = std::make_unique<VulkanDescriptorPool>(*this, 1000, globalPoolSizes);
+
+		m_CommandPool = std::make_unique<VulkanCommandPool>(*this);
+		m_CommandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+		m_ImageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+		m_RenderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+		m_InFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+
+		for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+			m_CommandBuffers[i] = std::make_unique<VulkanCommandBuffer>(*this, *m_CommandPool);
+			m_ImageAvailableSemaphores[i] = std::make_unique<VulkanSemaphore>(*this);
+			m_RenderFinishedSemaphores[i] = std::make_unique<VulkanSemaphore>(*this);
+			m_InFlightFences[i] = std::make_unique<VulkanFence>(*this, true);
+		}
 	}
 
 	VulkanDevice::~VulkanDevice()
@@ -75,6 +92,30 @@ namespace Bear {
 			}
 		}
 		BEAR_CORE_ERROR("Failed to find suitable memory type!");
+	}
+	void VulkanDevice::SubmitCommands(RHICommandList* cmd)
+	{
+		auto imageAvailableSemaphore = m_ImageAvailableSemaphores[m_CurrentFrame]->GetHandle();
+		auto renderFinishedSemaphore = m_RenderFinishedSemaphores[m_CurrentFrame]->GetHandle();
+		auto inFlightFence = m_InFlightFences[m_CurrentFrame]->GetHandle();
+
+		VkSubmitInfo submitInfo{};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+		submitInfo.waitSemaphoreCount = 1;
+		submitInfo.pWaitSemaphores = &imageAvailableSemaphore;
+		submitInfo.pWaitDstStageMask = waitStages;
+
+		auto vkCmd = static_cast<VulkanCommandBuffer*>(cmd);
+		submitInfo.commandBufferCount = 1;
+		auto vkCmdHandle = vkCmd->GetHandle();
+		submitInfo.pCommandBuffers = &vkCmdHandle;
+
+		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pSignalSemaphores = &renderFinishedSemaphore;
+
+		BEAR_CORE_ASSERT(vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, inFlightFence) == VK_SUCCESS, "submit commands failed!");
 	}
 	std::unique_ptr<RHIBuffer> VulkanDevice::CreateBuffer(size_t size, BufferUsage usage, bool cpuAccessible)
 	{
@@ -271,6 +312,55 @@ namespace Bear {
 	std::unique_ptr<RHISwapchain> VulkanDevice::CreateSwapchain(std::shared_ptr<RHIRenderPass> renderPass)
 	{
 		return std::make_unique<VulkanSwapchain>(*this, renderPass);
+	}
+	RHICommandList* VulkanDevice::BeginFrame()
+	{
+		m_InFlightFences[m_CurrentFrame]->Wait(); // 等待上一个帧的命令完成
+		BEAR_CORE_ASSERT(m_Swapchain, "Swapchain is not initialized!");
+
+		m_CurrentImageIndex = m_Swapchain->AcquireNextImage(*m_ImageAvailableSemaphores[m_CurrentFrame]); // 获取下一个可用图像索引
+
+		m_InFlightFences[m_CurrentFrame]->Reset(); // 重置当前帧的信号量
+		RHICommandList* cmd = m_CommandBuffers[m_CurrentFrame].get();
+		cmd->Reset(); // 重置命令缓冲区
+		cmd->Begin(); // 开始命令缓冲区的录制
+		return cmd;
+	}
+	void VulkanDevice::EndFrame()
+	{
+		RHICommandList* cmd = m_CommandBuffers[m_CurrentFrame].get();
+		cmd->End(); // 结束命令缓冲区的录制
+
+		VkSubmitInfo submitInfo{};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		auto vkCmdHandle = m_CommandBuffers[m_CurrentFrame]->GetHandle();
+		submitInfo.pCommandBuffers = &vkCmdHandle;
+		VkSemaphore waitSemaphore = m_ImageAvailableSemaphores[m_CurrentFrame]->GetHandle();
+		submitInfo.waitSemaphoreCount = 1;
+		submitInfo.pWaitSemaphores = &waitSemaphore; // 等待图像可用
+		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+		submitInfo.pWaitDstStageMask = waitStages; // 等待渲染完成
+		VkSemaphore signalSemaphore = m_RenderFinishedSemaphores[m_CurrentFrame]->GetHandle();
+		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pSignalSemaphores = &signalSemaphore; // 信号渲染完成
+		m_InFlightFences[m_CurrentFrame]->Reset(); // 重置当前帧的信号量
+		vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, m_InFlightFences[m_CurrentFrame]->GetHandle());
+
+		m_Swapchain->Present(m_CurrentImageIndex, *m_RenderFinishedSemaphores[m_CurrentFrame]);
+
+		m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT; // 更新当前帧索引
+	}
+	uint32_t VulkanDevice::AcquireNextImage(RHISwapchain& swapchain) const
+	{
+		auto& vkSwapchain = static_cast<VulkanSwapchain&>(swapchain);
+		return vkSwapchain.AcquireNextImage(*m_ImageAvailableSemaphores[m_CurrentFrame]);
+	}
+	void VulkanDevice::Present(RHISwapchain& swapchain, uint32_t imageIndex)
+	{
+		auto& vkSwapchain = static_cast<VulkanSwapchain&>(swapchain);
+		vkSwapchain.Present(imageIndex, *m_RenderFinishedSemaphores[m_CurrentFrame]);
+		m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 	}
 	void VulkanDevice::CreateLogicalDevice(VkInstance instance, VkSurfaceKHR surface)
 	{

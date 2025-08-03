@@ -46,10 +46,10 @@ namespace Bear {
 		BEAR_CORE_ASSERT(vkAcquireNextImageKHR(m_Device.GetDevice(), m_Swapchain, UINT64_MAX, semaphore, VK_NULL_HANDLE, imageIndex) == VK_SUCCESS, "Failed to acquire next image from swapchain.");
 		return VK_SUCCESS;
 	}
-	uint32_t VulkanSwapchain::AcquireNextImage(VulkanSemaphore* imageAvailableSemaphore)
+	uint32_t VulkanSwapchain::AcquireNextImage(VulkanSemaphore& imageAvailableSemaphore)
 	{
 		uint32_t imageIndex = 0;
-		VkResult result = vkAcquireNextImageKHR(m_Device.GetDevice(), m_Swapchain, UINT64_MAX, imageAvailableSemaphore->GetHandle(), VK_NULL_HANDLE, &imageIndex);
+		VkResult result = vkAcquireNextImageKHR(m_Device.GetDevice(), m_Swapchain, UINT64_MAX, imageAvailableSemaphore.GetHandle(), VK_NULL_HANDLE, &imageIndex);
 		if (result == VK_SUCCESS) {
 			return imageIndex; // 成功获取图像索引
 		}
@@ -61,14 +61,14 @@ namespace Bear {
 		}
 	}
 
-	void VulkanSwapchain::Present(uint32_t imageIndex, VulkanSemaphore* renderFinishedSemaphore)
+	void VulkanSwapchain::Present(uint32_t imageIndex, VulkanSemaphore& renderFinishedSemaphore)
 	{
 		VkQueue presentQueue = m_Device.GetPresentQueue();
 		if (presentQueue == VK_NULL_HANDLE) {
 			BEAR_CORE_ERROR("Failed to get present queue from Vulkan device.");
 			return;
 		}
-		VkResult result = SubmitImage(imageIndex, presentQueue, renderFinishedSemaphore->GetHandle());
+		VkResult result = SubmitImage(imageIndex, presentQueue, renderFinishedSemaphore.GetHandle());
 		if (result != VK_SUCCESS) {
 			BEAR_CORE_ERROR("Failed to submit image to swapchain for presentation.");
 			return;

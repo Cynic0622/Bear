@@ -75,15 +75,7 @@ namespace Bear {
 
 		VkPipelineLayout m_PipelineLayout = VK_NULL_HANDLE;
 
-		std::unique_ptr<VulkanCommandPool> m_CommandPool;
-		std::vector<std::unique_ptr<VulkanCommandBuffer>> m_CommandBuffers;
-
-		const int MAX_FRAMES_IN_FLIGHT = 2;
-		uint32_t m_CurrentFrame = 0;
-
-		std::vector<std::unique_ptr<VulkanSemaphore>> m_ImageAvailableSemaphores;
-		std::vector<std::unique_ptr<VulkanSemaphore>> m_RenderFinishedSemaphores;
-		std::vector<std::unique_ptr<VulkanFence>> m_InFlightFences;
+		
 
 		bool m_FramebufferResized = false;
 		std::unique_ptr<VulkanDevice> m_Device;

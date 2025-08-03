@@ -31,8 +31,8 @@ namespace Bear {
 		RHIFramebuffer* GetFramebuffer(uint32_t index) const override { return m_Framebuffers[index].get(); }
 
 		VkResult AcquireNextImage(uint32_t* imageIndex, VkSemaphore semaphore);
-		uint32_t AcquireNextImage(VulkanSemaphore* imageAvailableSemaphore); // rhi
-		void Present(uint32_t imageIndex, VulkanSemaphore* renderFinishedSemaphore); // rhi
+		uint32_t AcquireNextImage(VulkanSemaphore& imageAvailableSemaphore); // rhi
+		void Present(uint32_t imageIndex, VulkanSemaphore& renderFinishedSemaphore); // rhi
 		void Resize(); // rhi
 
 		uint32_t GetWidth() const override { return m_Extent.width; } // rhi
