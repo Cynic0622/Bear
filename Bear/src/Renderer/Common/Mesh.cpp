@@ -24,7 +24,7 @@ namespace Bear {
 		m_VertexBuffer.reset(); // 清理顶点缓冲区
 		m_IndexBuffer.reset(); // 清理索引缓冲区
 	}
-	void Mesh::Bind(CommandBuffer& commandBuffer) const
+	void Mesh::Bind(RHICommandList& commandBuffer) const
 	{
 		Buffer* vkVertexBuffer = static_cast<Buffer*>(m_VertexBuffer.get());
 		Buffer* vkIndexBuffer = static_cast<Buffer*>(m_IndexBuffer.get());
@@ -35,7 +35,7 @@ namespace Bear {
 		commandBuffer.BindVertexBuffer(*vkVertexBuffer, 0, 0);
 		commandBuffer.BindIndexBuffer(*vkIndexBuffer, 0);
 	}
-	void Mesh::Draw(CommandBuffer& commandBuffer) const
+	void Mesh::Draw(RHICommandList& commandBuffer) const
 	{
 		commandBuffer.DrawIndexed(m_IndexCount, 1, 0, 0, 0);
 	}

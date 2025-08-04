@@ -30,15 +30,6 @@ namespace Bear {
 		void UpdateUniformBuffer(uint32_t currentFrame, const UniformBufferObject& ubo);
 
 		//void SetTexture(std::shared_ptr<Image> image, std::shared_ptr<Sampler> sampler);
-
-	private:
-		// 修改为使用device工厂创建
-		/*void CreateDescriptorSetLayout();
-		void CreatePipelineLayout();
-		void CreatePipeline(const RenderPass& renderPass, const std::vector<std::string>& shaderPath);
-		void CreateUniformBuffers();
-		void CreateDescriptorPool();
-		void CreateDescriptorSets();*/
 	private:
 		const RHIDevice& m_Device;
 		const int MAX_FRAMES_IN_FLIGHT = 2; // 与 Renderer 保持一致

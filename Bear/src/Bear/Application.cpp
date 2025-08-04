@@ -52,11 +52,12 @@ namespace Bear {
 			int currentTime = static_cast<int>(glfwGetTime() * 1000); // Convert to milliseconds
 			deltaTime = currentTime - lastTime;
 			
-			m_Renderer->DrawFrame();
+			
 			for (Layer* layer : m_LayerStack)
 			{
 				layer->OnUpdate(deltaTime);
 			}
+			m_Renderer->DrawFrame(m_LayerStack);
 			lastTime = currentTime;
 
 			m_Window->OnUpdate();

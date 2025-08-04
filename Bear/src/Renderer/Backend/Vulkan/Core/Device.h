@@ -31,14 +31,16 @@ namespace Bear {
         inline VkQueue GetGraphicsQueue() const { return m_GraphicsQueue; }
         inline VkQueue GetPresentQueue() const { return m_PresentQueue; }
 		inline const Surface& GetSurface() const { return *m_Surface; }
+		inline const Instance& GetInstance() const { return *m_Instance; }
         inline const QueueFamilyIndices& GetQueueFamilyIndices() const { return m_QueueIndices; }
 		inline VmaAllocator GetAllocator() const { return m_Allocator; }
         void Present(RHISwapchain& swapchain, uint32_t imageIndex);
+
 		// 实现 RHIDevice 接口
         void SubmitCommands(RHICommandList& cmd);
 		std::unique_ptr<RHIBuffer> CreateBuffer(size_t size, BufferUsage usage, bool cpuAccessible) override;
         std::shared_ptr<RHIDescriptorSetLayout> CreateDescriptorSetLayout(const std::vector<RHIDescriptorSetLayoutBinding>& bindings) override;
-		std::shared_ptr<RHIPipelineLayout> CreatePipelineLayout(const std::vector<std::shared_ptr<RHIDescriptorSetLayout>>& descriptorSetLayouts) override;
+		std::shared_ptr<RHIPipelineLayout> CreatePipelineLayout(const std::vector<RHIDescriptorSetLayout*>& descriptorSetLayouts) override;
         std::shared_ptr<RHIPipeline> CreatePipeline(const RHIPipelineConfig& config, const RHIRenderPass& renderPass) override;
         std::unique_ptr<RHIDescriptorSet> CreateDescriptorSet(std::shared_ptr<RHIDescriptorSetLayout> layout) override;
         std::shared_ptr<RHIRenderPass> CreateRenderPass(const std::vector <RHIAttachmentDescription>& attachments) override;

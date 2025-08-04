@@ -9,54 +9,40 @@
 // Vulkan headers
 #include <vulkan/vulkan.h>
 
+namespace Bear
+{
+	class RHICommandList;
+}
+
 // Forward declarations
 struct GLFWwindow;
 
 namespace Bear {
-    
-    // Forward declarations
-    class VulkanDevice;
-    class VulkanSurface;
-    class VulkanSwapchain;
-    class VulkanRenderPass;
-	class VulkanInstance;
+	class RHIDevice;
+
+	// Forward declarations
+    class Device;
     
     class BEAR_API VulkanGuiLayer : public Layer {
     public:
         VulkanGuiLayer();
-        virtual ~VulkanGuiLayer();
+        virtual ~VulkanGuiLayer() override;
 
         virtual void OnAttach() override;
         virtual void OnDetach() override;
         virtual void OnUpdate(float deltaTime) override;
         virtual void OnEvent(Event& event) override;
+        void OnRender(RHICommandList& cmd) const;
 
     private:
         void InitImGui();
         void ShutdownImGui();
-        
-        // Vulkan错误检查回调
-        static void CheckVkResult(VkResult err);
+
 
     private:
-        // Vulkan对象引用（不拥有所有权）
-        VulkanDevice* m_VulkanDevice = nullptr;
-        VulkanSurface* m_VulkanSurface = nullptr;
-        VulkanSwapchain* m_VulkanSwapchain = nullptr;
-        VulkanRenderPass* m_VulkanRenderPass = nullptr;
-		VulkanInstance* m_VulkanInstance = nullptr;
+		RHIDevice* m_Device = nullptr;
         
         // ImGui专用的Vulkan资源
         VkDescriptorPool m_DescriptorPool = VK_NULL_HANDLE;
-        VkCommandPool m_CommandPool = VK_NULL_HANDLE;
-        VkCommandBuffer m_CommandBuffer = VK_NULL_HANDLE;
-        
-        // 同步对象
-        VkSemaphore m_ImageAvailableSemaphore = VK_NULL_HANDLE;
-        VkSemaphore m_RenderFinishedSemaphore = VK_NULL_HANDLE;
-        VkFence m_InFlightFence = VK_NULL_HANDLE;
-        
-        uint32_t m_CurrentFrame = 0;
-        bool m_SwapChainRebuild = false;
     };
 }

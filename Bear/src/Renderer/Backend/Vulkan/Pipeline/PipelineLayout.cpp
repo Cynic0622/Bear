@@ -3,13 +3,19 @@
 #include "Core/Device.h"
 #include "Pipeline/DescriptorSetLayout.h"
 namespace Bear {
-	PipelineLayout::PipelineLayout(const Device& device, const std::vector<VkDescriptorSetLayout> layouts)
+	PipelineLayout::PipelineLayout(const Device& device, const std::vector<const DescriptorSetLayout*>& layouts)
 		:m_Device(device)
 	{
+		// ½« DescriptorSetLayout ×ª»»Îª VkDescriptorSetLayout
+		std::vector<VkDescriptorSetLayout> vkLayouts;
+		vkLayouts.reserve(layouts.size());
+		for (const auto& layout : layouts) {
+			vkLayouts.push_back(layout->GetHandle());
+		}
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
 		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(layouts.size());
-		pipelineLayoutInfo.pSetLayouts = layouts.data();
+		pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(vkLayouts.size());
+		pipelineLayoutInfo.pSetLayouts = vkLayouts.data();
 		BEAR_CORE_ASSERT(vkCreatePipelineLayout(m_Device.GetDevice(), &pipelineLayoutInfo, nullptr, &m_Layout) == VK_SUCCESS, "failed to create pipeline layout!");
 	}
 	PipelineLayout::~PipelineLayout()

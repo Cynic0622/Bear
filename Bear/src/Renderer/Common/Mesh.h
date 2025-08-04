@@ -7,8 +7,6 @@
 namespace Bear {
 
 	class Device;
-	class CommandBuffer;
-	class Buffer;
 	// Vertex structure for the mesh
 	struct Vertex;
 	class Mesh {
@@ -17,8 +15,8 @@ namespace Bear {
 		Mesh(RHIDevice& device, const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices);
 		~Mesh();
 
-		void Bind(CommandBuffer& commandBuffer) const;
-		void Draw(CommandBuffer& commandBuffer) const;
+		void Bind(RHICommandList& commandBuffer) const;
+		void Draw(RHICommandList& commandBuffer) const;
 
 	private:
 		//std::unique_ptr<Buffer> m_VertexBuffer;

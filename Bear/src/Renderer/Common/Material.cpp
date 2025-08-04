@@ -21,7 +21,7 @@ namespace Bear {
 		std::vector<RHIDescriptorSetLayoutBinding> bindings;
 		bindings.push_back({ .binding = 0, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Vertex });
 		m_DescriptorSetLayout = device.CreateDescriptorSetLayout(bindings);
-		m_PipelineLayout = device.CreatePipelineLayout({ m_DescriptorSetLayout });
+		m_PipelineLayout = device.CreatePipelineLayout({ m_DescriptorSetLayout.get() });
 
 		RHIPipelineConfig config{};
 		config.pipelineLayout = m_PipelineLayout;

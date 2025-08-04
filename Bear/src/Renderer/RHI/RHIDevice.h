@@ -17,7 +17,7 @@ namespace Bear {
 		// --- Descriptor 工厂方法 ---
 		virtual std::shared_ptr<RHIDescriptorSetLayout> CreateDescriptorSetLayout(const std::vector<RHIDescriptorSetLayoutBinding>& bindings) = 0;
 		// --- PipelineLayout 工厂方法 ---
-		virtual std::shared_ptr<RHIPipelineLayout> CreatePipelineLayout(const std::vector<std::shared_ptr<RHIDescriptorSetLayout>>& descriptorSetLayouts) = 0;
+		virtual std::shared_ptr<RHIPipelineLayout> CreatePipelineLayout(const std::vector<RHIDescriptorSetLayout*>& descriptorSetLayouts) = 0;
 		// --- Pipeline 工厂方法 ---
 		virtual std::shared_ptr<RHIPipeline> CreatePipeline(const RHIPipelineConfig& config, const RHIRenderPass& renderPass) = 0;
 		// --- DescriptorSet 工厂方法 ---

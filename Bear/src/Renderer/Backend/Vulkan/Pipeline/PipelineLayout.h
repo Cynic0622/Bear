@@ -7,9 +7,10 @@
 namespace Bear {
 
 	class Device;
+	class DescriptorSetLayout;
 	class PipelineLayout : public RHIPipelineLayout {
 	public:
-		PipelineLayout(const Device& device, const std::vector<VkDescriptorSetLayout> layouts);
+		PipelineLayout(const Device& device, const std::vector<const DescriptorSetLayout*>& layouts);
 
 		~PipelineLayout() override;
 

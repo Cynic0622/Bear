@@ -143,12 +143,12 @@ namespace Bear {
 		*/
 		return std::make_shared<DescriptorSetLayout>(*this, vkBindings);
 	}
-	std::shared_ptr<RHIPipelineLayout> Device::CreatePipelineLayout(const std::vector<std::shared_ptr<RHIDescriptorSetLayout>>& descriptorSetLayouts)
+	std::shared_ptr<RHIPipelineLayout> Device::CreatePipelineLayout(const std::vector<RHIDescriptorSetLayout*>& descriptorSetLayouts)
 	{
-		std::vector<VkDescriptorSetLayout> layouts;
+		std::vector<const DescriptorSetLayout*> layouts;
 		layouts.reserve(descriptorSetLayouts.size());
 		for (const auto& layout : descriptorSetLayouts) {
-			layouts.push_back(static_cast<const DescriptorSetLayout*>(layout.get())->GetHandle());
+			layouts.push_back(dynamic_cast<const DescriptorSetLayout*>(layout));
 		}
 		return std::make_shared<PipelineLayout>(*this, layouts);
 	}
