@@ -1,7 +1,7 @@
 #include "bearpch.h"
 #include "RHI.h"
 #include "RHIDevice.h"
-#include "Core/VulkanDevice.h"
+#include "Core/Device.h"
 
 namespace Bear {
 	std::unique_ptr<RHIDevice> Bear::CreateDevice(GraphicsAPI api, const RHIPlatformData& platformData)
@@ -10,7 +10,7 @@ namespace Bear {
 		switch (api)
 		{
 		case GraphicsAPI::Vulkan: {
-			return std::make_unique<VulkanDevice>(static_cast<GLFWwindow*>(platformData.windowHandle));
+			return std::make_unique<Device>(static_cast<GLFWwindow*>(platformData.windowHandle));
 		}
 		}
 	}

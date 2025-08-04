@@ -5,14 +5,14 @@
 #include "RHI/RHICommandList.h"
 namespace Bear {
 
-	class VulkanRenderPass;
+	class RenderPass;
 	struct UniformBufferObject;
 	class RHIDescriptorSetLayout;
 	class RHIPipeline;
-	//class VulkanDescriptorPool;
+	//class DescriptorPool;
 	class RHIBuffer;
-	class VulkanImage;
-	class VulkanSampler;
+	class Image;
+	class Sampler;
 	class RHIDescriptorSets;
 	class RHIDevice;
 	class RHIRenderPass;
@@ -29,13 +29,13 @@ namespace Bear {
 
 		void UpdateUniformBuffer(uint32_t currentFrame, const UniformBufferObject& ubo);
 
-		//void SetTexture(std::shared_ptr<VulkanImage> image, std::shared_ptr<VulkanSampler> sampler);
+		//void SetTexture(std::shared_ptr<Image> image, std::shared_ptr<Sampler> sampler);
 
 	private:
 		// 修改为使用device工厂创建
 		/*void CreateDescriptorSetLayout();
 		void CreatePipelineLayout();
-		void CreatePipeline(const VulkanRenderPass& renderPass, const std::vector<std::string>& shaderPath);
+		void CreatePipeline(const RenderPass& renderPass, const std::vector<std::string>& shaderPath);
 		void CreateUniformBuffers();
 		void CreateDescriptorPool();
 		void CreateDescriptorSets();*/
@@ -51,11 +51,11 @@ namespace Bear {
 		std::shared_ptr<RHIPipeline> m_Pipeline;
 
 		// 描述符资源 (每个 in-flight frame 一个)
-		//std::unique_ptr<VulkanDescriptorPool> m_DescriptorPool; // 有了全局的pool，这里就不需要了
+		//std::unique_ptr<DescriptorPool> m_DescriptorPool; // 有了全局的pool，这里就不需要了
 		std::vector<std::unique_ptr<RHIBuffer>> m_UniformBuffers;
 		std::vector<std::unique_ptr<RHIDescriptorSet>> m_DescriptorSets;
 
-		std::shared_ptr<VulkanImage> m_TextureImage;
-		std::shared_ptr<VulkanSampler> m_TextureSampler;
+		std::shared_ptr<Image> m_TextureImage;
+		std::shared_ptr<Sampler> m_TextureSampler;
 	};
 }

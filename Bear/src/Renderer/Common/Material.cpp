@@ -1,15 +1,15 @@
 #include "bearpch.h"
 
-#include "Pipeline/VulkanDescriptorSetLayout.h"
-#include "Pipeline/VulkanPipeline.h"
-#include "Pipeline/VulkanDescriptorPool.h"
-#include "Resources/VulkanBuffer.h"
+#include "Pipeline/DescriptorSetLayout.h"
+#include "Pipeline/Pipeline.h"
+#include "Pipeline/DescriptorPool.h"
+#include "Resources/Buffer.h"
 #include "Material.h"
-#include "Core/VulkanDevice.h"
-#include "Pipeline/VulkanRenderPass.h"
-#include "Command/VulkanCommandBuffer.h"
-#include "Resources/VulkanImage.h"
-#include "Resources/VulkanSampler.h"
+#include "Core/Device.h"
+#include "Pipeline/RenderPass.h"
+#include "Command/CommandBuffer.h"
+#include "Resources/Image.h"
+#include "Resources/Sampler.h"
 #include "RHI/RHIDevice.h"
 #include "RHI/RHICommandList.h"
 #include "RHI/RHITypes.h"
@@ -46,7 +46,7 @@ namespace Bear {
 		BEAR_CORE_ASSERT(m_PipelineLayout, "Pipeline layout is not created in Material!");
 		BEAR_CORE_ASSERT(m_DescriptorSets.size() > currentFrame, "Descriptor sets are not created in Material!");
 		//BEAR_CORE_ASSERT(m_DescriptorSets[currentFrame].get() != nullptr, "Descriptor set is not created in Material!");
-		auto& vkCommandBuffer = static_cast<VulkanCommandBuffer&>(commandBuffer);
+		auto& vkCommandBuffer = static_cast<CommandBuffer&>(commandBuffer);
 		vkCommandBuffer.BindPipeline(*m_Pipeline);
 		vkCommandBuffer.BindDescriptorSet(*m_PipelineLayout, *m_DescriptorSets[currentFrame]);
 	}
@@ -54,7 +54,7 @@ namespace Bear {
 	{
 		m_UniformBuffers[currentFrame]->UploadData(&ubo, sizeof(ubo));
 	}
-	//void Material::SetTexture(std::shared_ptr<VulkanImage> image, std::shared_ptr<VulkanSampler> sampler)
+	//void Material::SetTexture(std::shared_ptr<Image> image, std::shared_ptr<Sampler> sampler)
 	//{
 	//	m_TextureImage = image;
 	//	m_TextureSampler = sampler;
@@ -87,7 +87,7 @@ namespace Bear {
 	//		VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, // Uniform Buffer
 	//		VK_SHADER_STAGE_FRAGMENT_BIT // Combined Image Sampler
 	//	};
-	//	m_DescriptorSetLayout = std::make_unique<VulkanDescriptorSetLayout>(m_Device, bindingCount, descriptorTypes, stageFlags);
+	//	m_DescriptorSetLayout = std::make_unique<DescriptorSetLayout>(m_Device, bindingCount, descriptorTypes, stageFlags);
 	//}
 	//void Material::CreatePipelineLayout()
 	//{
@@ -100,26 +100,26 @@ namespace Bear {
 	//	BEAR_CORE_ASSERT(vkCreatePipelineLayout(m_Device.GetDevice(), &pipelineLayoutInfo, nullptr, &m_PipelineLayout) == VK_SUCCESS,
 	//		"Failed to create pipeline layout in Material!");
 	//}
-	//void Material::CreatePipeline(const VulkanRenderPass& renderPass, const std::vector<std::string>& shaderPath)
+	//void Material::CreatePipeline(const RenderPass& renderPass, const std::vector<std::string>& shaderPath)
 	//{
 	//	std::string vertPath = shaderPath[0];
 	//	std::string fragPath = shaderPath[1];
-	//	std::vector<std::unique_ptr<VulkanShader>> shaders;
-	//	shaders.push_back(std::make_unique<VulkanShader>(m_Device, vertPath, VK_SHADER_STAGE_VERTEX_BIT));
-	//	shaders.push_back(std::make_unique<VulkanShader>(m_Device, fragPath, VK_SHADER_STAGE_FRAGMENT_BIT));
+	//	std::vector<std::unique_ptr<Shader>> shaders;
+	//	shaders.push_back(std::make_unique<Shader>(m_Device, vertPath, VK_SHADER_STAGE_VERTEX_BIT));
+	//	shaders.push_back(std::make_unique<Shader>(m_Device, fragPath, VK_SHADER_STAGE_FRAGMENT_BIT));
 
 	//	PipelineConfigInfo configInfo{};
 	//	PipelineConfigInfo::GetDefaultConfig(configInfo);
 	//	configInfo.renderPass = renderPass.GetHandle();
 	//	configInfo.pipelineLayout = m_PipelineLayout;
 
-	//	m_Pipeline = std::make_unique<VulkanPipeline>(m_Device, shaders, configInfo);
+	//	m_Pipeline = std::make_unique<Pipeline>(m_Device, shaders, configInfo);
 	//}
 	//void Material::CreateUniformBuffers()
 	//{
 	//	m_UniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 	//	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-	//		m_UniformBuffers[i] = std::make_unique<VulkanBuffer>(
+	//		m_UniformBuffers[i] = std::make_unique<Buffer>(
 	//			m_Device,
 	//			sizeof(UniformBufferObject),
 	//			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -130,7 +130,7 @@ namespace Bear {
 	//void Material::CreateDescriptorPool()
 	//{
 	//	std::vector<VkDescriptorType> poolType = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
-	//	m_DescriptorPool = std::make_unique<VulkanDescriptorPool>(m_Device, MAX_FRAMES_IN_FLIGHT, poolType.size(), poolType);
+	//	m_DescriptorPool = std::make_unique<DescriptorPool>(m_Device, MAX_FRAMES_IN_FLIGHT, poolType.size(), poolType);
 	//}
 	//void Material::CreateDescriptorSets()
 	//{

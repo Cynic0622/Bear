@@ -5,7 +5,7 @@
 #include "Log.h"
 
 #include <glad/glad.h>
-#include "Pipeline/VulkanShader.h"
+#include "Pipeline/Shader.h"
 #include "Pipeline/PipelineConfig.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/RHI/RHITypes.h"

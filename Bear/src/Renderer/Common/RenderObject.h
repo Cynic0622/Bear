@@ -8,7 +8,7 @@
 
 namespace Bear {
 
-	class VulkanDevice;
+	class Device;
 	class Mesh;
 	class Material;
 	struct TransformComponent
