@@ -1,11 +1,13 @@
 #pragma once
 #include <vulkan/vulkan.h>
 
+#include "RHI/RHIResources.h"
+
 namespace Bear {
     class Device;
-    class Sampler {
+    class Sampler : public RHISampler{
     public:
-        Sampler(const Device& device);
+        Sampler(const Device& device, const VkSamplerCreateInfo& createInfo);
         ~Sampler();
         VkSampler GetHandle() const { return m_Sampler; }
     private:

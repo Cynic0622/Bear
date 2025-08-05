@@ -113,6 +113,23 @@ namespace Bear {
         }
     }
 
+    PixelFormat FromVulkanFormat(VkFormat format)
+    {
+        switch (format)
+        {
+        case VK_FORMAT_R8G8B8A8_UNORM: return PixelFormat::R8G8B8A8_UNORM;
+        case VK_FORMAT_R8G8B8A8_SRGB: return PixelFormat::R8G8B8A8_SRGB;
+        case VK_FORMAT_B8G8R8A8_SRGB: return PixelFormat::B8G8R8A8_SRGB;
+        case VK_FORMAT_R32G32B32A32_SFLOAT: return PixelFormat::R32G32B32A32_SFLOAT;
+        case VK_FORMAT_D16_UNORM: return PixelFormat::D16_UNORM;
+        case VK_FORMAT_D24_UNORM_S8_UINT: return PixelFormat::D24_UNORM_S8_UINT;
+        case VK_FORMAT_D32_SFLOAT: return PixelFormat::D32_SFLOAT;
+        default:
+            BEAR_CORE_ERROR("Unsupported Format: {}", static_cast<int>(format));
+            return PixelFormat::R8G8B8A8_UNORM;
+        }
+    }
+
     VkFormat FindDepthFormat(const Device& device)
     {
         std::vector<VkFormat> candidates = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
@@ -137,5 +154,41 @@ namespace Bear {
             }
         }
         BEAR_CORE_ERROR("Failed to find suitable memory type!");
+    }
+
+	// ------------------sampler-------------------
+    VkFilter ToVulkanFilter(Bear::Filter filter) {
+        switch (filter) {
+        case Bear::Filter::Nearest: return VK_FILTER_NEAREST;
+        case Bear::Filter::Linear:  return VK_FILTER_LINEAR;
+        default:                    return VK_FILTER_LINEAR;
+        }
+    }
+    VkSamplerMipmapMode ToVulkanMipmapMode(Bear::MipmapMode mode) {
+        switch (mode) {
+        case Bear::MipmapMode::Nearest: return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        case Bear::MipmapMode::Linear:  return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        default:                        return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        }
+    }
+    VkSamplerAddressMode ToVulkanAddressMode(Bear::SamplerAddressMode mode) {
+        switch (mode) {
+        case Bear::SamplerAddressMode::Repeat:         return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        case Bear::SamplerAddressMode::MirroredRepeat: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+        case Bear::SamplerAddressMode::ClampToEdge:    return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        case Bear::SamplerAddressMode::ClampToBorder:  return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        default:                                       return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        }
+    }
+    VkBorderColor ToVulkanBorderColor(Bear::BorderColor color) {
+        switch (color) {
+        case Bear::BorderColor::FloatTransparentBlack: return VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+        case Bear::BorderColor::IntTransparentBlack:   return VK_BORDER_COLOR_INT_TRANSPARENT_BLACK;
+        case Bear::BorderColor::FloatOpaqueBlack:      return VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+        case Bear::BorderColor::IntOpaqueBlack:        return VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        case Bear::BorderColor::FloatOpaqueWhite:      return VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+        case Bear::BorderColor::IntOpaqueWhite:        return VK_BORDER_COLOR_INT_OPAQUE_WHITE;
+        default:                                       return VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        }
     }
 }

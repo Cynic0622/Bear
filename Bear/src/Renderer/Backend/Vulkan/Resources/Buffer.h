@@ -16,10 +16,10 @@ namespace Bear {
 		Buffer(const Buffer&) = delete;
 		Buffer& operator=(const Buffer&) = delete;
 
-		// --- 实现 RHI 接口 ---
+		// --- rhi ---
 		void* Map() override;
 		void Unmap() override;
-		// 将数据从CPU拷贝到Buffer
+
 		void UploadData(const void* data, size_t size, size_t offset = 0) override;
 
 		VkBuffer GetHandle() const { return m_Buffer; }

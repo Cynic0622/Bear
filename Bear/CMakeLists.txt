@@ -90,6 +90,11 @@ file(GLOB RENDERER_SOURCES
     "src/Renderer/*.cpp"
     "src/Renderer/*.h"
 )
+
+file(GLOB BEAR_CORE_SOURCES
+    "src/Core/*.cpp"
+    "src/Core/*.h"
+)
 set(BEAR_ALL_SOURCES
     ${BEAR_SOURCES}
     ${BEAR_EVENT_SOURCES}
@@ -102,6 +107,7 @@ set(BEAR_ALL_SOURCES
     ${RENDERER_COMMON_SOURCES}
     ${RENERDER_RHI_SOURCES}
     ${RENDERER_SOURCES}
+    ${BEAR_CORE_SOURCES}
 )
 
 # set(GLAD_SOURCES

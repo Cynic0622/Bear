@@ -1,14 +1,16 @@
 #include "bearpch.h"
 
 #include "Image.h"
+
+#include "Utils.h"
 #include "Core/Device.h"
 
 namespace Bear {
 	Image::Image(const Device& device, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, 
-		VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VmaMemoryUsage memoryUsage)
-		: m_Device(device), m_Format(format)
+		VkImageUsageFlags usage, VmaMemoryUsage memoryUsage)
+		: m_Device(device), m_Format(format), m_Width(width), m_Height(height)
 	{
-		CreateImage(width, height, format, tiling, usage, properties, memoryUsage);
+		CreateImage(width, height, format, tiling, usage, memoryUsage);
 
 		CreateImageView(m_Format);
 
@@ -20,18 +22,31 @@ namespace Bear {
 			vkDestroyImageView(m_Device.GetDevice(), m_ImageView, nullptr);
 		}
 		if (m_Image != VK_NULL_HANDLE) {
-			// ÐÞ¸Ä£ºÊ¹ÓÃvmaÀ´¹ÜÀíÄÚ´æ
-			//vkDestroyImage(m_Device.GetDevice(), m_Image, nullptr);
-			vmaDestroyImage(m_Device.GetAllocator(), m_Image, m_Allocation); // Ê¹ÓÃVMAÏú»ÙÍ¼Ïñ
+
+			vmaDestroyImage(m_Device.GetAllocator(), m_Image, m_Allocation); // vma
 		}
-		// ÐÞ¸Ä£ºÊ¹ÓÃvmaÀ´¹ÜÀíÄÚ´æ
+
 		/*if (m_Memory != VK_NULL_HANDLE) {
 			vkFreeMemory(m_Device.GetDevice(), m_Memory, nullptr);
 		}*/
 	}
 
-	void Image::CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, 
-		VkMemoryPropertyFlags properties, VmaMemoryUsage memoryUsage)
+	uint32_t Image::GetWidth() const
+	{
+		return m_Width;
+	}
+
+	uint32_t Image::GetHeight() const
+	{
+		return m_Height;
+	}
+
+	PixelFormat Image::GetFormat() const
+	{
+		return FromVulkanFormat(m_Format);
+	}
+
+	void Image::CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VmaMemoryUsage memoryUsage)
 	{
 		VkImageCreateInfo imageInfo = {};
 		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -55,7 +70,7 @@ namespace Bear {
 		BEAR_CORE_ASSERT(vmaCreateImage(m_Device.GetAllocator(), &imageInfo, &allocInfo, &m_Image, &m_Allocation, nullptr) == VK_SUCCESS,
 			"Failed to create Vulkan image with VMA!");
 
-		// Ê¹ÓÃVMAÀ´¹ÜÀíÄÚ´æ·ÖÅä
+		// Ê¹ï¿½ï¿½VMAï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú´ï¿½ï¿½ï¿½ï¿½
 		/*BEAR_CORE_ASSERT(vkCreateImage(m_Device.GetDevice(), &imageInfo, nullptr, &m_Image) == VK_SUCCESS, "Failed to create Vulkan image!");
 
 		VkMemoryRequirements memRequirements;
@@ -89,22 +104,22 @@ namespace Bear {
 	VkImageAspectFlags Image::GetAspectMask(VkFormat format)
 	{
 		switch (format) {
-			// ´¿Éî¶È¸ñÊ½
+			// ï¿½ï¿½ï¿½ï¿½È¸ï¿½Ê½
 		case VK_FORMAT_D16_UNORM:
 		case VK_FORMAT_D32_SFLOAT:
 			return VK_IMAGE_ASPECT_DEPTH_BIT;
 
-			// Éî¶È+Ä£°å¸ñÊ½
+			// ï¿½ï¿½ï¿½+Ä£ï¿½ï¿½ï¿½Ê½
 		case VK_FORMAT_D16_UNORM_S8_UINT:
 		case VK_FORMAT_D24_UNORM_S8_UINT:
 		case VK_FORMAT_D32_SFLOAT_S8_UINT:
 			return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
 
-			// ´¿Ä£°å¸ñÊ½
+			// ï¿½ï¿½Ä£ï¿½ï¿½ï¿½Ê½
 		case VK_FORMAT_S8_UINT:
 			return VK_IMAGE_ASPECT_STENCIL_BIT;
 
-			// Ä¬ÈÏÑÕÉ«¸ñÊ½
+			// Ä¬ï¿½ï¿½ï¿½ï¿½É«ï¿½ï¿½Ê½
 		default:
 			return VK_IMAGE_ASPECT_COLOR_BIT;
 		}

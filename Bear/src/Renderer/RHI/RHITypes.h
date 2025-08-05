@@ -142,4 +142,62 @@ namespace Bear {
     struct RHIPlatformData {
 		void* windowHandle = nullptr;
     };
+
+    struct RHITextureConfig {
+		uint32_t width = 0;
+		uint32_t height = 0;
+		PixelFormat format = PixelFormat::Unknown;
+    };
+
+	// --------------------------- sampler ---------------------------
+    enum class Filter {
+        Nearest,
+        Linear,
+    };
+
+    // Mipmap 模式
+    enum class MipmapMode {
+        Nearest,
+        Linear,
+    };
+
+    // 寻址模式 (U, V, W 坐标)
+    enum class SamplerAddressMode {
+        Repeat,
+        MirroredRepeat,
+        ClampToEdge,
+        ClampToBorder,
+    };
+
+    // 边框颜色
+    enum class BorderColor {
+        FloatTransparentBlack,
+        IntTransparentBlack,
+        FloatOpaqueBlack,
+        IntOpaqueBlack,
+        FloatOpaqueWhite,
+        IntOpaqueWhite,
+    };
+
+    struct RHISamplerConfig {
+        Filter magFilter = Filter::Linear;
+        Filter minFilter = Filter::Linear;
+        MipmapMode mipmapMode = MipmapMode::Linear;
+        SamplerAddressMode addressModeU = SamplerAddressMode::Repeat;
+        SamplerAddressMode addressModeV = SamplerAddressMode::Repeat;
+        SamplerAddressMode addressModeW = SamplerAddressMode::Repeat;
+
+        bool anisotropyEnable = true;
+        float maxAnisotropy = 16.0f; // 典型值，后端应根据设备能力进行 clamp
+
+        // 暂时不支持 CompareOp
+        bool compareEnable = false;
+
+        BorderColor borderColor = BorderColor::IntOpaqueBlack;
+
+        // 提供一个获取默认配置的静态函数，方便使用
+        static RHISamplerConfig GetDefault() {
+            return RHISamplerConfig{};
+        }
+    };
 }

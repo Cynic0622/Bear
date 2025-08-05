@@ -24,8 +24,15 @@ namespace Bear {
     VkImageLayout ToVulkanImageLayout(ImageLayout layout);
 
     VkFormat ToVulkanFormat(PixelFormat format);
+    PixelFormat FromVulkanFormat(VkFormat format);
 
     VkFormat FindDepthFormat(const Device& device);
 
     uint32_t FindMemoryType(VkPhysicalDevice& physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
+	// -------------------------- sampler utils --------------------------
+    VkFilter ToVulkanFilter(Bear::Filter filter);
+    VkSamplerMipmapMode ToVulkanMipmapMode(Bear::MipmapMode mode);
+    VkSamplerAddressMode ToVulkanAddressMode(Bear::SamplerAddressMode mode);
+    VkBorderColor ToVulkanBorderColor(Bear::BorderColor color);
 }

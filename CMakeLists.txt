@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # 全局设置UTF-8编码（用于MSVC）
 if(MSVC)
     add_compile_options(/utf-8)
+    add_compile_options(/wd4828) # 禁用警告：'function': function will not be inlined
 endif()
 
 # Windows特定设置

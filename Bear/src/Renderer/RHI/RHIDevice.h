@@ -12,20 +12,24 @@ namespace Bear {
 		RHIDevice() = default;
 		virtual ~RHIDevice() = default;
 
-		// --- Buffer 工厂方法 ---
+		// --- Buffer factory ---
 		virtual std::unique_ptr<RHIBuffer> CreateBuffer(size_t size, BufferUsage usage, bool cpuAccessible) = 0;
-		// --- Descriptor 工厂方法 ---
+		// --- Descriptor factory ---
 		virtual std::shared_ptr<RHIDescriptorSetLayout> CreateDescriptorSetLayout(const std::vector<RHIDescriptorSetLayoutBinding>& bindings) = 0;
-		// --- PipelineLayout 工厂方法 ---
+		// --- PipelineLayout factory ---
 		virtual std::shared_ptr<RHIPipelineLayout> CreatePipelineLayout(const std::vector<RHIDescriptorSetLayout*>& descriptorSetLayouts) = 0;
-		// --- Pipeline 工厂方法 ---
+		// --- Pipeline factory ---
 		virtual std::shared_ptr<RHIPipeline> CreatePipeline(const RHIPipelineConfig& config, const RHIRenderPass& renderPass) = 0;
-		// --- DescriptorSet 工厂方法 ---
+		// --- DescriptorSet factory ---
 		virtual std::unique_ptr<RHIDescriptorSet> CreateDescriptorSet(std::shared_ptr<RHIDescriptorSetLayout> layout) = 0;
-		// --- RenderPass 工厂方法 ---
+		// --- RenderPass factory ---
 		virtual std::shared_ptr<RHIRenderPass> CreateRenderPass(const std::vector <RHIAttachmentDescription>& attachments) = 0;
-		// --- Swapchain 工厂方法 ---
+		// --- Swapchain factory ---
 		virtual std::unique_ptr<RHISwapchain> CreateSwapchain(RHIRenderPass& renderPass) = 0;
+		// --- Texture factory ---
+		virtual std::unique_ptr<RHITexture> CreateTexture(const RHITextureConfig& config) = 0;
+		// --- sampler factory ---
+		virtual std::shared_ptr<RHISampler> CreateSampler(const RHISamplerConfig& config) = 0;
 
 		// 开始
 		virtual RHICommandList& BeginFrame() = 0;

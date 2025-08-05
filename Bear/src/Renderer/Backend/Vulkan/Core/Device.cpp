@@ -1,11 +1,10 @@
 #include "bearpch.h"
 
-#include "Validation.h"
 #include "Device.h"
-#include "Bear/Log.h"
 #include "Instance.h"
 #include "Presentation/Surface.h"
 #include "Buffer.h"
+#include "Sampler.h"
 #include "Pipeline/DescriptorSetLayout.h"
 #include "Core/Utils.h"
 #include "Pipeline/PipelineLayout.h"
@@ -19,6 +18,7 @@
 #include "Command/CommandBuffer.h"
 #include "Sync/Fence.h"
 #include "Sync/Semaphore.h"
+#include "Resources/Image.h"
 namespace Bear {
 
 	Bear::Device::Device(GLFWwindow* window)
@@ -311,6 +311,35 @@ namespace Bear {
 	{
 		auto& vkRenderPass = static_cast<RenderPass&>(renderPass);
 		return std::make_unique<Swapchain>(*this, vkRenderPass);
+	}
+	std::unique_ptr<RHITexture> Device::CreateTexture(const RHITextureConfig& config)
+	{
+		VkFormat vkFormat = ToVulkanFormat(config.format);
+		VkImageUsageFlags vkUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		return std::make_unique<Image>(*this, config.width, config.height, vkFormat, VK_IMAGE_TILING_OPTIMAL, vkUsage, VMA_MEMORY_USAGE_GPU_ONLY);
+	}
+	std::shared_ptr<RHISampler> Device::CreateSampler(const RHISamplerConfig& config)
+	{
+		VkSamplerCreateInfo samplerInfo = {};
+		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		samplerInfo.magFilter = ToVulkanFilter(config.magFilter);
+		samplerInfo.minFilter = ToVulkanFilter(config.minFilter);
+		samplerInfo.addressModeU = ToVulkanAddressMode(config.addressModeU);
+		samplerInfo.addressModeV = ToVulkanAddressMode(config.addressModeV);
+		samplerInfo.addressModeW = ToVulkanAddressMode(config.addressModeW);
+		VkPhysicalDeviceProperties properties{};
+		vkGetPhysicalDeviceProperties(m_PhysicalDevice, &properties);
+		samplerInfo.anisotropyEnable = config.anisotropyEnable ? VK_TRUE : VK_FALSE;
+		samplerInfo.maxAnisotropy = std::min(config.maxAnisotropy, properties.limits.maxSamplerAnisotropy);
+		samplerInfo.borderColor = ToVulkanBorderColor(config.borderColor);
+		samplerInfo.unnormalizedCoordinates = VK_FALSE;
+		samplerInfo.compareEnable = config.compareEnable ? VK_TRUE : VK_FALSE;
+		samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS; 
+		samplerInfo.mipmapMode = ToVulkanMipmapMode(config.mipmapMode); 
+		samplerInfo.minLod = 0.f; 
+		samplerInfo.maxLod = VK_LOD_CLAMP_NONE; 
+
+		return std::make_shared<Sampler>(*this, samplerInfo);
 	}
 	RHICommandList& Device::BeginFrame()
 	{
