@@ -164,6 +164,8 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Common" PREFIX "Rend
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/RHI" PREFIX "Renderer/RHI" FILES ${RENERDER_RHI_SOURCES})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer" PREFIX "Renderer" FILES ${RENDERER_SOURCES})
 
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Core" PREFIX "Core" FILES ${BEAR_CORE_SOURCES})
+
 
 target_link_libraries(Bear PUBLIC
     glfw
@@ -178,6 +180,7 @@ target_include_directories(Bear
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src  # 公共接口
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Bear
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Core
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Common
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend

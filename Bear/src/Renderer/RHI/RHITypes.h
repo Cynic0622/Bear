@@ -105,6 +105,8 @@ namespace Bear {
     enum class ImageLayout {
         Undefined,
         ColorAttachment,
+        TransferDst,
+        ShaderReadOnly,
         DepthStencilAttachment,
         PresentSrc // 用于呈现到屏幕
     };

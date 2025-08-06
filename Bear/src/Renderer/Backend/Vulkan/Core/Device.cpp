@@ -59,6 +59,8 @@ namespace Bear {
 			m_RenderFinishedSemaphores[i] = std::make_unique<Semaphore>(*this);
 			m_InFlightFences[i] = std::make_unique<Fence>(*this, true);
 		}
+
+		m_ImmediateCommandPool = std::make_unique<CommandPool>(*this);
 	}
 
 	Device::~Device()
@@ -77,6 +79,7 @@ namespace Bear {
 		m_InFlightFences.clear();
 		m_CommandPool.reset();
 		m_GlobalDescriptorPool.reset();
+		m_ImmediateCommandPool.reset();
 
 		if (m_LogicalDevice != VK_NULL_HANDLE)
 		{
@@ -340,6 +343,23 @@ namespace Bear {
 		samplerInfo.maxLod = VK_LOD_CLAMP_NONE; 
 
 		return std::make_shared<Sampler>(*this, samplerInfo);
+	}
+	void Device::ImmediateSubmit(std::function<void(RHICommandList&)>&& function)
+	{
+		std::unique_ptr<CommandBuffer> cmd = std::make_unique<CommandBuffer>(*m_ImmediateCommandPool);
+		cmd->Begin();
+		function(*cmd);
+		cmd->End();
+		VkSubmitInfo submitInfo{};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		auto cmdHandle = cmd->GetHandle();
+		submitInfo.pCommandBuffers = &cmdHandle;
+
+		vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+
+		vkQueueWaitIdle(m_GraphicsQueue);
+		cmd.reset();
 	}
 	RHICommandList& Device::BeginFrame()
 	{

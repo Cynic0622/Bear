@@ -1,6 +1,8 @@
 #pragma once
 
 #include <vector>
+
+#include "ResourceManager.h"
 #include "RHI/RHIResources.h"
 #include "RHI/RHIDevice.h"
 
@@ -26,4 +28,5 @@ namespace Bear {
 		uint32_t m_IndexCount;
 
 	};
+	using MeshManger = ResourceManager<Mesh, std::string>;
 }

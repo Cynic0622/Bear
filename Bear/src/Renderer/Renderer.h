@@ -2,6 +2,8 @@
 #include <memory>
 #include <vector>
 
+#include "Texture.h"
+
 namespace Bear
 {
 	class LayerStack;
@@ -55,5 +57,7 @@ namespace Bear {
 		std::shared_ptr<class Mesh> m_Mesh;
 		std::shared_ptr<class Material> m_Material;
 		std::vector<std::unique_ptr<RenderObject>> m_RenderObjects;
+
+		std::unique_ptr<TextureManager> m_TextureManager;
 	};
 }

@@ -47,6 +47,9 @@ namespace Bear {
         std::unique_ptr<RHISwapchain> CreateSwapchain(RHIRenderPass& renderPass) override;
 		std::unique_ptr<RHITexture> CreateTexture(const RHITextureConfig& config) override;
 		std::shared_ptr<RHISampler> CreateSampler(const RHISamplerConfig& config) override;
+
+        void ImmediateSubmit(std::function<void(RHICommandList&)>&& function) override;
+    	
 		RHICommandList& BeginFrame() override;
 		void EndFrame(RHISwapchain& swapchain, uint32_t imageIndex) override;
 		uint32_t GetCurrentFrameIndex() const override { return m_CurrentFrame; }
@@ -87,6 +90,7 @@ namespace Bear {
 
 		VmaAllocator m_Allocator; // Vulkan Memory Allocator
         std::unique_ptr<DescriptorPool> m_GlobalDescriptorPool;
+        std::unique_ptr<CommandPool> m_ImmediateCommandPool;
 
     private:
         void CreateLogicalDevice(VkInstance instance, VkSurfaceKHR surface);

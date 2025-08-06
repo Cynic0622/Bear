@@ -1,5 +1,4 @@
 #pragma once
-#include <memory>
 #include <vector>
 namespace Bear {
 
@@ -10,6 +9,8 @@ namespace Bear {
 	class RHIPipelineLayout;
 	class RHIDescriptorSet;
 	class RHIFramebuffer;
+	class RHITexture;
+	enum class ImageLayout;
 	class RHICommandList {
 	public:
 		virtual ~RHICommandList() = default;
@@ -32,5 +33,8 @@ namespace Bear {
 
 		virtual void Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) = 0;
 		virtual void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t firstIndex = 0, int32_t vertexOffset = 0, uint32_t firstInstance = 0) = 0;
+
+		virtual void TransitionImageLayout(RHITexture& texture, ImageLayout oldLayout, ImageLayout newLayout) = 0;
+		virtual void CopyBufferToTexture(const RHIBuffer& srcBuffer, RHITexture& dstTexture) = 0;
 	};
 }

@@ -31,6 +31,9 @@ namespace Bear {
 		// --- sampler factory ---
 		virtual std::shared_ptr<RHISampler> CreateSampler(const RHISamplerConfig& config) = 0;
 
+		// ImmediateSubmit
+		virtual void ImmediateSubmit(std::function<void(RHICommandList&)>&& function) = 0;
+
 		// 开始
 		virtual RHICommandList& BeginFrame() = 0;
 		// 结束并提交
