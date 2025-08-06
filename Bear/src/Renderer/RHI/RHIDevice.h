@@ -27,7 +27,7 @@ namespace Bear {
 		// --- Swapchain factory ---
 		virtual std::unique_ptr<RHISwapchain> CreateSwapchain(RHIRenderPass& renderPass) = 0;
 		// --- Texture factory ---
-		virtual std::unique_ptr<RHITexture> CreateTexture(const RHITextureConfig& config) = 0;
+		virtual std::unique_ptr<RHIImage> CreateTexture(const RHITextureConfig& config) = 0;
 		// --- sampler factory ---
 		virtual std::shared_ptr<RHISampler> CreateSampler(const RHISamplerConfig& config) = 0;
 

@@ -48,19 +48,19 @@ namespace Bear {
 		while (m_Running)
 		{
 			// Calculate delta time
-			static int lastTime = 0;
-			int currentTime = static_cast<int>(glfwGetTime() * 1000); // Convert to milliseconds
+			static float lastTime = 0;
+			float currentTime = static_cast<float>(glfwGetTime() * 1000); // Convert to milliseconds
 			deltaTime = currentTime - lastTime;
-			
 			
 			for (Layer* layer : m_LayerStack)
 			{
 				layer->OnUpdate(deltaTime);
 			}
 			m_Renderer->DrawFrame(m_LayerStack);
-			lastTime = currentTime;
 
 			m_Window->OnUpdate();
+
+			lastTime = currentTime;
 		}
 	}
 

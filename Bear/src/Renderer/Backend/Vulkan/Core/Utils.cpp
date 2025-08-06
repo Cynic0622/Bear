@@ -27,6 +27,7 @@ namespace Bear {
         VkBufferUsageFlags flags = 0;
         if (static_cast<uint32_t>(usage) & static_cast<uint32_t>(Bear::BufferUsage::VertexBuffer))      flags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
         if (static_cast<uint32_t>(usage) & static_cast<uint32_t>(Bear::BufferUsage::IndexBuffer))       flags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+		if (static_cast<uint32_t>(usage) & static_cast<uint32_t>(Bear::BufferUsage::StagingBuffer))     flags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         if (static_cast<uint32_t>(usage) & static_cast<uint32_t>(Bear::BufferUsage::UniformBuffer))     flags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
         if (static_cast<uint32_t>(usage) & static_cast<uint32_t>(Bear::BufferUsage::StorageBuffer))     flags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
         if (static_cast<uint32_t>(usage) & static_cast<uint32_t>(Bear::BufferUsage::TransferSrcBuffer)) flags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;

@@ -16,8 +16,8 @@ namespace Bear {
 
     struct Vertex {
 		glm::vec3 pos;
-		glm::vec3 color;
-		glm::vec2 coord; // 添加纹理坐标属性
+		glm::vec3 normal;
+		glm::vec2 texCoord; // 添加纹理坐标属性
 
         // 绑定描述：告诉 Vulkan 如何将数据打包到内存中
         static VkVertexInputBindingDescription GetBindingDescription() {
@@ -32,25 +32,29 @@ namespace Bear {
         static std::vector<VkVertexInputAttributeDescription> GetAttributeDescriptions() {
             std::vector<VkVertexInputAttributeDescription> attributeDescriptions(3);
 
-            // 位置属性 (location = 0 in shader)
+            // positon (location = 0 in shader)
             attributeDescriptions[0].binding = 0;
             attributeDescriptions[0].location = 0;
             attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT; // 3个32位浮点数
             attributeDescriptions[0].offset = offsetof(Vertex, pos);
 
-            // 颜色属性 (location = 1 in shader)
+            // normal (location = 1 in shader)
             attributeDescriptions[1].binding = 0;
             attributeDescriptions[1].location = 1;
             attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT; // 3个32位浮点数
-            attributeDescriptions[1].offset = offsetof(Vertex, color);
+            attributeDescriptions[1].offset = offsetof(Vertex, normal);
 
-			// 纹理坐标属性 (location = 2 in shader)
+			// texcoord (location = 2 in shader)
 			attributeDescriptions[2].binding = 0;
 			attributeDescriptions[2].location = 2;
 			attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT; // 2个32位浮点数
-			attributeDescriptions[2].offset = offsetof(Vertex, coord);
+			attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
 
             return attributeDescriptions;
+        }
+
+        bool operator==(const Vertex& other) const {
+			return pos == other.pos && normal == other.normal && texCoord == other.texCoord;
         }
     };
 

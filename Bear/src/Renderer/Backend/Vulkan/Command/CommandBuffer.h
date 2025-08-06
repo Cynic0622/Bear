@@ -5,7 +5,7 @@
 #include "RHI/RHITypes.h"
 #include "RHI/RHIPipeline.h"
 namespace Bear {
-	class RHITexture;
+	class RHIImage;
 
 	class Device;
 	class CommandPool;
@@ -35,8 +35,8 @@ namespace Bear {
 		void BindIndexBuffer(const RHIBuffer& buffer, size_t offset = 0) override; // ʵ��RHI�ӿ�
 		void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t firstIndex = 0, int32_t vertexOffset = 0, uint32_t firstInstance = 0) override;
 		void BindDescriptorSet(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& set, uint32_t setIndex = 0) override;
-		void TransitionImageLayout(RHITexture& texture, ImageLayout oldLayout, ImageLayout newLayout) override;
-		void CopyBufferToTexture(const RHIBuffer& srcBuffer, RHITexture& dstTexture) override;
+		void TransitionImageLayout(RHIImage& texture, ImageLayout oldLayout, ImageLayout newLayout) override;
+		void CopyBufferToTexture(const RHIBuffer& srcBuffer, RHIImage& dstTexture) override;
 		inline VkCommandBuffer GetHandle() const { return m_CommandBuffer; }
 
 	private:

@@ -2,6 +2,8 @@
 #include <memory>
 #include "RHITypes.h"
 namespace Bear {
+	class RHIImage;
+	class RHISampler;
 
 	class RHIBuffer;
 	class RHIDescriptorSetLayout {
@@ -29,7 +31,7 @@ namespace Bear {
 		PrimitiveTopology topology = PrimitiveTopology::TriangleList;
 		PolygonMode polygonMode = PolygonMode::Fill;
 		CullMode cullMode = CullMode::Back;
-		FrontFace frontFace = FrontFace::Clockwise;
+		FrontFace frontFace = FrontFace::CounterClockwise;
 
 		// ... 未来可以添加 BlendState, DepthState 等
 	};
@@ -44,5 +46,6 @@ namespace Bear {
 		virtual ~RHIDescriptorSet() = default;
 
 		virtual void UpdateDescriptorSet(uint32_t binding, const RHIBuffer& buffer) = 0;
+		virtual void UpdateTexture(uint32_t binding, const RHIImage& image, const RHISampler& sampler) = 0;
 	};
 }

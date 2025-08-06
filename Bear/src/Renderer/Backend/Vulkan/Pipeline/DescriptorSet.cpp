@@ -4,6 +4,8 @@
 #include "Device.h"
 #include "DescriptorPool.h"
 #include "DescriptorSetLayout.h"
+#include "Image.h"
+#include "Sampler.h"
 #include "Resources/Buffer.h"
 namespace Bear {
 	DescriptorSet::DescriptorSet(const Device& device, const DescriptorSetLayout& layout, const DescriptorPool& descriptorPool)
@@ -44,6 +46,25 @@ namespace Bear {
 		descriptorWrite.descriptorType = descriptorType;
 		descriptorWrite.descriptorCount = 1;
 		descriptorWrite.pBufferInfo = &bufferInfoDesc;
+		vkUpdateDescriptorSets(m_Device.GetDevice(), 1, &descriptorWrite, 0, nullptr);
+	}
+	void DescriptorSet::UpdateTexture(uint32_t binding, const RHIImage& image, const RHISampler& sampler)
+	{
+		const auto& vkImage = dynamic_cast<const Image&>(image);
+		const auto& vkSampler = dynamic_cast<const Sampler&>(sampler);
+
+		VkDescriptorImageInfo imageInfo{};
+		imageInfo.imageView = vkImage.GetView();
+		imageInfo.sampler = vkSampler.GetHandle();
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		VkWriteDescriptorSet descriptorWrite{};
+		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrite.dstSet = m_DescriptorSet;
+		descriptorWrite.dstBinding = binding;
+		descriptorWrite.dstArrayElement = 0;
+		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrite.descriptorCount = 1;
+		descriptorWrite.pImageInfo = &imageInfo;
 		vkUpdateDescriptorSets(m_Device.GetDevice(), 1, &descriptorWrite, 0, nullptr);
 	}
 }

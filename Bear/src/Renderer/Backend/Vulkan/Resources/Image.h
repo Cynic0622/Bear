@@ -8,7 +8,7 @@ namespace Bear {
 
 	class Device;
 
-	class Image : public RHITexture {
+	class Image : public RHIImage {
 
 	public:
 		Image(const Device& device, uint32_t width, uint32_t height, VkFormat format,

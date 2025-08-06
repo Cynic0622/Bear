@@ -193,6 +193,9 @@ namespace Bear {
 		rasterizationInfo.polygonMode = ToVulkanPolygonMode(config.polygonMode);
 		rasterizationInfo.cullMode = ToVulkanCullMode(config.cullMode);
 		rasterizationInfo.frontFace = ToVulkanFrontFace(config.frontFace);
+		rasterizationInfo.cullMode = VK_CULL_MODE_NONE;  // 临时禁用剔除
+		rasterizationInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		// rasterizationInfo.polygonMode = VK_POLYGON_MODE_FILL;  // 确保填充模式
 		rasterizationInfo.lineWidth = 1.0f;
 
 		VkPipelineMultisampleStateCreateInfo multisampleInfo{};
@@ -315,7 +318,7 @@ namespace Bear {
 		auto& vkRenderPass = static_cast<RenderPass&>(renderPass);
 		return std::make_unique<Swapchain>(*this, vkRenderPass);
 	}
-	std::unique_ptr<RHITexture> Device::CreateTexture(const RHITextureConfig& config)
+	std::unique_ptr<RHIImage> Device::CreateTexture(const RHITextureConfig& config)
 	{
 		VkFormat vkFormat = ToVulkanFormat(config.format);
 		VkImageUsageFlags vkUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;

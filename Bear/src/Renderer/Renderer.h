@@ -2,6 +2,7 @@
 #include <memory>
 #include <vector>
 
+#include "Mesh.h"
 #include "Texture.h"
 
 namespace Bear
@@ -54,10 +55,13 @@ namespace Bear {
 		std::shared_ptr<class Mesh> m_SquareMesh;
 		std::shared_ptr<Material> m_SimpleMaterial;
 
-		std::shared_ptr<class Mesh> m_Mesh;
+		// std::shared_ptr<class Mesh> m_Mesh;
 		std::shared_ptr<class Material> m_Material;
 		std::vector<std::unique_ptr<RenderObject>> m_RenderObjects;
 
 		std::unique_ptr<TextureManager> m_TextureManager;
+		std::unique_ptr<MeshManger> m_MeshManager;
+		std::shared_ptr<Mesh> m_Mesh;
+		std::shared_ptr<Texture> m_Texture;
 	};
 }

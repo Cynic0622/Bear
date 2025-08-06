@@ -11,10 +11,10 @@ namespace Bear {
 		virtual void UploadData(const void* data, size_t size, size_t offset = 0) = 0;
 	};
 
-	class RHITexture
+	class RHIImage
 	{
 		public:
-		virtual ~RHITexture() = default;
+		virtual ~RHIImage() = default;
 
 		virtual uint32_t GetWidth() const = 0;
 		virtual uint32_t GetHeight() const = 0;

@@ -14,11 +14,11 @@ namespace Bear {
 	class Mesh {
 	
 	public:
-		Mesh(RHIDevice& device, const std::vector<Vertex>& vertices, const std::vector<uint16_t>& indices);
+		Mesh(RHIDevice& device, const std::string& path);
 		~Mesh();
 
-		void Bind(RHICommandList& commandBuffer) const;
-		void Draw(RHICommandList& commandBuffer) const;
+		void Bind(RHICommandList& cmd) const;
+		void Draw(RHICommandList& cmd) const;
 
 	private:
 		//std::unique_ptr<Buffer> m_VertexBuffer;

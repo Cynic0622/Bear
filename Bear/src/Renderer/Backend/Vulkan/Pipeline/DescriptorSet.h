@@ -19,7 +19,8 @@ namespace Bear {
 		DescriptorSet(const DescriptorSet&) = delete;
 		DescriptorSet& operator=(const DescriptorSet&) = delete;
 
-		void UpdateDescriptorSet(uint32_t dstBinding, const RHIBuffer& bufferInfo);
+		void UpdateDescriptorSet(uint32_t dstBinding, const RHIBuffer& bufferInfo) override;
+		void UpdateTexture(uint32_t binding, const RHIImage& image, const RHISampler& sampler) override;
 
 		VkDescriptorSet GetHandle() const { return m_DescriptorSet; }
 

@@ -6,7 +6,7 @@
 namespace Bear
 {
     class RHIDevice;
-	class RHITexture;
+	class RHIImage;
 	class RHISampler;
     class Texture
     {
@@ -17,8 +17,11 @@ namespace Bear
         Texture(const Texture&) = delete;
         Texture& operator=(const Texture&) = delete;
 
+		const RHIImage& GetImage() const { return *m_Image; }
+		const RHISampler& GetSampler() const { return *m_Sampler; }
+
 	private:
-		std::shared_ptr<RHITexture> m_Image;
+		std::shared_ptr<RHIImage> m_Image;
 		std::shared_ptr<RHISampler> m_Sampler;
     };
     using TextureManager = ResourceManager<Texture, std::string>;

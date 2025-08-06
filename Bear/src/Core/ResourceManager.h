@@ -28,7 +28,7 @@ namespace Bear
                 return it->second;
             }
 
-            // 没找到则新建资源
+			// don't have the resource, create it, pass the arguments to the constructor
             std::shared_ptr<TResource> resource = std::make_shared<TResource>(std::forward<TArgs>(args)...);
             m_ResourceCache[key] = resource;
 

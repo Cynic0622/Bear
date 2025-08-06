@@ -116,7 +116,7 @@ namespace Bear {
 	{
 		const auto& vkBuffer = dynamic_cast<const Buffer&>(buffer);
 		VkDeviceSize vkOffset = static_cast<VkDeviceSize>(offset);
-		vkCmdBindIndexBuffer(m_CommandBuffer, vkBuffer.GetHandle(), vkOffset, VK_INDEX_TYPE_UINT16);
+		vkCmdBindIndexBuffer(m_CommandBuffer, vkBuffer.GetHandle(), vkOffset, VK_INDEX_TYPE_UINT32);
 	}
 	void CommandBuffer::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
 	{
@@ -130,7 +130,7 @@ namespace Bear {
 		VkDescriptorSet descriptorSetHandle = vkDescriptorSet.GetHandle();
 		vkCmdBindDescriptorSets(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutHandle, firstSet, 1, &descriptorSetHandle, 0, nullptr);
 	}
-	void CommandBuffer::TransitionImageLayout(RHITexture& texture, ImageLayout oldLayout, ImageLayout newLayout)
+	void CommandBuffer::TransitionImageLayout(RHIImage& texture, ImageLayout oldLayout, ImageLayout newLayout)
 	{
 		auto& vkImage = dynamic_cast<Image&>(texture);
 		VkImageLayout vkOldLayout = ToVulkanImageLayout(oldLayout);
@@ -169,7 +169,7 @@ namespace Bear {
 
 		vkCmdPipelineBarrier(m_CommandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 	}
-	void CommandBuffer::CopyBufferToTexture(const RHIBuffer& srcBuffer, RHITexture& dstTexture)
+	void CommandBuffer::CopyBufferToTexture(const RHIBuffer& srcBuffer, RHIImage& dstTexture)
 	{
 		const auto& vkBuffer = dynamic_cast<const Buffer&>(srcBuffer);
 		auto& vkTexture = dynamic_cast<Image&>(dstTexture);

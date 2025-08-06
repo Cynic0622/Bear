@@ -4,6 +4,7 @@
 #include <vector>
 #include "RHI/RHICommandList.h"
 namespace Bear {
+	class Texture;
 
 	class RenderPass;
 	struct UniformBufferObject;
@@ -27,9 +28,9 @@ namespace Bear {
 
 		void Bind(RHICommandList& commandBuffer, uint32_t currentFrame);
 
-		void UpdateUniformBuffer(uint32_t currentFrame, const UniformBufferObject& ubo);
+		void UpdateUniformBuffer(uint32_t currentFrame, const UniformBufferObject& ubo) const;
 
-		//void SetTexture(std::shared_ptr<Image> image, std::shared_ptr<Sampler> sampler);
+		void SetTexture(uint32_t binding, std::shared_ptr<Texture> texture);
 	private:
 		const RHIDevice& m_Device;
 		const int MAX_FRAMES_IN_FLIGHT = 2; // 与 Renderer 保持一致
@@ -48,5 +49,7 @@ namespace Bear {
 
 		std::shared_ptr<Image> m_TextureImage;
 		std::shared_ptr<Sampler> m_TextureSampler;
+
+		std::shared_ptr<Texture> m_Texture;
 	};
 }

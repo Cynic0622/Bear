@@ -200,6 +200,7 @@ target_include_directories(Bear
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/vma/include
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/glm
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/stb
+        ${CMAKE_CURRENT_SOURCE_DIR}/extern/tinyobjloader
 )
 
 # DLL导出设置

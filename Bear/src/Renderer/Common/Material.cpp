@@ -1,25 +1,28 @@
 #include "bearpch.h"
 
-#include "Pipeline/DescriptorSetLayout.h"
 #include "Pipeline/Pipeline.h"
-#include "Pipeline/DescriptorPool.h"
-#include "Resources/Buffer.h"
 #include "Material.h"
 #include "Core/Device.h"
 #include "Pipeline/RenderPass.h"
 #include "Command/CommandBuffer.h"
 #include "Resources/Image.h"
-#include "Resources/Sampler.h"
 #include "RHI/RHIDevice.h"
 #include "RHI/RHICommandList.h"
 #include "RHI/RHITypes.h"
 #include <memory>
+
+#include "Texture.h"
+
 namespace Bear {
 	Material::Material(RHIDevice& device, const RHIRenderPass& renderPass, const std::vector<std::string>& shaderPath)
 		:m_Device(device)
 	{
 		std::vector<RHIDescriptorSetLayoutBinding> bindings;
+		// ubo
 		bindings.push_back({ .binding = 0, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Vertex });
+		// texture
+		bindings.push_back({ .binding = 1, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+
 		m_DescriptorSetLayout = device.CreateDescriptorSetLayout(bindings);
 		m_PipelineLayout = device.CreatePipelineLayout({ m_DescriptorSetLayout.get() });
 
@@ -46,36 +49,26 @@ namespace Bear {
 		BEAR_CORE_ASSERT(m_PipelineLayout, "Pipeline layout is not created in Material!");
 		BEAR_CORE_ASSERT(m_DescriptorSets.size() > currentFrame, "Descriptor sets are not created in Material!");
 		//BEAR_CORE_ASSERT(m_DescriptorSets[currentFrame].get() != nullptr, "Descriptor set is not created in Material!");
-		auto& vkCommandBuffer = static_cast<CommandBuffer&>(commandBuffer);
+		auto& vkCommandBuffer = dynamic_cast<CommandBuffer&>(commandBuffer);
 		vkCommandBuffer.BindPipeline(*m_Pipeline);
 		vkCommandBuffer.BindDescriptorSet(*m_PipelineLayout, *m_DescriptorSets[currentFrame]);
 	}
-	void Material::UpdateUniformBuffer(uint32_t currentFrame, const UniformBufferObject& ubo)
+	void Material::UpdateUniformBuffer(uint32_t currentFrame, const UniformBufferObject& ubo) const
 	{
 		m_UniformBuffers[currentFrame]->UploadData(&ubo, sizeof(ubo));
 	}
-	//void Material::SetTexture(std::shared_ptr<Image> image, std::shared_ptr<Sampler> sampler)
-	//{
-	//	m_TextureImage = image;
-	//	m_TextureSampler = sampler;
-	//	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-	//		VkDescriptorImageInfo imageInfo{};
-	//		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	//		imageInfo.imageView = m_TextureImage->GetView();
-	//		imageInfo.sampler = m_TextureSampler->GetHandle();
-	//		//m_DescriptorSets[i].UpdateDescriptorSets(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, imageInfo);
-	//		VkWriteDescriptorSet descriptorWrite{};
-	//		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	//		descriptorWrite.dstSet = m_DescriptorSets[i];
-	//		descriptorWrite.dstBinding = 1;
-	//		descriptorWrite.dstArrayElement = 0;
-	//		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	//		descriptorWrite.descriptorCount = 1;
-	//		descriptorWrite.pImageInfo = &imageInfo;
-
-	//		vkUpdateDescriptorSets(m_Device.GetDevice(), 1, &descriptorWrite, 0, nullptr);
-	//	}
-	//}
+	void Material::SetTexture(uint32_t binding, std::shared_ptr<Texture> texture)
+	{
+		m_Texture = std::move(texture);
+		if (m_Texture)
+		{
+			for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
+			{
+				m_DescriptorSets[i]->UpdateTexture(binding, m_Texture->GetImage(), m_Texture->GetSampler());
+			}
+		}
+	}
+	
 	//void Material::CreateDescriptorSetLayout()
 	//{
 	//	uint32_t bindingCount = 2; // 0: Uniform Buffer, 1: Combined Image Sampler

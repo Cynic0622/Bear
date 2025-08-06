@@ -8,6 +8,7 @@ bin-int/
 build/
 .vscode/
 .idea/
+models/
 
 
 # User-specific files

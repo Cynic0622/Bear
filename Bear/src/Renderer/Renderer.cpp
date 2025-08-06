@@ -46,38 +46,29 @@ namespace Bear {
 
 		m_Swapchain = m_Device->CreateSwapchain(*m_RenderPass);
 
+		m_TextureManager = std::make_unique<TextureManager>();
+		m_MeshManager = std::make_unique<MeshManger>();
+
 		LoadResources();
 	}
 	void Renderer::LoadResources()
 	{
 		m_PipelineLayout = m_Device->CreatePipelineLayout({});
 
-		std::vector<Vertex> vertices = {
-			{{0.5f, 0.5f, 0.f}, {0.0f, 1.0f, 0.0f}, {0.f, 0.f}},
-			{{-0.5f, 0.5f, 0.f}, {0.0f, 0.0f, 1.0f}, {0.f, 0.f}},
-			{{-0.5f, -0.5f, 0.f}, {1.0f, 1.0f, 0.0f}, {0.f, 0.f}},
-			{{0.5f, -0.5f, 0.f}, {1.0f, 0.0f, 1.0f}, {0.f, 0.f}},
-		};
-		std::vector<uint16_t> indices = {
-			0, 1, 2,
-			2, 3, 0
-		};
-
-		m_SquareMesh = std::make_shared<Mesh>(*m_Device, vertices, indices);
+		m_Mesh = m_MeshManager->Load("../../../models/planet/planet.obj" ,*m_Device, "../../../models/planet/planet.obj");
+		m_Texture = m_TextureManager->Load("../../../models/planet/mars.png", *m_Device, "../../../models/planet/mars.png");
+		// m_SquareMesh = std::make_shared<Mesh>(*m_Device, vertices, indices);
 		std::vector<std::string> shaderPaths = {
 			"../../../Bear/src/Bear/Shaders/tri.vert.spv",
 			"../../../Bear/src/Bear/Shaders/tri.frag.spv"
 		};
 		m_SimpleMaterial = std::make_shared<Material>(*m_Device, *m_RenderPass, shaderPaths);
-		auto square1 = RenderObject::Create(m_SquareMesh, m_SimpleMaterial);
+		m_SimpleMaterial->SetTexture(1, m_Texture);
+		auto square1 = RenderObject::Create(m_Mesh, m_SimpleMaterial);
 		square1->transform.translation = { -0.5f, 0.5f, 0.f };
 		square1->transform.scale = { 0.5f, 0.5f, 0.5f };
 		m_RenderObjects.push_back(std::move(square1));
 
-		auto square2 = RenderObject::Create(m_SquareMesh, std::make_shared<Material>(*m_Device, *m_RenderPass, shaderPaths));
-		square2->transform.translation = { 0.5f, 0.5f, 0.f };
-		square2->transform.scale = { 0.5f, 0.5f, 0.5f };
-		m_RenderObjects.push_back(std::move(square2));
 	}
 	void Renderer::DrawFrame(LayerStack& layerStack)
 	{
@@ -98,6 +89,9 @@ namespace Bear {
 			UniformBufferObject ubo{};
 			auto frameIndex = m_Device->GetCurrentFrameIndex();
 			ubo.model = obj->transform.GetTransform();
+			ubo.model = glm::rotate(ubo.model, (float)glm::radians(glfwGetTime()) * 100.f, glm::vec3(0.f, 1.f, 0.f));
+			ubo.view = glm::lookAt(glm::vec3(0.f, -5.f, 10.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+			ubo.proj = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 100.0f);
 			obj->material->UpdateUniformBuffer(frameIndex, ubo);
 			obj->material->Bind(cmd, frameIndex);
 			obj->mesh->Bind(cmd);
