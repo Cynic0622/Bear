@@ -95,6 +95,11 @@ file(GLOB BEAR_CORE_SOURCES
     "src/Core/*.cpp"
     "src/Core/*.h"
 )
+
+file(GLOB BEAR_SCENE_SOURCES
+    "src/Scene/*.cpp"
+    "src/Scene/*.h"
+)
 set(BEAR_ALL_SOURCES
     ${BEAR_SOURCES}
     ${BEAR_EVENT_SOURCES}
@@ -108,6 +113,7 @@ set(BEAR_ALL_SOURCES
     ${RENERDER_RHI_SOURCES}
     ${RENDERER_SOURCES}
     ${BEAR_CORE_SOURCES}
+    ${BEAR_SCENE_SOURCES}
 )
 
 # set(GLAD_SOURCES
@@ -165,6 +171,7 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/RHI" PREFIX "Rendere
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer" PREFIX "Renderer" FILES ${RENDERER_SOURCES})
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Core" PREFIX "Core" FILES ${BEAR_CORE_SOURCES})
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Scene" PREFIX "Scene" FILES ${BEAR_SCENE_SOURCES})
 
 
 target_link_libraries(Bear PUBLIC
@@ -181,6 +188,7 @@ target_include_directories(Bear
         ${CMAKE_CURRENT_SOURCE_DIR}/src  # 公共接口
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Bear
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Core
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Scene
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Common
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Renderer/Backend

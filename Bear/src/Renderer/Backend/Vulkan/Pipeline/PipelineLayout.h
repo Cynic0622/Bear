@@ -1,7 +1,6 @@
 #pragma once
 #include "renderer/RHI/RHIPipeline.h"
-#include <vulkan/vulkan.h>
-#include <memory>
+#include <vulkan/vulkan.h>>
 #include <vector>
 
 namespace Bear {
@@ -10,7 +9,7 @@ namespace Bear {
 	class DescriptorSetLayout;
 	class PipelineLayout : public RHIPipelineLayout {
 	public:
-		PipelineLayout(const Device& device, const std::vector<const DescriptorSetLayout*>& layouts);
+		PipelineLayout(const Device& device, const std::vector<DescriptorSetLayout*>& layouts, const std::vector<VkPushConstantRange>& pushConstantRanges);
 
 		~PipelineLayout() override;
 

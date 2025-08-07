@@ -16,27 +16,30 @@ namespace Bear {
 		glm::vec3 translation{ 0.0f, 0.0f, 0.0f };
 		glm::vec3 rotation{ 0.0f, 0.0f, 0.0f };
 		glm::vec3 scale{ 1.0f, 1.0f, 1.0f };
+		glm::mat4 transform{ 1.0f };
 
 		glm::mat4 GetTransform() const
 		{
-			glm::mat4 mat = glm::translate(glm::mat4(1.0f), translation);
-			mat = glm::rotate(mat, glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-			mat = glm::rotate(mat, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-			mat = glm::rotate(mat, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
-			mat = glm::scale(mat, scale);
-			return mat;
+			/*transform = glm::translate(glm::mat4(1.0f), translation);
+			transform = glm::rotate(transform, glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+			transform = glm::rotate(transform, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+			transform = glm::rotate(transform, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+			transform = glm::scale(transform, scale);*/
+			return transform;
+		}
+		void SetTransform(const glm::mat4& trans)
+		{
+			transform = trans;
 		}
 	};
 
 	class RenderObject
 	{
 	public:
-		// 使用共享指针，这使得我们可以只创建一个重量级的 Mesh（比如一个复杂的模型）和一个 Material（比如“金属材质”），
-		// 然后创建成百上千个 RenderObject 实例来共享它们，极大地节省了内存
+		// use shared_ptr to allow multiple RenderObjects to share the same Mesh and Material, reducing memory usage
 		std::shared_ptr<Mesh> mesh;
 		std::shared_ptr<Material> material;
-		TransformComponent transform;
-
+		TransformComponent transformComponent;
 		static std::unique_ptr<RenderObject> Create(const std::shared_ptr<Mesh>& mesh, const std::shared_ptr<Material>& material)
 		{
 			auto obj = std::make_unique<RenderObject>();

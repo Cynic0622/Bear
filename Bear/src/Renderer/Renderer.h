@@ -7,6 +7,7 @@
 
 namespace Bear
 {
+	class Scene;
 	class LayerStack;
 	class Material;
 }
@@ -34,7 +35,7 @@ namespace Bear {
 		Renderer& operator=(const Renderer&) = delete;
 
 		void DrawFrame(LayerStack& layerStack);
-		void OnWindowResized();
+		void OnWindowResized() const;
 
 		inline RHIDevice* GetDevice() const { return m_Device.get(); }
 		inline RHIRenderPass* GetRenderPass() const { return m_RenderPass.get(); }
@@ -57,11 +58,13 @@ namespace Bear {
 
 		// std::shared_ptr<class Mesh> m_Mesh;
 		std::shared_ptr<class Material> m_Material;
-		std::vector<std::unique_ptr<RenderObject>> m_RenderObjects;
+		//std::vector<std::unique_ptr<RenderObject>> m_RenderObjects;
 
 		std::unique_ptr<TextureManager> m_TextureManager;
 		std::unique_ptr<MeshManger> m_MeshManager;
 		std::shared_ptr<Mesh> m_Mesh;
 		std::shared_ptr<Texture> m_Texture;
+
+		std::unique_ptr<Scene> m_Scene;
 	};
 }

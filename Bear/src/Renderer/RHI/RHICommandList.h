@@ -36,5 +36,8 @@ namespace Bear {
 
 		virtual void TransitionImageLayout(RHIImage& texture, ImageLayout oldLayout, ImageLayout newLayout) = 0;
 		virtual void CopyBufferToTexture(const RHIBuffer& srcBuffer, RHIImage& dstTexture) = 0;
+
+		// push constants
+		virtual void PushConstants(const RHIPipelineLayout& pipelineLayout, ShaderStage stage, const void* data, size_t size, uint32_t offset) = 0;
 	};
 }

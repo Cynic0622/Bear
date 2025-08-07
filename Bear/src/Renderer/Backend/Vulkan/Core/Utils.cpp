@@ -194,4 +194,12 @@ namespace Bear {
         default:                                       return VK_BORDER_COLOR_INT_OPAQUE_BLACK;
         }
     }
+    VkPushConstantRange ToVulkanPushConstantRange(const RHIPushConstantRange& range)
+    {
+		VkPushConstantRange pushConstantRange = {};
+		pushConstantRange.stageFlags = ToVulkanShaderStage(range.stageFlags);
+		pushConstantRange.offset = range.offset;
+		pushConstantRange.size = range.size;
+        return pushConstantRange;
+    }
 }

@@ -59,8 +59,13 @@ namespace Bear {
     };
 
     struct UniformBufferObject {
-        glm::mat4 model;
         glm::mat4 view;
         glm::mat4 proj;
     };
+
+    struct PerObjectPushConstants {
+        glm::mat4 model;
+        //glm::vec3 lightPos; // 光源位置
+        //float padding; // 确保结构体大小为16的倍数
+	};
 }

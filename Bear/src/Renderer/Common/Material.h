@@ -26,11 +26,13 @@ namespace Bear {
 		Material(const Material&) = delete;
 		Material& operator=(const Material&) = delete;
 
-		void Bind(RHICommandList& commandBuffer, uint32_t currentFrame);
+		void Bind(RHICommandList& commandBuffer, uint32_t currentFrame) const;
 
 		void UpdateUniformBuffer(uint32_t currentFrame, const UniformBufferObject& ubo) const;
 
 		void SetTexture(uint32_t binding, std::shared_ptr<Texture> texture);
+
+		RHIPipelineLayout* GetPipelineLayout() const { return m_PipelineLayout.get(); }
 	private:
 		const RHIDevice& m_Device;
 		const int MAX_FRAMES_IN_FLIGHT = 2; // 与 Renderer 保持一致

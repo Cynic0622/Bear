@@ -35,4 +35,7 @@ namespace Bear {
     VkSamplerMipmapMode ToVulkanMipmapMode(Bear::MipmapMode mode);
     VkSamplerAddressMode ToVulkanAddressMode(Bear::SamplerAddressMode mode);
     VkBorderColor ToVulkanBorderColor(Bear::BorderColor color);
+
+	// -------------------------- push constant range utils --------------------------
+	VkPushConstantRange ToVulkanPushConstantRange(const RHIPushConstantRange& range);
 }

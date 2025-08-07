@@ -171,7 +171,7 @@ namespace Bear {
         ClampToBorder,
     };
 
-    // 边框颜色
+	// border color
     enum class BorderColor {
         FloatTransparentBlack,
         IntTransparentBlack,
@@ -190,16 +190,23 @@ namespace Bear {
         SamplerAddressMode addressModeW = SamplerAddressMode::Repeat;
 
         bool anisotropyEnable = true;
-        float maxAnisotropy = 16.0f; // 典型值，后端应根据设备能力进行 clamp
+		float maxAnisotropy = 16.0f; // default value, can be adjusted
 
-        // 暂时不支持 CompareOp
+		// don't support comparison sampler for now
         bool compareEnable = false;
 
         BorderColor borderColor = BorderColor::IntOpaqueBlack;
 
-        // 提供一个获取默认配置的静态函数，方便使用
+		// default config
         static RHISamplerConfig GetDefault() {
             return RHISamplerConfig{};
         }
+    };
+
+    struct RHIPushConstantRange
+    {
+        ShaderStage stageFlags;
+		uint32_t offset;
+		uint32_t size;
     };
 }

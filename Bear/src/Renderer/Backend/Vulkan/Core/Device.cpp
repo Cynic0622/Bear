@@ -146,18 +146,23 @@ namespace Bear {
 		*/
 		return std::make_shared<DescriptorSetLayout>(*this, vkBindings);
 	}
-	std::shared_ptr<RHIPipelineLayout> Device::CreatePipelineLayout(const std::vector<RHIDescriptorSetLayout*>& descriptorSetLayouts)
+	std::shared_ptr<RHIPipelineLayout> Device::CreatePipelineLayout(const std::vector<RHIDescriptorSetLayout*>& descriptorSetLayouts, const std::vector<RHIPushConstantRange>& pushConstantRanges)
 	{
-		std::vector<const DescriptorSetLayout*> layouts;
+		std::vector<DescriptorSetLayout*> layouts;
 		layouts.reserve(descriptorSetLayouts.size());
 		for (const auto& layout : descriptorSetLayouts) {
-			layouts.push_back(dynamic_cast<const DescriptorSetLayout*>(layout));
+			layouts.push_back((dynamic_cast<DescriptorSetLayout*>(layout)));
 		}
-		return std::make_shared<PipelineLayout>(*this, layouts);
+		std::vector<VkPushConstantRange> vkPushConstantRanges;
+		for (const auto& range : pushConstantRanges) {
+			BEAR_CORE_ASSERT(range.size <= 128, "Push constant size must not exceed 128 bytes!")
+			vkPushConstantRanges.push_back(ToVulkanPushConstantRange(range));
+		}
+		return std::make_shared<PipelineLayout>(*this, layouts, vkPushConstantRanges);
 	}
 	std::shared_ptr<RHIPipeline> Device::CreatePipeline(const RHIPipelineConfig& config, const RHIRenderPass& renderPass)
 	{
-		const auto& vkRenderPass = static_cast<const RenderPass&>(renderPass);
+		const auto& vkRenderPass = dynamic_cast<const RenderPass&>(renderPass);
 		auto vkPipelineLayout = std::static_pointer_cast<PipelineLayout>(config.pipelineLayout);
 		std::vector<std::unique_ptr<Shader>> shaders;
 		shaders.push_back(std::make_unique<Shader>(*this, config.vertexShaderPath, VK_SHADER_STAGE_VERTEX_BIT));
@@ -193,9 +198,6 @@ namespace Bear {
 		rasterizationInfo.polygonMode = ToVulkanPolygonMode(config.polygonMode);
 		rasterizationInfo.cullMode = ToVulkanCullMode(config.cullMode);
 		rasterizationInfo.frontFace = ToVulkanFrontFace(config.frontFace);
-		rasterizationInfo.cullMode = VK_CULL_MODE_NONE;  // 临时禁用剔除
-		rasterizationInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-		// rasterizationInfo.polygonMode = VK_POLYGON_MODE_FILL;  // 确保填充模式
 		rasterizationInfo.lineWidth = 1.0f;
 
 		VkPipelineMultisampleStateCreateInfo multisampleInfo{};

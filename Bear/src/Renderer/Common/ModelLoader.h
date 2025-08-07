@@ -88,7 +88,7 @@ namespace Bear
 						attrib.texcoords[2 * index.texcoord_index + 1]);
 				}
 				else {
-					vertex.texCoord = glm::vec2(0.0f, 0.0f); // Ä¬ÈÏÎÆÀí×ø±ê
+					vertex.texCoord = glm::vec2(0.0f, 0.0f); // default texture coordinate
 				}
 				if (!uniqueVertices.contains(vertex)) {
 					uniqueVertices[vertex] = static_cast<uint32_t>(modelData.vertices.size());
@@ -100,9 +100,7 @@ namespace Bear
 		}
 
 #ifdef BEAR_DEBUG
-		std::cout << "Model loaded: " << path
-			<< " | Vertices: " << modelData.vertices.size()
-			<< " | Indices: " << modelData.indices.size() << std::endl;
+		BEAR_CORE_INFO("Model loaded: {} | Vertices: {} | Indices: {}", path, modelData.vertices.size(), modelData.indices.size());
 #endif
 		return modelData;
 	}

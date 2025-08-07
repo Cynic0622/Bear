@@ -31,13 +31,14 @@ namespace Bear {
 		void SetViewport(float x, float y, float width, float height, float minDepth = 0.0f, float maxDepth = 1.0f) override;
 		void SetScissor(int32_t x, int32_t y, uint32_t width, uint32_t height) override;
 		void Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) override;
-		void BindVertexBuffer(const RHIBuffer& buffer, uint32_t binding = 0, size_t offset = 0) override; // ʵ��RHI�ӿ�
-		void BindIndexBuffer(const RHIBuffer& buffer, size_t offset = 0) override; // ʵ��RHI�ӿ�
+		void BindVertexBuffer(const RHIBuffer& buffer, uint32_t binding = 0, size_t offset = 0) override; // rhi
+		void BindIndexBuffer(const RHIBuffer& buffer, size_t offset = 0) override; // rhi
 		void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t firstIndex = 0, int32_t vertexOffset = 0, uint32_t firstInstance = 0) override;
 		void BindDescriptorSet(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& set, uint32_t setIndex = 0) override;
 		void TransitionImageLayout(RHIImage& texture, ImageLayout oldLayout, ImageLayout newLayout) override;
 		void CopyBufferToTexture(const RHIBuffer& srcBuffer, RHIImage& dstTexture) override;
-		inline VkCommandBuffer GetHandle() const { return m_CommandBuffer; }
+		void PushConstants(const RHIPipelineLayout& pipelineLayout, ShaderStage stage, const void* data, size_t size, uint32_t offset) override;
+		VkCommandBuffer GetHandle() const { return m_CommandBuffer; }
 
 	private:
 		const CommandPool& m_CommandPool;

@@ -17,7 +17,7 @@ namespace Bear {
 	};
 
 	struct RHIPipelineConfigInfo {
-		std::shared_ptr<RHIDescriptorSetLayout> descriptorSetLayout; // 使用 RHI 接口
+		std::shared_ptr<RHIDescriptorSetLayout> descriptorSetLayout; // use rhi interface instead of concrete class
 	};
 	// 新增：API 无关的管线配置结构体
 	struct RHIPipelineConfig {
@@ -31,7 +31,7 @@ namespace Bear {
 		PrimitiveTopology topology = PrimitiveTopology::TriangleList;
 		PolygonMode polygonMode = PolygonMode::Fill;
 		CullMode cullMode = CullMode::Back;
-		FrontFace frontFace = FrontFace::CounterClockwise;
+		FrontFace frontFace = FrontFace::Clockwise;
 
 		// ... 未来可以添加 BlendState, DepthState 等
 	};

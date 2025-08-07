@@ -20,7 +20,7 @@ namespace Bear {
         Device(GLFWwindow* window);
         ~Device() override;
 
-        // 禁止拷贝和移动
+		// delete copy and move constructors and assignment operators
         Device(const Device&) = delete;
         Device& operator=(const Device&) = delete;
         Device(Device&&) = delete;
@@ -36,11 +36,11 @@ namespace Bear {
 		inline VmaAllocator GetAllocator() const { return m_Allocator; }
         void Present(RHISwapchain& swapchain, uint32_t imageIndex);
 
-		// 实现 RHIDevice 接口
+		// implement RHIDevice interface
         void SubmitCommands(RHICommandList& cmd);
 		std::unique_ptr<RHIBuffer> CreateBuffer(size_t size, BufferUsage usage, bool cpuAccessible) override;
         std::shared_ptr<RHIDescriptorSetLayout> CreateDescriptorSetLayout(const std::vector<RHIDescriptorSetLayoutBinding>& bindings) override;
-		std::shared_ptr<RHIPipelineLayout> CreatePipelineLayout(const std::vector<RHIDescriptorSetLayout*>& descriptorSetLayouts) override;
+		std::shared_ptr<RHIPipelineLayout> CreatePipelineLayout(const std::vector<RHIDescriptorSetLayout*>& descriptorSetLayouts, const std::vector<RHIPushConstantRange>& pushConstantRanges) override;
         std::shared_ptr<RHIPipeline> CreatePipeline(const RHIPipelineConfig& config, const RHIRenderPass& renderPass) override;
         std::unique_ptr<RHIDescriptorSet> CreateDescriptorSet(std::shared_ptr<RHIDescriptorSetLayout> layout) override;
         std::shared_ptr<RHIRenderPass> CreateRenderPass(const std::vector <RHIAttachmentDescription>& attachments) override;
@@ -55,15 +55,15 @@ namespace Bear {
 		uint32_t GetCurrentFrameIndex() const override { return m_CurrentFrame; }
 		uint32_t AcquireNextImage(RHISwapchain& swapchain) const override;
 		
-        inline void WaitIdle() override { vkDeviceWaitIdle(m_LogicalDevice); }
+    	void WaitIdle() override { vkDeviceWaitIdle(m_LogicalDevice); }
         
 
     private:
         std::unique_ptr<Instance> m_Instance;
         std::unique_ptr<Surface> m_Surface;
 		
-		uint32_t m_CurrentFrame = 0; // 当前帧索引，用于双缓冲或三缓冲
-		uint32_t m_CurrentImageIndex = 0; // 当前图像索引
+		uint32_t m_CurrentFrame = 0;
+		uint32_t m_CurrentImageIndex = 0;
         
         std::unique_ptr<CommandPool> m_CommandPool;
         std::vector<std::unique_ptr<CommandBuffer>> m_CommandBuffers;

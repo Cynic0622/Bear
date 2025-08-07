@@ -187,4 +187,9 @@ namespace Bear {
 
 		vkCmdCopyBufferToImage(m_CommandBuffer, vkBuffer.GetHandle(), vkTexture.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 	}
+	void CommandBuffer::PushConstants(const RHIPipelineLayout& pipelineLayout, ShaderStage stage, const void* data, size_t size, uint32_t offset)
+	{
+		const auto& vkPipelineLayout = dynamic_cast<const PipelineLayout&>(pipelineLayout);
+		vkCmdPushConstants(m_CommandBuffer, vkPipelineLayout.GetHandle(), ToVulkanShaderStage(stage), offset, size, data);
+	}
 }
