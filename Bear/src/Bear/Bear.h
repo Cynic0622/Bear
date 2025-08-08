@@ -10,3 +10,8 @@
 
 #include "Bear/Gui/GuiLayer.h"
 #include "Bear/Gui/VulkanGuiLayer.h"
+
+#include "SceneLayer.h"
+#include "Scene/Scene.h"
+
+#include "Node.h"

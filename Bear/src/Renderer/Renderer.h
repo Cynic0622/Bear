@@ -33,14 +33,22 @@ namespace Bear {
 
 		Renderer(const Renderer&) = delete;
 		Renderer& operator=(const Renderer&) = delete;
+		Renderer&& operator=(Renderer&&) = delete;
 
-		void DrawFrame(LayerStack& layerStack);
 		void OnWindowResized() const;
 
-		inline RHIDevice* GetDevice() const { return m_Device.get(); }
-		inline RHIRenderPass* GetRenderPass() const { return m_RenderPass.get(); }
-
+		// getter
+		RHIDevice* GetDevice() const { return m_Device.get(); }
+		RHIRenderPass* GetRenderPass() const { return m_RenderPass.get(); }
+		TextureManager* GetTextureManager() const { return m_TextureManager.get(); }
+		MeshManger* GetMeshManager() const { return m_MeshManager.get(); }
+		RHICommandList* GetCurrentCommandList() const { return m_CurrentCommandBuffer; }
 		uint32_t GetSwapchainImageCount() const;
+
+		void BeginFrame();
+		void Submit(const std::vector<RenderObject>& renderObjects) const;
+		void EndFrame() const;
+
 
 	private:
 		void Init(GraphicsAPI api);
@@ -52,19 +60,11 @@ namespace Bear {
 		std::unique_ptr<RHIDevice> m_Device;
 		std::unique_ptr<RHISwapchain> m_Swapchain;
 		std::shared_ptr<RHIRenderPass> m_RenderPass;
-		std::shared_ptr<RHIPipelineLayout> m_PipelineLayout;
-		std::shared_ptr<class Mesh> m_SquareMesh;
-		std::shared_ptr<Material> m_SimpleMaterial;
-
-		// std::shared_ptr<class Mesh> m_Mesh;
-		std::shared_ptr<class Material> m_Material;
-		//std::vector<std::unique_ptr<RenderObject>> m_RenderObjects;
 
 		std::unique_ptr<TextureManager> m_TextureManager;
 		std::unique_ptr<MeshManger> m_MeshManager;
-		std::shared_ptr<Mesh> m_Mesh;
-		std::shared_ptr<Texture> m_Texture;
 
-		std::unique_ptr<Scene> m_Scene;
+		RHICommandList* m_CurrentCommandBuffer;
+		uint32_t m_CurrentImageIndex;
 	};
 }

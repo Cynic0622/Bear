@@ -17,8 +17,7 @@
 namespace Bear {
     
     VulkanGuiLayer::VulkanGuiLayer() : Layer("VulkanGuiLayer") {}
-    
-    VulkanGuiLayer::~VulkanGuiLayer() {}
+
     
     void VulkanGuiLayer::OnAttach() {
 
@@ -123,7 +122,7 @@ namespace Bear {
         ImGui::NewFrame();
         
         // 渲染GUI内容
-        ImGui::ShowDemoWindow();
+        // ImGui::ShowDemoWindow();
         
         // 自定义GUI示例
         ImGui::Begin("Vulkan Info");
@@ -142,11 +141,12 @@ namespace Bear {
         event.Handled |= event.IsInCategory(EventCategoryKeyboard) & io.WantCaptureKeyboard;*/
     }
 
-    void VulkanGuiLayer::OnRender(RHICommandList& cmd) const
+    void VulkanGuiLayer::OnRender() const
     {
         ImDrawData* draw_data = ImGui::GetDrawData();
         if (!draw_data || draw_data->CmdListsCount == 0) return;
-
+		auto& app = Application::Get();
+		auto& cmd = *app.GetRenderer()->GetCurrentCommandList();
         auto& vkCmd = static_cast<CommandBuffer&>(cmd);
         ImGui_ImplVulkan_RenderDrawData(draw_data, vkCmd.GetHandle());
     }

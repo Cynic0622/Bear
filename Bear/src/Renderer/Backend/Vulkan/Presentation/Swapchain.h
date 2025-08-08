@@ -41,7 +41,7 @@ namespace Bear {
 
 		VkSwapchainKHR GetHandle() const { return m_Swapchain; }
 		VkFormat GetImageFormat() const { return m_ImageFormat; }
-		VkExtent2D GetExtent() const { return m_Extent; }
+		void GetExtent(uint32_t& width, uint32_t& height) const override;
 		const std::vector<VkImageView>& GetImageViews() const { return m_ImageViews; }
 		uint32_t GetImageCount() const override { return static_cast<uint32_t>(m_Images.size()); } //rhi
 

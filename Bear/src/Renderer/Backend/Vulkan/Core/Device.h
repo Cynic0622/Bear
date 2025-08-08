@@ -50,10 +50,10 @@ namespace Bear {
 
         void ImmediateSubmit(std::function<void(RHICommandList&)>&& function) override;
     	
-		RHICommandList& BeginFrame() override;
+		RHICommandList* BeginFrame() override;
 		void EndFrame(RHISwapchain& swapchain, uint32_t imageIndex) override;
 		uint32_t GetCurrentFrameIndex() const override { return m_CurrentFrame; }
-		uint32_t AcquireNextImage(RHISwapchain& swapchain) const override;
+		uint32_t AcquireNextImage(RHISwapchain& swapchain) override;
 		
     	void WaitIdle() override { vkDeviceWaitIdle(m_LogicalDevice); }
         

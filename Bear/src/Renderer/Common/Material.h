@@ -10,7 +10,6 @@ namespace Bear {
 	struct UniformBufferObject;
 	class RHIDescriptorSetLayout;
 	class RHIPipeline;
-	//class DescriptorPool;
 	class RHIBuffer;
 	class Image;
 	class Sampler;

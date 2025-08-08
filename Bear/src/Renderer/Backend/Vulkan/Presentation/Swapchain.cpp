@@ -99,7 +99,7 @@ namespace Bear {
 		presentInfo.pSwapchains = &m_Swapchain; // 交换链
 		presentInfo.pImageIndices = &imageIndex; // 图像索引
 
-		BEAR_CORE_ASSERT(vkQueuePresentKHR(presentQueue, &presentInfo) == VK_SUCCESS, "Failed to present image to swapchain.");
+		BEAR_CORE_ASSERT(vkQueuePresentKHR(presentQueue, &presentInfo) == VK_SUCCESS, "Failed to present image to swapchain.")
 		return VK_SUCCESS;
 	}
 	void Swapchain::Recreate()
@@ -110,6 +110,18 @@ namespace Bear {
 		
 		// 重新初始化交换链
 		Init();
+	}
+
+	void Swapchain::GetExtent(uint32_t& width, uint32_t& height) const
+	{
+		width = m_Extent.width;
+		height = m_Extent.height;
+		if (width == 0 || height == 0) {
+			// 如果宽度或高度为0，可能是因为窗口未正确初始化或已最小化
+			BEAR_CORE_WARN("Swapchain extent is zero, returning default values.");
+			width = 800; // 默认宽度
+			height = 600; // 默认高度
+		}
 	}
 
 	void Swapchain::Init()

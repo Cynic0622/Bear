@@ -366,14 +366,14 @@ namespace Bear {
 		vkQueueWaitIdle(m_GraphicsQueue);
 		cmd.reset();
 	}
-	RHICommandList& Device::BeginFrame()
+	RHICommandList* Device::BeginFrame()
 	{
 		m_InFlightFences[m_CurrentFrame]->Wait(); // 等待上一个帧的命令完成
 
 		m_InFlightFences[m_CurrentFrame]->Reset(); // 重置当前帧的信号量
-		RHICommandList& cmd = *m_CommandBuffers[m_CurrentFrame];
-		cmd.Reset(); // 重置命令缓冲区
-		cmd.Begin(); // 开始命令缓冲区的录制
+		RHICommandList* cmd = m_CommandBuffers[m_CurrentFrame].get();
+		cmd->Reset(); // 重置命令缓冲区
+		cmd->Begin(); // 开始命令缓冲区的录制
 		return cmd;
 	}
 	void Device::EndFrame(RHISwapchain& swapchain, uint32_t imageIndex)
@@ -385,10 +385,10 @@ namespace Bear {
 
 		Present(swapchain, imageIndex); // 提交交换链的呈现请求
 	}
-	uint32_t Device::AcquireNextImage(RHISwapchain& swapchain) const
+	uint32_t Device::AcquireNextImage(RHISwapchain& swapchain)
 	{
 		auto& vkSwapchain = static_cast<Swapchain&>(swapchain);
-		return vkSwapchain.AcquireNextImage(*m_ImageAvailableSemaphores[m_CurrentFrame]);
+		return  m_CurrentImageIndex = vkSwapchain.AcquireNextImage(*m_ImageAvailableSemaphores[m_CurrentFrame]);
 	}
 	void Device::Present(RHISwapchain& swapchain, uint32_t imageIndex)
 	{

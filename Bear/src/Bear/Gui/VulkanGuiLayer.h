@@ -6,7 +6,6 @@
 #include "Bear/Events/KeyEvent.h"
 #include "Bear/Events/MouseEvent.h"
 
-// Vulkan headers
 #include <vulkan/vulkan.h>
 
 namespace Bear
@@ -26,13 +25,16 @@ namespace Bear {
     class BEAR_API VulkanGuiLayer : public Layer {
     public:
         VulkanGuiLayer();
-        virtual ~VulkanGuiLayer() override;
+    	~VulkanGuiLayer() override = default;
 
-        virtual void OnAttach() override;
-        virtual void OnDetach() override;
-        virtual void OnUpdate(float deltaTime) override;
-        virtual void OnEvent(Event& event) override;
-        void OnRender(RHICommandList& cmd) const;
+        VulkanGuiLayer(const VulkanGuiLayer&) = delete;
+		VulkanGuiLayer& operator=(const VulkanGuiLayer&) = delete;
+
+    	void OnAttach() override;
+    	void OnDetach() override;
+    	void OnUpdate(float deltaTime) override;
+    	void OnEvent(Event& event) override;
+        void OnRender() const override;
 
     private:
         void InitImGui();

@@ -5,7 +5,7 @@ namespace Bear
 	class Node;
 	class RenderObject;
 
-	class Scene
+	class BEAR_API Scene
 	{
 	public:
 		Scene();

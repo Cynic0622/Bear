@@ -11,6 +11,7 @@ namespace Bear {
 	class VulkanRenderer;
 	class BEAR_API Application
 	{
+
 	public:
 		Application();
 		virtual ~Application();
@@ -22,9 +23,9 @@ namespace Bear {
 		void PushLayer(Layer* layer);
 		void PushOverlay(Layer* overlay);
 
-		inline Window& GetWindow() { return *m_Window; } // 获取窗口的引用，用于访问窗口相关功能
-		inline static Application& Get() { return *s_Instance; } // 获取应用程序实例的静态方法
-		inline Renderer* GetRenderer() { return m_Renderer.get(); } // 获取渲染设备的引用
+		Window& GetWindow() { return *m_Window; } // 获取窗口的引用，用于访问窗口相关功能
+		static Application& Get() { return *s_Instance; } // 获取应用程序实例的静态方法
+		Renderer* GetRenderer() { return m_Renderer.get(); } // 获取渲染设备的引用
 		
 	private:
 		std::unique_ptr<Window> m_Window; // 使用智能指针管理窗口对象的生命周期，有唯一窗口指针

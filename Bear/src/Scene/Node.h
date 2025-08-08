@@ -41,7 +41,7 @@ namespace Bear
 
 		// additional methods for scene management
 		void SetMesh(const std::shared_ptr<Mesh>& mesh) { m_Mesh = mesh; }
-		void SetMaterial(const std::shared_ptr<Material>& material) { m_Material = material; }
+		void SetMaterial(const std::shared_ptr<Material> material) { m_Material = material; }
 		std::shared_ptr<Mesh> GetMesh() const { return m_Mesh; }
 		std::shared_ptr<Material> GetMaterial() const { return m_Material; }
 	private:

@@ -2,11 +2,7 @@
 #include "Events/ApplicationEvent.h"
 #include "Events/KeyEvent.h"
 #include "Application.h"
-#include "Log.h"
 
-#include <glad/glad.h>
-#include "Pipeline/Shader.h"
-#include "Pipeline/PipelineConfig.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/RHI/RHITypes.h"
 namespace Bear {
@@ -23,6 +19,10 @@ namespace Bear {
 	}
 	Application::~Application()
 	{
+		if (m_Renderer)
+		{
+			m_Renderer->GetDevice()->WaitIdle();
+		}
 	}
 
 	void Application::OnEvent(Event& e)
@@ -44,19 +44,25 @@ namespace Bear {
 
 	void Application::Run()
 	{
-		int deltaTime = 0;
+		float deltaTime = 0;
 		while (m_Running)
 		{
 			// Calculate delta time
 			static float lastTime = 0;
-			float currentTime = static_cast<float>(glfwGetTime() * 1000); // Convert to milliseconds
+			float currentTime = static_cast<float>(glfwGetTime());
 			deltaTime = currentTime - lastTime;
 			
 			for (Layer* layer : m_LayerStack)
 			{
 				layer->OnUpdate(deltaTime);
 			}
-			m_Renderer->DrawFrame(m_LayerStack);
+
+			m_Renderer->BeginFrame();
+			for (Layer* layer : m_LayerStack)
+			{
+				layer->OnRender();
+			}
+			m_Renderer->EndFrame();
 
 			m_Window->OnUpdate();
 

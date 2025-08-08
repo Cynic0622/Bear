@@ -35,13 +35,13 @@ namespace Bear {
 		virtual void ImmediateSubmit(std::function<void(RHICommandList&)>&& function) = 0;
 
 		// 开始
-		virtual RHICommandList& BeginFrame() = 0;
+		virtual RHICommandList* BeginFrame() = 0;
 		// 结束并提交
 		virtual void EndFrame(RHISwapchain& swapchain, uint32_t imageIndex) = 0;
 		// 获取当前 in-flight frame 的索引
 		virtual uint32_t GetCurrentFrameIndex() const = 0;
 
-		virtual uint32_t AcquireNextImage(RHISwapchain& swapchain) const = 0;
+		virtual uint32_t AcquireNextImage(RHISwapchain& swapchain) = 0;
 
 		virtual void WaitIdle() = 0;
 		

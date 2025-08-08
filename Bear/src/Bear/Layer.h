@@ -5,18 +5,22 @@
 
 namespace Bear {
 	class RHICommandList;
-
+	class Renderer;
 	class BEAR_API Layer
 	{
 	public:
-		Layer(const std::string& name = "Layer") : m_DebugName(name) {};
+		Layer(std::string name = "Layer") : m_DebugName(std::move(name)) {}
 		virtual ~Layer() = default;
-		virtual void OnAttach() {}
-		virtual void OnDetach() {}
-		virtual void OnUpdate(float deltaTime) {}
-		virtual void OnEvent(Event& event) {}
-		virtual void OnRender(RHICommandList& cmd) const {}	
-		inline const std::string& GetName() const { return m_DebugName; }
+
+		Layer(const Layer&) = delete;
+		Layer& operator=(const Layer&) = delete;
+
+		virtual void OnAttach() = 0;
+		virtual void OnDetach() = 0;
+		virtual void OnUpdate(float deltaTime) = 0;
+		virtual void OnEvent(Event& event) {} // temp, must be overridden in derived classes later.
+		virtual void OnRender() const {}
+		const std::string& GetName() const { return m_DebugName; }
 	protected:
 		std::string m_DebugName;
 	};

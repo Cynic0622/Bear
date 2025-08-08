@@ -11,6 +11,8 @@ namespace Bear
 	}
 	void Scene::Update() const
 	{
+		glm::quat newRot = glm::angleAxis((float)glfwGetTime(), glm::vec3(0, 0, 1));
+		m_RootNode->SetRotation(newRot);
 		m_RootNode->Update();
 	}
 	void Scene::CollectRenderObjects(std::vector<RenderObject>& ObjectsList)

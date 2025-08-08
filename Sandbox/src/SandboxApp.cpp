@@ -1,5 +1,7 @@
 #include <Bear.h>
 
+
+
 class ExampleLayer : public Bear::Layer
 {
 	public:
@@ -24,7 +26,9 @@ class SandboxApp : public Bear::Application
 		//PushLayer(new ExampleLayer());
 		//PushOverlay(new Bear::GuiLayer());
 		//PushLayer(new Bear::GuiLayer());
-		PushLayer(new Bear::VulkanGuiLayer());
+		auto scene = std::make_unique<Bear::Scene>();
+		PushLayer(new Bear::SceneLayer(std::move(scene)));
+		PushOverlay(new Bear::VulkanGuiLayer());
 	}
 	~SandboxApp()
 	{
