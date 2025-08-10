@@ -1,6 +1,5 @@
 #pragma once
 #include <glm/gtc/quaternion.hpp>
-#include <glm/vec3.hpp>
 #include "Common/Mesh.h"
 #include "Common/Material.h"
 namespace Bear

@@ -73,7 +73,7 @@ namespace Bear {
 			if (m_Event.GetEventType() == T::GetStaticType())
 			{
 				m_Event.Handled |= func(static_cast<T&>(m_Event));
-				return true;
+				//return true;
 			}
 			return false;
 		}

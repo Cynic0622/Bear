@@ -5,10 +5,16 @@
 #include "Node.h"
 #include "Scene.h"
 #include "RenderObject.h"
+#include "Scene/EditorCamera.h"
 namespace Bear
 {
 	SceneLayer::SceneLayer(std::unique_ptr<Scene> scene)
 		:Layer("SceneLayer"), m_Scene(std::move(scene))
+	{
+		m_EditorCamera = std::make_unique<EditorCamera>(45.0f, (float)1280/720, 1.f, 1000.f);
+	}
+
+	SceneLayer::~SceneLayer()
 	{
 	}
 	
@@ -35,7 +41,7 @@ namespace Bear
 
 		node2->SetMesh(mesh);
 		node2->SetMaterial(material);
-		node2->SetPosition(glm::vec3(5.f, 0.f, 0.f));
+		node2->SetPosition(glm::vec3(8.f, 0.f, 0.f));
 		node2->SetScale(glm::vec3(1.f));
 
 		node3->SetMesh(mesh);
@@ -52,7 +58,9 @@ namespace Bear
 	}
 	void SceneLayer::OnUpdate(float deltaTime)
 	{
+		m_EditorCamera->Update(deltaTime);
 		m_Scene->Update();
+		m_SceneData = { m_EditorCamera->GetViewMatrix(), m_EditorCamera->GetProjectionMatrix() };
 	}
 	void SceneLayer::OnRender() const
 	{
@@ -60,6 +68,11 @@ namespace Bear
 		auto renderer = app.GetRenderer();
 		std::vector<RenderObject> renderObjects;
 		m_Scene->CollectRenderObjects(renderObjects);
-		renderer->Submit(renderObjects);
+		
+		renderer->Submit(renderObjects, m_SceneData);
+	}
+	void SceneLayer::OnEvent(Event& event)
+	{
+		m_EditorCamera->OnEvent(event);
 	}
 }

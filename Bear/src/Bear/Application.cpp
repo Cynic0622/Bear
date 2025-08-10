@@ -28,12 +28,12 @@ namespace Bear {
 	void Application::OnEvent(Event& e)
 	{
 		EventDispatcher dispatcher(e);
-		bool isHandled =  dispatcher.Dispatch<WindowCloseEvent>([this](WindowCloseEvent& e) { return this->OnWindowClose(e); });
-		if (isHandled)
-			return;
-		isHandled = dispatcher.Dispatch<WindowResizeEvent>([this](WindowResizeEvent& e) { return this->OnWindowResize(e); });
-		if (isHandled)
-			return;
+		dispatcher.Dispatch<WindowCloseEvent>([this](WindowCloseEvent& e) { return this->OnWindowClose(e); });
+		
+		dispatcher.Dispatch<WindowResizeEvent>([this](WindowResizeEvent& e) { return this->OnWindowResize(e); });
+
+		if (e.IsHandled()) return;
+		
 		for (auto it = m_LayerStack.rbegin(); it != m_LayerStack.rend(); ++it)
 		{
 			(*it)->OnEvent(e);
@@ -94,8 +94,6 @@ namespace Bear {
 		BEAR_CORE_ASSERT(e.GetWidth() > 0 && e.GetHeight() > 0, "Window resize event with invalid dimensions!");
 		BEAR_CORE_TRACE("WindowResizeEvent: {0}, {1}", e.GetWidth(), e.GetHeight());
 		m_Renderer->OnWindowResized();
-		return true;
+		return false;
 	}
-
-
 }

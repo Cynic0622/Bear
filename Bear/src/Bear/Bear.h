@@ -15,3 +15,5 @@
 #include "Scene/Scene.h"
 
 #include "Node.h"
+#include "Scene/Camera.h"
+#include "Scene/EditorCamera.h"

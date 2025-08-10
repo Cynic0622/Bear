@@ -23,9 +23,6 @@ class SandboxApp : public Bear::Application
 	public:
 	SandboxApp()
 	{
-		//PushLayer(new ExampleLayer());
-		//PushOverlay(new Bear::GuiLayer());
-		//PushLayer(new Bear::GuiLayer());
 		auto scene = std::make_unique<Bear::Scene>();
 		PushLayer(new Bear::SceneLayer(std::move(scene)));
 		PushOverlay(new Bear::VulkanGuiLayer());

@@ -5,6 +5,7 @@
 #include "RHI/RHISwapchain.h"
 #include "Common/RenderObject.h"
 #include  "Core/Types.h"
+#include "Scene/SceneLayer.h"
 
 namespace Bear {
 	Renderer::Renderer(GLFWwindow* window, GraphicsAPI api)
@@ -37,14 +38,14 @@ namespace Bear {
 		m_CurrentCommandBuffer->SetScissor(0, 0, width, height);
 	}
 
-	void Renderer::Submit(const std::vector<RenderObject>& renderObjects) const
+	void Renderer::Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData) const
 	{
 		for (const auto& obj : renderObjects) {
 			UniformBufferObject ubo{};
 			auto frameIndex = m_Device->GetCurrentFrameIndex();
 			
-			ubo.view = glm::lookAt(glm::vec3(0.f, 0.f, 50.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
-			ubo.proj = glm::perspective(glm::radians(45.0f), (float)m_Swapchain->GetWidth() / (float)m_Swapchain->GetHeight(), 0.1f, 100.0f);
+			ubo.view = sceneData.viewMaterix;
+			ubo.proj = sceneData.projectionMatrix;
 			obj.material->UpdateUniformBuffer(frameIndex, ubo);
 			obj.material->Bind(*m_CurrentCommandBuffer, frameIndex);
 			obj.mesh->Bind(*m_CurrentCommandBuffer);

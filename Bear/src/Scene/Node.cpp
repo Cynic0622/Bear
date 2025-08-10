@@ -1,6 +1,5 @@
 #include "bearpch.h"
 #include "Node.h"
-#include <glm/gtc/matrix_transform.hpp>
 
 namespace Bear
 {

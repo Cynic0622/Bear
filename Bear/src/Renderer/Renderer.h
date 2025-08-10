@@ -7,6 +7,7 @@
 
 namespace Bear
 {
+	struct SceneData;
 	class Scene;
 	class LayerStack;
 	class Material;
@@ -46,7 +47,7 @@ namespace Bear {
 		uint32_t GetSwapchainImageCount() const;
 
 		void BeginFrame();
-		void Submit(const std::vector<RenderObject>& renderObjects) const;
+		void Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData) const;
 		void EndFrame() const;
 
 
