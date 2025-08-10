@@ -1,6 +1,5 @@
 #include "bearpch.h"
 #include "Events/ApplicationEvent.h"
-#include "Events/KeyEvent.h"
 #include "Application.h"
 
 #include "Renderer/Renderer.h"
@@ -16,6 +15,7 @@ namespace Bear {
 			});
 		s_Instance = this;
 		m_Renderer = std::make_unique<Renderer>(static_cast<GLFWwindow*>(m_Window->GetNativeWindow()), GraphicsAPI::Vulkan);
+		Input::Init(static_cast<GLFWwindow*>(m_Window->GetNativeWindow()));
 	}
 	Application::~Application()
 	{

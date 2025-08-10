@@ -47,6 +47,7 @@ namespace Bear
 	}
 	void Camera::RecalculateViewMatrix()
 	{
+		CalculateForwardDirection();
 		m_ViewMatrix = glm::lookAt(m_Position, GetForwardDirection() + m_Position, GetUpDirection());
 	}
 	void Camera::RecalculateProjectionMatrix()

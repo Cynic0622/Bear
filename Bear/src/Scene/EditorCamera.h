@@ -16,7 +16,10 @@ namespace Bear
 
 	private:
 		glm::vec3 m_CameraPosition = { 0.0f, 0.0f, 3.0f };
+		glm::vec2 m_LastMousePosition = { 640.0f, 360.0f };
+		float m_CameraPitch = 0.f, m_CameraYaw = 0.0f;
 	private:
 		bool OnWindowResize(const WindowResizeEvent& event);
+		bool OnMouseScroll(const MouseScrolledEvent& event);
 	};
 }
