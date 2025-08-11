@@ -13,3 +13,6 @@
 [submodule "Bear/extern/glm"]
 	path = Bear/extern/glm
 	url = https://github.com/g-truc/glm.git
+[submodule "Bear/extern/entt"]
+	path = Bear/extern/entt
+	url = https://github.com/skypjack/entt.git
