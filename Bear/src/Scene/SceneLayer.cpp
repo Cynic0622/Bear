@@ -2,10 +2,12 @@
 
 #include "SceneLayer.h"
 #include "Application.h"
+#include "Component.h"
 #include "Node.h"
 #include "Scene.h"
 #include "RenderObject.h"
 #include "Scene/EditorCamera.h"
+#include "Entity.h"
 namespace Bear
 {
 	SceneLayer::SceneLayer(std::unique_ptr<Scene> scene)
@@ -20,7 +22,42 @@ namespace Bear
 	
 	void SceneLayer::OnAttach()
 	{
-		auto node1 = std::make_unique<Node>();
+		Entity mars = m_Scene->CreateEntity("Mars");
+		Entity marsSon = m_Scene->CreateEntity("MarsSon");
+		Entity marsGrandSon = m_Scene->CreateEntity("MarsGrandSon");
+		
+		auto publicMesh = m_Scene->GetMeshManager()->Load("assets/models/planet/planet.obj", *Application::Get().GetRenderer()->GetDevice(), "assets/models/planet/planet.obj");
+		std::vector<std::string> shaderPaths = {
+			"assets/shaders/tri.vert.spv",
+			"assets/shaders/tri.frag.spv"
+		};
+		auto publicMaterial = m_Scene->GetMaterialManager()->Load("marsMaterial", *Application::Get().GetRenderer()->GetDevice(),  *Application::Get().GetRenderer()->GetRenderPass(),shaderPaths);
+		auto tex = m_Scene->GetTextureManager()->Load("assets/models/planet/mars.png", *Application::Get().GetRenderer()->GetDevice(), "assets/models/planet/mars.png");
+		publicMaterial->SetTexture(1, tex);
+
+		auto& mesh = mars.AddComponent<MeshComponent>("assets/models/planet/mars.obj");
+		auto& material = mars.AddComponent<MaterialComponent>();
+		material.MaterialRes = publicMaterial;
+		mesh.MeshRes = publicMesh;
+
+		auto& meshSon = marsSon.AddComponent<MeshComponent>("assets/models/planet/mars.obj");
+		auto& materialSon = marsSon.AddComponent<MaterialComponent>();
+		materialSon.MaterialRes = publicMaterial;
+		meshSon.MeshRes = publicMesh;
+		auto transformSon = marsSon.GetComponent<TransformComponent>();
+		transformSon.Position = glm::vec3(8.f, 0.f, 0.f);
+
+		auto& meshGrandSon = marsGrandSon.AddComponent<MeshComponent>("assets/models/planet/mars.obj");
+		auto& materialGrandSon = marsGrandSon.AddComponent<MaterialComponent>();
+		materialGrandSon.MaterialRes = publicMaterial;
+		meshGrandSon.MeshRes = publicMesh;
+		auto transformGrandSon = marsGrandSon.GetComponent<TransformComponent>();
+		transformGrandSon.Position = glm::vec3(5.f, 0.f, 0.f);
+
+		// hierarchy
+		marsSon.GetComponent<HierarchyComponent>().Parent = mars;
+		marsGrandSon.GetComponent<HierarchyComponent>().Parent = marsSon;
+		/*auto node1 = std::make_unique<Node>();
 		auto node2 = std::make_unique<Node>();
 		auto node3 = std::make_unique<Node>();
 		auto& app = Application::Get();
@@ -51,7 +88,7 @@ namespace Bear
 		auto rootNode = m_Scene->GetRootNode();
 		node2->AddChild(std::move(node3));
 		node1->AddChild(std::move(node2));
-		rootNode->AddChild(std::move(node1));
+		rootNode->AddChild(std::move(node1));*/
 	}
 	void SceneLayer::OnDetach()
 	{
@@ -67,7 +104,19 @@ namespace Bear
 		auto& app = Application::Get();
 		auto renderer = app.GetRenderer();
 		std::vector<RenderObject> renderObjects;
-		m_Scene->CollectRenderObjects(renderObjects);
+		auto view = m_Scene->m_Registry.view<MeshComponent, TransformComponent, MaterialComponent>();
+
+		for (auto entity : view)
+		{
+			auto [transform, mesh, material] = view.get<TransformComponent, MeshComponent, MaterialComponent>(entity);
+			if (mesh.MeshRes)
+			{
+				auto obj = RenderObject::Create(mesh.MeshRes, material.MaterialRes, transform.GetTransform());
+				renderObjects.push_back(*obj);
+			}
+		}
+		
+		//m_Scene->CollectRenderObjects(renderObjects);
 		
 		renderer->Submit(renderObjects, m_SceneData);
 	}

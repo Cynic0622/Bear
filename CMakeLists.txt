@@ -56,12 +56,15 @@ set(VMA_BUILD_DOCUMENTATION OFF CACHE BOOL "" FORCE)
 set(VMA_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
 
 # 添加子项目
-add_subdirectory(Bear)
-add_subdirectory(Sandbox)
+
 add_subdirectory(Bear/extern/glfw)
 add_subdirectory(Bear/extern/spdlog)
 add_subdirectory(Bear/extern/vma)
 add_subdirectory(Bear/extern/glm)
+add_subdirectory(Bear/extern/entt)
+
+add_subdirectory(Bear)
+add_subdirectory(Sandbox)
 
 find_package(Vulkan REQUIRED)
 # 创建ImGui库.lib
@@ -112,6 +115,10 @@ endif()
 if (TARGET glm)
     set_target_properties(glm PROPERTIES FOLDER "External")
 endif()
+
+# set working directory for Visual Studio
+set_target_properties(Sandbox PROPERTIES
+    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 
 # 设置启动项目
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Sandbox)

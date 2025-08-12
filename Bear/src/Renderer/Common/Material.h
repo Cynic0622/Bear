@@ -1,7 +1,8 @@
 #pragma once
-#include <vulkan/vulkan.h>
 #include <string>
 #include <vector>
+
+#include "ResourceManager.h"
 #include "RHI/RHICommandList.h"
 namespace Bear {
 	class Texture;
@@ -53,4 +54,5 @@ namespace Bear {
 
 		std::shared_ptr<Texture> m_Texture;
 	};
+	using MaterialManager = ResourceManager<Material, std::string>;
 }

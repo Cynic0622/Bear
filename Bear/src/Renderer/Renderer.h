@@ -42,7 +42,7 @@ namespace Bear {
 		RHIDevice* GetDevice() const { return m_Device.get(); }
 		RHIRenderPass* GetRenderPass() const { return m_RenderPass.get(); }
 		TextureManager* GetTextureManager() const { return m_TextureManager.get(); }
-		MeshManger* GetMeshManager() const { return m_MeshManager.get(); }
+		MeshManager* GetMeshManager() const { return m_MeshManager.get(); }
 		RHICommandList* GetCurrentCommandList() const { return m_CurrentCommandBuffer; }
 		uint32_t GetSwapchainImageCount() const;
 
@@ -63,7 +63,7 @@ namespace Bear {
 		std::shared_ptr<RHIRenderPass> m_RenderPass;
 
 		std::unique_ptr<TextureManager> m_TextureManager;
-		std::unique_ptr<MeshManger> m_MeshManager;
+		std::unique_ptr<MeshManager> m_MeshManager;
 
 		RHICommandList* m_CurrentCommandBuffer;
 		uint32_t m_CurrentImageIndex;
