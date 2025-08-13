@@ -16,3 +16,6 @@
 [submodule "Bear/extern/entt"]
 	path = Bear/extern/entt
 	url = https://github.com/skypjack/entt.git
+[submodule "Bear/extern/tinygltf"]
+	path = Bear/extern/tinygltf
+	url = https://github.com/syoyo/tinygltf.git
