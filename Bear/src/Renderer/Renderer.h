@@ -7,6 +7,7 @@
 
 namespace Bear
 {
+	class Resource;
 	struct SceneData;
 	class Scene;
 	class LayerStack;
@@ -45,6 +46,7 @@ namespace Bear {
 		MeshManager* GetMeshManager() const { return m_MeshManager.get(); }
 		RHICommandList* GetCurrentCommandList() const { return m_CurrentCommandBuffer; }
 		uint32_t GetSwapchainImageCount() const;
+		Resource& GetResource() { return *m_Resource; }
 
 		void BeginFrame();
 		void Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData) const;
@@ -67,5 +69,6 @@ namespace Bear {
 
 		RHICommandList* m_CurrentCommandBuffer;
 		uint32_t m_CurrentImageIndex;
+		std::unique_ptr<Resource> m_Resource;
 	};
 }

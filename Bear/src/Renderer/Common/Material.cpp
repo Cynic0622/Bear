@@ -13,34 +13,34 @@
 #include "Texture.h"
 
 namespace Bear {
-	Material::Material(RHIDevice& device, const RHIRenderPass& renderPass, const std::vector<std::string>& shaderPath)
-		:m_Device(device)
-	{
-		std::vector<RHIDescriptorSetLayoutBinding> bindings;
-		// ubo
-		bindings.push_back({ .binding = 0, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Vertex });
-		// texture
-		bindings.push_back({ .binding = 1, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-
-		m_DescriptorSetLayout = device.CreateDescriptorSetLayout(bindings);
-		std::vector<RHIPushConstantRange> pushConstantRanges;
-		pushConstantRanges.push_back({ .stageFlags = ShaderStage::Vertex, .offset = 0, .size = sizeof(UniformBufferObject) });
-		m_PipelineLayout = device.CreatePipelineLayout({ m_DescriptorSetLayout.get() }, pushConstantRanges);
-
-		RHIPipelineConfig config{};
-		config.pipelineLayout = m_PipelineLayout;
-		config.vertexShaderPath = shaderPath[0];
-		config.fragmentShaderPath = shaderPath[1];
-		m_Pipeline = device.CreatePipeline(config, renderPass);
-
-		m_UniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-		m_DescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-		for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			m_UniformBuffers[i] = device.CreateBuffer(sizeof(UniformBufferObject), BufferUsage::UniformBuffer, true);
-			m_DescriptorSets[i] = device.CreateDescriptorSet(m_DescriptorSetLayout);
-			m_DescriptorSets[i]->UpdateDescriptorSet(0, *m_UniformBuffers[i]);
-		}
-	}
+	// Material::Material(RHIDevice& device, const RHIRenderPass& renderPass, const std::vector<std::string>& shaderPath)
+	// 	:m_Device(device)
+	// {
+	// 	std::vector<RHIDescriptorSetLayoutBinding> bindings;
+	// 	// ubo
+	// 	bindings.push_back({ .binding = 0, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Vertex });
+	// 	// texture
+	// 	bindings.push_back({ .binding = 1, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+	//
+	// 	m_DescriptorSetLayout = device.CreateDescriptorSetLayout(bindings);
+	// 	std::vector<RHIPushConstantRange> pushConstantRanges;
+	// 	pushConstantRanges.push_back({ .stageFlags = ShaderStage::Vertex, .offset = 0, .size = sizeof(UniformBufferObject) });
+	// 	m_PipelineLayout = device.CreatePipelineLayout({ m_DescriptorSetLayout.get() }, pushConstantRanges);
+	//
+	// 	RHIPipelineConfig config{};
+	// 	config.pipelineLayout = m_PipelineLayout;
+	// 	config.vertexShaderPath = shaderPath[0];
+	// 	config.fragmentShaderPath = shaderPath[1];
+	// 	m_Pipeline = device.CreatePipeline(config, renderPass);
+	//
+	// 	m_UniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+	// 	m_DescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+	// 	for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+	// 		m_UniformBuffers[i] = device.CreateBuffer(sizeof(UniformBufferObject), BufferUsage::UniformBuffer, true);
+	// 		m_DescriptorSets[i] = device.CreateDescriptorSet(m_DescriptorSetLayout);
+	// 		m_DescriptorSets[i]->UpdateDescriptorSet(0, *m_UniformBuffers[i]);
+	// 	}
+	// }
 	Material::~Material()
 	{
 	}
@@ -54,9 +54,16 @@ namespace Bear {
 		vkCommandBuffer.BindPipeline(*m_Pipeline);
 		vkCommandBuffer.BindDescriptorSet(*m_PipelineLayout, *m_DescriptorSets[currentFrame]);
 	}
-	void Material::UpdateUniformBuffer(uint32_t currentFrame, const UniformBufferObject& ubo) const
+	// void Material::UpdateUniformBuffer(uint32_t currentFrame, const MaterialParams& params)
+	// {
+	// 	if (!m_ParamsDirty) return;
+	// 	m_UniformBuffers[currentFrame]->UploadData(&params, sizeof(params));
+	// 	m_ParamsDirty = false; // reset dirty flag after updating
+	//
+	// }
+	void Material::UpdateParams(uint32_t currentFrame)
 	{
-		m_UniformBuffers[currentFrame]->UploadData(&ubo, sizeof(ubo));
+		if (!m_ParamsDirty) return;
 	}
 	void Material::SetTexture(uint32_t binding, std::shared_ptr<Texture> texture)
 	{
@@ -68,5 +75,18 @@ namespace Bear {
 				m_DescriptorSets[i]->UpdateTexture(binding, m_Texture->GetImage(), m_Texture->GetSampler());
 			}
 		}
+	}
+	void Material::SetParam(const std::string& name, float value)
+	{
+		
+		
+	}
+	void Material::SetParam(const std::string& name, const glm::vec3& value)
+	{
+		
+	}
+	void Material::SetParam(const std::string& name, const glm::vec4& value)
+	{
+		
 	}
 }

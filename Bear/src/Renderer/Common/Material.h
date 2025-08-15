@@ -18,23 +18,35 @@ namespace Bear {
 	class RHIDevice;
 	class RHIRenderPass;
 
+	enum MaterialSlot : int {
+		BaseColor = 1,
+		Normal = 2,
+		MetallicRoughness = 3,
+		Occlusion = 4,
+		Emissive = 5
+	};
+
 	class Material {
 	public:
-		Material(RHIDevice& device, const RHIRenderPass& renderPass, const std::vector<std::string>& shaderPath);
-		~Material();
+		Material() = default;
+		// Material(RHIDevice& device, const RHIRenderPass& renderPass, const std::vector<std::string>& shaderPath);
+		virtual ~Material();
 
 		Material(const Material&) = delete;
 		Material& operator=(const Material&) = delete;
 
 		void Bind(RHICommandList& commandBuffer, uint32_t currentFrame) const;
 
-		void UpdateUniformBuffer(uint32_t currentFrame, const UniformBufferObject& ubo) const;
-
-		void SetTexture(uint32_t binding, std::shared_ptr<Texture> texture);
+		// void UpdateUniformBuffer(uint32_t currentFrame, const MaterialParams& params);
+		virtual void UpdateParams(uint32_t currentFrame);
+		virtual void SetTexture(uint32_t binding, std::shared_ptr<Texture> texture);
+		virtual void SetParam(const std::string& name, float value);
+		virtual void SetParam(const std::string& name, const glm::vec3& value);
+		virtual void SetParam(const std::string& name, const glm::vec4& value);
 
 		RHIPipelineLayout* GetPipelineLayout() const { return m_PipelineLayout.get(); }
 	private:
-		const RHIDevice& m_Device;
+		// const RHIDevice& m_Device;
 		const int MAX_FRAMES_IN_FLIGHT = 2; // 与 Renderer 保持一致
 
 		// 材质拥有的渲染状态
@@ -53,6 +65,8 @@ namespace Bear {
 		std::shared_ptr<Sampler> m_TextureSampler;
 
 		std::shared_ptr<Texture> m_Texture;
+			
+		bool m_ParamsDirty = true; // whether the parameters have been modified since the last update
 	};
 	using MaterialManager = ResourceManager<Material, std::string>;
 }

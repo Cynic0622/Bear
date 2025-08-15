@@ -13,6 +13,7 @@ namespace Bear {
 	
 	public:
 		Mesh(RHIDevice& device, const std::string& path);
+		Mesh(RHIDevice& device, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
 		~Mesh();
 
 		void Bind(RHICommandList& cmd) const;

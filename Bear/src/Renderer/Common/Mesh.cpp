@@ -21,6 +21,17 @@ namespace Bear {
 		m_IndexBuffer = device.CreateBuffer(indexBufferSize, BufferUsage::IndexBuffer, true);
 		m_IndexBuffer->UploadData(modelData.indices.data(), indexBufferSize);
 	}
+	Mesh::Mesh(RHIDevice& device, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)
+	{
+		size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
+		size_t indexBufferSize = indices.size() * sizeof(uint32_t);
+		m_IndexCount = static_cast<uint32_t>(indices.size());
+
+		m_VertexBuffer = device.CreateBuffer(vertexBufferSize, BufferUsage::VertexBuffer, true);
+		m_VertexBuffer->UploadData(vertices.data(), vertexBufferSize);
+		m_IndexBuffer = device.CreateBuffer(indexBufferSize, BufferUsage::IndexBuffer, true);
+		m_IndexBuffer->UploadData(indices.data(), indexBufferSize);
+	}
 	Mesh::~Mesh()
 	{
 		m_VertexBuffer.reset();

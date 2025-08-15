@@ -9,6 +9,7 @@
 #include "RenderObject.h"
 #include "Scene/EditorCamera.h"
 #include "Entity.h"
+#include "Core/Resource.h"
 namespace Bear
 {
 	SceneLayer::SceneLayer(std::unique_ptr<Scene> scene)
@@ -23,10 +24,12 @@ namespace Bear
 	
 	void SceneLayer::OnAttach()
 	{
-		// 1. load gltf scene
+		// 1. load gltf scene， file --> cpu
 		auto modelDesc = AssetLoader::ImportModel("assets/models/Sponza/glTF/Sponza.gltf");
-		// 2. resource system create descriptor infos
-
+		// 2. resource system create descriptor infos, cpu --> gpu
+		auto& app = Application::Get();
+		auto& renderer = app.GetRenderer()->GetResource();
+		auto resources = renderer.CreateResources(modelDesc);
 		// 3. create descriptor sets
 
 		// 4. create scene graph

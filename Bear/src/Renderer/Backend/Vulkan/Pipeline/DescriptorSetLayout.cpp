@@ -24,7 +24,7 @@ namespace Bear {
 		layoutInfo.bindingCount = bindings.size();
 		layoutInfo.pBindings = bindings.data();
 		BEAR_CORE_ASSERT(vkCreateDescriptorSetLayout(m_Device.GetDevice(), &layoutInfo, nullptr, &m_Layout) == VK_SUCCESS, "failed to create descriptor set layout!");
-		m_BindingTypes.resize(bindings.size());
+		m_BindingTypes.resize(bindings.size() + 1);
 		for (const auto& binding : bindings) {
 			m_BindingTypes[binding.binding] = binding.descriptorType;
 		}

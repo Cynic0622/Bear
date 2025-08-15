@@ -9,9 +9,9 @@ namespace Bear {
     struct ImageDescription {
         std::string name;
 		std::string filepath; // generate the key from this
-        int width = 0;
-        int height = 0;
-        int channels = 0;
+        uint32_t width = 0;
+        uint32_t height = 0;
+        uint32_t channels = 0;
 		std::vector<unsigned char> pixels; // raw pixel data
     };
     struct MaterialDescription {
@@ -19,15 +19,15 @@ namespace Bear {
 
         // PBR Metallic-Roughness Workflow
         glm::vec4 baseColorFactor{ 1.0f };
-        uint32_t baseColorTextureIndex = -1;
+        int baseColorTextureIndex = -1;
 
         float metallicFactor = 1.0f;
         float roughnessFactor = 1.0f;
-        uint32_t metallicRoughnessTextureIndex = -1;
+        int metallicRoughnessTextureIndex = -1;
 
-        uint32_t normalTextureIndex = -1;
-        uint32_t occlusionTextureIndex = -1;
-        uint32_t emissiveTextureIndex = -1;
+        int normalTextureIndex = -1;
+        int occlusionTextureIndex = -1;
+        int emissiveTextureIndex = -1;
         glm::vec3 emissiveFactor{ 0.0f };
     };
 
@@ -37,7 +37,7 @@ namespace Bear {
         std::vector<uint32_t> indices;
 
         // material index
-        uint32_t materialIndex = 0;
+        int materialIndex = -1;
     };
 
 	// node description, used for scene graph hierarchy

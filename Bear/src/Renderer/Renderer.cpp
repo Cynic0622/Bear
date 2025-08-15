@@ -6,7 +6,7 @@
 #include "Common/RenderObject.h"
 #include  "Core/Types.h"
 #include "Scene/SceneLayer.h"
-
+#include "Core/Resource.h"
 namespace Bear {
 	Renderer::Renderer(GLFWwindow* window, GraphicsAPI api)
 		:m_Window(window)
@@ -46,7 +46,7 @@ namespace Bear {
 			
 			ubo.view = sceneData.viewMaterix;
 			ubo.proj = sceneData.projectionMatrix;
-			obj.material->UpdateUniformBuffer(frameIndex, ubo);
+			// obj.material->UpdateUniformBuffer(frameIndex, ubo);
 			obj.material->Bind(*m_CurrentCommandBuffer, frameIndex);
 			obj.mesh->Bind(*m_CurrentCommandBuffer);
 			PerObjectPushConstants pushConstants{ .model = obj.transform };
@@ -85,6 +85,7 @@ namespace Bear {
 
 		m_TextureManager = std::make_unique<TextureManager>();
 		m_MeshManager = std::make_unique<MeshManager>();
+		m_Resource = std::make_unique<Resource>(*m_Device);
 
 		LoadResources();
 	}
