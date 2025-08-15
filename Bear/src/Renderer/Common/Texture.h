@@ -12,6 +12,7 @@ namespace Bear
     {
     public:
         Texture(RHIDevice& device, const std::string& path);
+        Texture(RHIDevice& device, uint32_t width, uint32_t height, uint32_t channels, const void* pixels);
         ~Texture() = default;
 
         Texture(const Texture&) = delete;
@@ -23,6 +24,9 @@ namespace Bear
 	private:
 		std::shared_ptr<RHIImage> m_Image;
 		std::shared_ptr<RHISampler> m_Sampler;
+
+    private:
+        PixelFormat selectFormat(uint32_t channels);
     };
     using TextureManager = ResourceManager<Texture, std::string>;
 } // Bear

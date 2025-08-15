@@ -99,7 +99,7 @@ namespace Bear {
 		presentInfo.pSwapchains = &m_Swapchain; // ½»»»Á´
 		presentInfo.pImageIndices = &imageIndex; // Í¼ÏñË÷Òý
 
-		BEAR_CORE_ASSERT(vkQueuePresentKHR(presentQueue, &presentInfo) == VK_SUCCESS, "Failed to present image to swapchain.")
+		BEAR_CORE_ASSERT(vkQueuePresentKHR(presentQueue, &presentInfo) == VK_SUCCESS, "Failed to present image to swapchain.");
 		return VK_SUCCESS;
 	}
 	void Swapchain::Recreate()

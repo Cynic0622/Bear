@@ -4,11 +4,14 @@
 #include "Material.h"
 #include "Common/Texture.h"
 #include "Common/Mesh.h"
+
+
 namespace Bear
 {
 	class Node;
 	class RenderObject;
 	class Entity;
+	struct ModelDescription;
 
 	class BEAR_API Scene
 	{
@@ -40,5 +43,7 @@ namespace Bear
 
 	private:
 		void CollectRenderObjectsRecursive(const Node* node, std::vector<RenderObject>& renderList);
+
+		void InstantiateModel(const ModelDescription& description);
 	};
 }

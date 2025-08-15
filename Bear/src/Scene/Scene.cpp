@@ -2,6 +2,8 @@
 #include "Node.h"
 #include "Scene.h"
 
+#include "Application.h"
+#include "AssetLoader.h"
 #include "Component.h"
 #include "RenderObject.h"
 #include "Entity.h"
@@ -46,7 +48,7 @@ namespace Bear
 		}
 		else
 		{
-			BEAR_CORE_ERROR("Scene has no root node!")
+			BEAR_CORE_ERROR("Scene has no root node!");
 		}
 	}
 	Entity Scene::CreateEntity(const std::string& name)
@@ -78,5 +80,24 @@ namespace Bear
 		//{
 		//	CollectRenderObjectsRecursive(child.get(), renderList);
 		//}
+	}
+	void Scene::InstantiateModel(const ModelDescription& description)
+	{
+		// instanced the textures
+		std::vector<std::shared_ptr<Texture>> textures;
+		/*for (const auto& imgDesc : description.images)
+		{
+			auto texture = m_TextureManager->Load(imgDesc.filepath, *Application::Get().GetRenderer()->GetDevice(), 
+				imgDesc.width, imgDesc.height, imgDesc.pixels.data());
+			textures.push_back(std::move(texture));
+		}*/
+
+		// instanced the materials
+		std::vector<std::shared_ptr<Material>> materials;
+		/*for (const auto& matDesc : description.materials)
+		{
+			auto material = m_MaterialManager->Load(matDesc.name, matDesc.shaderName, textures);
+			materials.push_back(std::move(material));
+		}*/
 	}
 }

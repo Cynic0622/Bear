@@ -46,9 +46,9 @@ namespace Bear {
 	}
 	void Material::Bind(RHICommandList& commandBuffer, uint32_t currentFrame) const
 	{
-		BEAR_CORE_ASSERT(m_Pipeline, "Pipeline is not created in Material!")
-		BEAR_CORE_ASSERT(m_PipelineLayout, "Pipeline layout is not created in Material!")
-		BEAR_CORE_ASSERT(m_DescriptorSets.size() > currentFrame, "Descriptor sets are not created in Material!")
+		BEAR_CORE_ASSERT(m_Pipeline, "Pipeline is not created in Material!");
+		BEAR_CORE_ASSERT(m_PipelineLayout, "Pipeline layout is not created in Material!");
+		BEAR_CORE_ASSERT(m_DescriptorSets.size() > currentFrame, "Descriptor sets are not created in Material!");
 
 		auto& vkCommandBuffer = dynamic_cast<CommandBuffer&>(commandBuffer);
 		vkCommandBuffer.BindPipeline(*m_Pipeline);

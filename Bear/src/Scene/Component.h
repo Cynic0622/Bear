@@ -64,7 +64,7 @@ namespace Bear
 
 	struct HierarchyComponent
 	{
-		Entity Parent;
+		Entity Parent{entt::null, nullptr};
 		std::vector<Entity> Children;
 	};
 }

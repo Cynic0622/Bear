@@ -211,6 +211,7 @@ target_include_directories(Bear
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/stb
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/tinyobjloader
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/entt/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/extern/tinygltf
 )
 
 # DLL导出设置

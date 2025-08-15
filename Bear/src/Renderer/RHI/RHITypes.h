@@ -113,6 +113,9 @@ namespace Bear {
 
     enum class PixelFormat {
         Unknown,
+        R8_SRGB,
+        R8G8_SRGB,
+        R8G8B8_SRGB,
         R8G8B8A8_UNORM,
         R8G8B8A8_SRGB,
         B8G8R8A8_SRGB,
