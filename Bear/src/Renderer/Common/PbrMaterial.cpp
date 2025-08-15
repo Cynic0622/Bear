@@ -15,10 +15,10 @@ namespace Bear
 		bindings.push_back({ .binding = MaterialSlot::Occlusion, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
 		bindings.push_back({ .binding = MaterialSlot::Emissive, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
 
-		m_DescriptorSetLayout = device.CreateDescriptorSetLayout(bindings);
+		m_DescriptorSetLayout = m_Device.CreateDescriptorSetLayout(bindings);
 
 		for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			m_DescriptorSets.push_back(device.CreateDescriptorSet(m_DescriptorSetLayout));
+			m_DescriptorSets.push_back(m_Device.CreateDescriptorSet(m_DescriptorSetLayout));
 		}
 	}
 	PbrMaterial::~PbrMaterial()

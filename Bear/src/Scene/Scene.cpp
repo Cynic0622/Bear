@@ -7,6 +7,7 @@
 #include "Component.h"
 #include "RenderObject.h"
 #include "Entity.h"
+#include "Resource.h"
 #include "Common/Mesh.h"
 namespace Bear
 {
@@ -26,10 +27,10 @@ namespace Bear
 		for (auto entity : view)
 		{
 			/*Entity e = { entity, this };*/
-			auto& hierarchy = view.get<HierarchyComponent>(entity);
-			if (hierarchy.Parent)
+			auto& hierarchy = m_Registry.get<HierarchyComponent>(entity);
+			if (hierarchy.Parent != entt::null)
 			{
-				auto& parentTransform = hierarchy.Parent.GetComponent<TransformComponent>();
+				auto& parentTransform = m_Registry.get<TransformComponent>(hierarchy.Parent);
 				auto& transform = m_Registry.get<TransformComponent>(entity);
 				transform.Transform = parentTransform.Transform * transform.GetTransform();
 			}
@@ -63,6 +64,44 @@ namespace Bear
 	void Scene::DestroyEntity(Entity entity)
 	{
 		m_Registry.destroy(entity);
+	}
+	void Scene::CreateSceneGraph(const ModelDescription& desc, const Resources& resources)
+	{
+		// create scene graph from scene roots
+		std::function<void(uint32_t, Entity)> buildScene = [&](uint32_t index, Entity parentEntity)
+		{
+			const auto& nodeDesc = desc.nodes[index];
+			Entity entity = CreateEntity(nodeDesc.name);
+			auto& transform = m_Registry.get<TransformComponent>(entity);
+			transform = TransformComponent(nodeDesc.translation, nodeDesc.scale, nodeDesc.rotation);
+
+			if (nodeDesc.meshIndex >= 0 && nodeDesc.meshIndex < desc.submeshes.size())
+			{
+				const auto& meshDesc = desc.submeshes[nodeDesc.meshIndex];
+				auto mesh = resources.Meshes[nodeDesc.meshIndex];
+				entity.AddComponent<MeshComponent>(mesh);
+				if (meshDesc.materialIndex >= 0 && meshDesc.materialIndex < desc.materials.size())
+				{
+					auto material = resources.Materials[meshDesc.materialIndex];
+					entity.AddComponent<MaterialComponent>(material);
+				}
+			}
+
+			if (parentEntity)
+			{
+				auto& hierarchy = entity.GetComponent<HierarchyComponent>();
+				hierarchy.Parent = parentEntity;
+			}
+			for (const auto& childIndex : nodeDesc.childrenIndices)
+			{
+				buildScene(childIndex, entity);
+			}
+		};
+
+		for (auto& root : desc.rootNodeIndices)
+		{
+			buildScene(root, CreateEntity()); // root entity has no parent
+		}
 	}
 	void Scene::CollectRenderObjectsRecursive(const Node* node, std::vector<RenderObject>& renderList)
 	{

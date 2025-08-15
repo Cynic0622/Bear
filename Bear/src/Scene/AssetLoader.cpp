@@ -179,7 +179,6 @@ namespace Bear {
 
             for (int childIndex : gltfNode.children) {
                 descNode.childrenIndices.push_back(childIndex);
-                // 我们需要一个方法来设置父节点索引，这可以在事后处理
             }
         }
 

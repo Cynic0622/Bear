@@ -44,7 +44,9 @@ namespace Bear {
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
         io.ConfigFlags |= ImGuiBackendFlags_HasMouseCursors; // Enable Mouse Cursors
         io.ConfigFlags |= ImGuiBackendFlags_HasSetMousePos; // Enable SetMousePos backend function
-        
+
+		// set the store path for ImGui settings
+        io.IniFilename = "build/imgui.ini";
         // 3. 初始化GLFW后端
         Application& app = Application::Get();
         GLFWwindow* window = static_cast<GLFWwindow*>(app.GetWindow().GetNativeWindow());

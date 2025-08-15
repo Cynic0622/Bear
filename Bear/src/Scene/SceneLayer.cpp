@@ -24,15 +24,15 @@ namespace Bear
 	
 	void SceneLayer::OnAttach()
 	{
-		// 1. load gltf scene， file --> cpu
+		// 1. load gltf scene, file --> cpu
 		auto modelDesc = AssetLoader::ImportModel("assets/models/Sponza/glTF/Sponza.gltf");
 		// 2. resource system create descriptor infos, cpu --> gpu
 		auto& app = Application::Get();
 		auto& renderer = app.GetRenderer()->GetResource();
 		auto resources = renderer.CreateResources(modelDesc);
-		// 3. create descriptor sets
 
-		// 4. create scene graph
+		// 3. create scene graph
+		m_Scene->CreateSceneGraph(modelDesc, resources);
 	}
 	void SceneLayer::OnDetach()
 	{

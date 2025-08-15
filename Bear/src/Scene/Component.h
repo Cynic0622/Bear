@@ -36,19 +36,39 @@ namespace Bear
 		TransformComponent(const glm::vec3& position, const glm::vec3& scale, const glm::vec3& rotation)
 			: Position(position), Scale(scale), Rotation(rotation) {
 		}
+		TransformComponent(const glm::vec3& position, const glm::vec3& scale, const glm::quat& rotation)
+			:Position(position), Scale(scale), Rotation(glm::eulerAngles(rotation))
+		{
+		}
 		glm::mat4 GetTransform() const
 		{
 			return glm::translate(glm::mat4(1.0f), Position) * glm::toMat4(glm::quat(Rotation)) * glm::scale(glm::mat4(1.0f), Scale);
 		}
+		//void SetTransform(const glm::vec3& position, const glm::vec3& scale, const glm::quat& rotation)
+		//	:Position(position), Scale(scale), Rotation(glm::eulerAngles(rotation))
+		//{
+		//	
+		//}
+		//void SetTransform(const glm::vec3& position, const glm::vec3& scale, const glm::vec3& rotation)
+		//{
+		//	Position = position;
+		//	Scale = scale;
+		//	Rotation = rotation;
+		//	Transform = GetTransform();
+		//}
 	};
 
 	struct MeshComponent
 	{
 		std::string MeshPath;
 		std::shared_ptr<Mesh> MeshRes;
+		//std::shared_ptr<Material> MaterialRes; // Optional material resource for the mesh
 		MeshComponent() = default;
 		MeshComponent(const std::string& meshPath)
 			: MeshPath(meshPath), MeshRes(nullptr) {
+		}
+		MeshComponent(const std::shared_ptr<Mesh>& meshRes)
+			: MeshPath(""), MeshRes(meshRes) {
 		}
 	};
 
@@ -60,11 +80,17 @@ namespace Bear
 		MaterialComponent(const std::string& materialPath)
 			: MaterialPath(materialPath), MaterialRes(nullptr) {
 		}
+		MaterialComponent(const std::shared_ptr<Material>& materialRes)
+			: MaterialPath(""), MaterialRes(materialRes) {
+		}
 	};
 
 	struct HierarchyComponent
 	{
-		Entity Parent{entt::null, nullptr};
-		std::vector<Entity> Children;
+		//Entity Parent;
+		// In components, use entt::entity to represent entities.
+		entt::entity Parent = entt::null;
+		//std::vector<Entity> Children;
+		std::vector<entt::entity> Children;
 	};
 }

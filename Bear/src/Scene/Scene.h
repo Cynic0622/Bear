@@ -8,6 +8,7 @@
 
 namespace Bear
 {
+	struct Resources;
 	class Node;
 	class RenderObject;
 	class Entity;
@@ -31,6 +32,8 @@ namespace Bear
 		// entity management
 		Entity CreateEntity(const std::string& name = "Entity");
 		void DestroyEntity(Entity entity);
+
+		void CreateSceneGraph(const ModelDescription& desc, const Resources& resources);
 
 	private:
 		std::unique_ptr<Node> m_RootNode; // the root node of the scene graph
