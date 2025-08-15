@@ -155,7 +155,7 @@ namespace Bear {
 		}
 		std::vector<VkPushConstantRange> vkPushConstantRanges;
 		for (const auto& range : pushConstantRanges) {
-			BEAR_CORE_ASSERT(range.size <= 128, "Push constant size must not exceed 128 bytes!")
+			BEAR_CORE_ASSERT(range.size <= 128, "Push constant size must not exceed 128 bytes!");
 			vkPushConstantRanges.push_back(ToVulkanPushConstantRange(range));
 		}
 		return std::make_shared<PipelineLayout>(*this, layouts, vkPushConstantRanges);
@@ -197,6 +197,7 @@ namespace Bear {
 		rasterizationInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 		rasterizationInfo.polygonMode = ToVulkanPolygonMode(config.polygonMode);
 		rasterizationInfo.cullMode = ToVulkanCullMode(config.cullMode);
+		//rasterizationInfo.cullMode = VK_CULL_MODE_NONE;
 		rasterizationInfo.frontFace = ToVulkanFrontFace(config.frontFace);
 		rasterizationInfo.lineWidth = 1.0f;
 

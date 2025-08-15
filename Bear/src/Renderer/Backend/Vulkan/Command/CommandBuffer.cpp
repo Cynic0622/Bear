@@ -23,7 +23,7 @@ namespace Bear {
 		allocInfo.commandBufferCount = commandBufferCount;
 		allocInfo.pNext = pNext;
 
-		BEAR_CORE_ASSERT(vkAllocateCommandBuffers(m_Device.GetDevice(), &allocInfo, &m_CommandBuffer) == VK_SUCCESS, "Failed to allocate command buffers!")
+		BEAR_CORE_ASSERT(vkAllocateCommandBuffers(m_Device.GetDevice(), &allocInfo, &m_CommandBuffer) == VK_SUCCESS, "Failed to allocate command buffers!");
 	}
 	CommandBuffer::~CommandBuffer()
 	{
@@ -40,17 +40,17 @@ namespace Bear {
 	{
 		VkCommandBufferBeginInfo beginInfo{};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		BEAR_CORE_ASSERT(vkBeginCommandBuffer(m_CommandBuffer, &beginInfo) == VK_SUCCESS, "Failed to begin command buffer!")
+		BEAR_CORE_ASSERT(vkBeginCommandBuffer(m_CommandBuffer, &beginInfo) == VK_SUCCESS, "Failed to begin command buffer!");
 	}
 
 	void CommandBuffer::End()
 	{
-		BEAR_CORE_ASSERT(vkEndCommandBuffer(m_CommandBuffer) == VK_SUCCESS, "Failed to end command buffer!")
+		BEAR_CORE_ASSERT(vkEndCommandBuffer(m_CommandBuffer) == VK_SUCCESS, "Failed to end command buffer!");
 	}
 
 	void CommandBuffer::Reset()
 	{
-		BEAR_CORE_ASSERT(vkResetCommandBuffer(m_CommandBuffer, 0) == VK_SUCCESS, "Failed to reset command buffer!")
+		BEAR_CORE_ASSERT(vkResetCommandBuffer(m_CommandBuffer, 0) == VK_SUCCESS, "Failed to reset command buffer!");
 	}
 	
 	void CommandBuffer::EndRenderPass()
@@ -60,7 +60,7 @@ namespace Bear {
 	void CommandBuffer::BindPipeline(const RHIPipeline& pipeline)
 	{
 		const auto& vkPipeline = dynamic_cast<const Pipeline&>(pipeline);
-		BEAR_CORE_ASSERT(vkPipeline.GetHandle() != VK_NULL_HANDLE, "Pipeline handle is null!")
+		BEAR_CORE_ASSERT(vkPipeline.GetHandle() != VK_NULL_HANDLE, "Pipeline handle is null!");
 		vkCmdBindPipeline(m_CommandBuffer, vkPipeline.GetBindPoint(), vkPipeline.GetHandle());
 	}
 

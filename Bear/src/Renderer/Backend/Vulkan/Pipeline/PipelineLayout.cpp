@@ -19,7 +19,7 @@ namespace Bear {
 
 		pipelineLayoutInfo.pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size());
 		pipelineLayoutInfo.pPushConstantRanges = pushConstantRanges.data();
-		BEAR_CORE_ASSERT(vkCreatePipelineLayout(m_Device.GetDevice(), &pipelineLayoutInfo, nullptr, &m_Layout) == VK_SUCCESS, "failed to create pipeline layout!")
+		BEAR_CORE_ASSERT(vkCreatePipelineLayout(m_Device.GetDevice(), &pipelineLayoutInfo, nullptr, &m_Layout) == VK_SUCCESS, "failed to create pipeline layout!");
 	}
 	PipelineLayout::~PipelineLayout()
 	{

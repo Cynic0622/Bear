@@ -49,7 +49,7 @@ namespace Bear {
 			obj.material->UpdateUniformBuffer(frameIndex, ubo);
 			obj.material->Bind(*m_CurrentCommandBuffer, frameIndex);
 			obj.mesh->Bind(*m_CurrentCommandBuffer);
-			PerObjectPushConstants pushConstants{ .model = obj.transformComponent.GetTransform() };
+			PerObjectPushConstants pushConstants{ .model = obj.transform };
 			m_CurrentCommandBuffer->PushConstants(*obj.material->GetPipelineLayout(), ShaderStage::Vertex, &pushConstants, sizeof(PerObjectPushConstants), 0);
 			obj.mesh->Draw(*m_CurrentCommandBuffer);
 		}
@@ -84,7 +84,7 @@ namespace Bear {
 		m_Swapchain = m_Device->CreateSwapchain(*m_RenderPass);
 
 		m_TextureManager = std::make_unique<TextureManager>();
-		m_MeshManager = std::make_unique<MeshManger>();
+		m_MeshManager = std::make_unique<MeshManager>();
 
 		LoadResources();
 	}

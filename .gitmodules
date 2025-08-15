@@ -13,6 +13,12 @@
 [submodule "Bear/extern/glm"]
 	path = Bear/extern/glm
 	url = https://github.com/g-truc/glm.git
+[submodule "Bear/extern/entt"]
+	path = Bear/extern/entt
+	url = https://github.com/skypjack/entt.git
+[submodule "Bear/extern/tinygltf"]
+	path = Bear/extern/tinygltf
+	url = https://github.com/syoyo/tinygltf.git
 [submodule "Bear/extern/json"]
 	path = Bear/extern/json
 	url = https://github.com/nlohmann/json.git

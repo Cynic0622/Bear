@@ -31,7 +31,7 @@ namespace Bear {
 		PrimitiveTopology topology = PrimitiveTopology::TriangleList;
 		PolygonMode polygonMode = PolygonMode::Fill;
 		CullMode cullMode = CullMode::Back;
-		FrontFace frontFace = FrontFace::Clockwise;
+		FrontFace frontFace = FrontFace::CounterClockwise;
 
 		// ... 未来可以添加 BlendState, DepthState 等
 	};

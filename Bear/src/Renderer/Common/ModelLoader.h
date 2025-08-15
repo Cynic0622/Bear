@@ -3,7 +3,10 @@
 
 #include "Types.h"
 #include "tiny_obj_loader.h"
-
+//#define TINYGLTF_IMPLEMENTATION
+//#define STB_IMAGE_IMPLEMENTATION
+//#define STB_IMAGE_WRITE_IMPLEMENTATION
+//#include <tiny_gltf.h>
 // hash function for Vertex
 namespace std
 {
@@ -66,7 +69,7 @@ namespace Bear
 		std::string err, warn;
 
 		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.c_str())) {
-			BEAR_CORE_ERROR("Failed to load model : " + err)
+			BEAR_CORE_ERROR("Failed to load model : " + err);
 		}
 
 		ModelData modelData;

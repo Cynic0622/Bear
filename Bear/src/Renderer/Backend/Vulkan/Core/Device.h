@@ -26,14 +26,14 @@ namespace Bear {
         Device(Device&&) = delete;
         Device& operator=(Device&&) = delete;
  
-        inline VkPhysicalDevice GetPhysicalDevice() const { return m_PhysicalDevice; }
-        inline VkDevice GetDevice() const { return m_LogicalDevice; }
-        inline VkQueue GetGraphicsQueue() const { return m_GraphicsQueue; }
-        inline VkQueue GetPresentQueue() const { return m_PresentQueue; }
-		inline const Surface& GetSurface() const { return *m_Surface; }
-		inline const Instance& GetInstance() const { return *m_Instance; }
-        inline const QueueFamilyIndices& GetQueueFamilyIndices() const { return m_QueueIndices; }
-		inline VmaAllocator GetAllocator() const { return m_Allocator; }
+    	VkPhysicalDevice GetPhysicalDevice() const { return m_PhysicalDevice; }
+    	VkDevice GetDevice() const { return m_LogicalDevice; }
+    	VkQueue GetGraphicsQueue() const { return m_GraphicsQueue; }
+    	VkQueue GetPresentQueue() const { return m_PresentQueue; }
+    	const Surface& GetSurface() const { return *m_Surface; }
+    	const Instance& GetInstance() const { return *m_Instance; }
+    	const QueueFamilyIndices& GetQueueFamilyIndices() const { return m_QueueIndices; }
+    	VmaAllocator GetAllocator() const { return m_Allocator; }
         void Present(RHISwapchain& swapchain, uint32_t imageIndex);
 
 		// implement RHIDevice interface

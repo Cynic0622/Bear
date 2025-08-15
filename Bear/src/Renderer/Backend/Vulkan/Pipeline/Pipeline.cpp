@@ -1,11 +1,7 @@
 #include "bearpch.h"
 
 #include "Pipeline.h"
-#include "Core/Utils.h"
 #include "Core/Device.h"
-#include "Core/Types.h"
-#include "Pipeline/PipelineLayout.h"
-#include "Pipeline/RenderPass.h"
 
 namespace Bear {
 

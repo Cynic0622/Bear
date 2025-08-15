@@ -1,5 +1,7 @@
 #pragma once
 #include "Layer.h"
+#include "Mesh.h"
+#include "Texture.h"
 
 namespace Bear
 {
