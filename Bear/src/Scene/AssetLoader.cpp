@@ -41,6 +41,31 @@ namespace Bear {
             }
             desc.images.push_back(std::move(imgDesc));
 		}
+		// --- Samplers ---
+		desc.samplers.reserve(model.samplers.size());
+        for (const auto& gltfSampler : model.samplers) {
+            SamplerDescription sampler;
+            sampler.minFilter = gltfSampler.minFilter;
+            sampler.magFilter = gltfSampler.magFilter;
+            sampler.wrapS = gltfSampler.wrapS;
+            sampler.wrapT = gltfSampler.wrapT;
+            desc.samplers.push_back(sampler);
+		}
+
+		// --- Textures ---
+		desc.textures.reserve(model.textures.size());
+        for (const auto& gltfTexture : model.textures) {
+            TextureDescription texDesc;
+            texDesc.name = gltfTexture.name;
+            if (gltfTexture.source >= 0 && static_cast<size_t>(gltfTexture.source) < model.images.size()) {
+                texDesc.imageIndex = gltfTexture.source; // index in the images array
+            }
+            if (gltfTexture.sampler >= 0 && static_cast<size_t>(gltfTexture.sampler) < model.samplers.size()) {
+                texDesc.samplerIndex = gltfTexture.sampler; // index in the samplers array
+            }
+            desc.textures.push_back(texDesc);
+		}
+
         // --- Materials ---
         desc.materials.reserve(model.materials.size());
         for (const auto& gltfMaterial : model.materials) {
@@ -54,24 +79,29 @@ namespace Bear {
 			matDesc.emissiveFactor = glm::make_vec3(gltfMaterial.emissiveFactor.data());
 
             if (pbr.baseColorTexture.index >= 0) {
-                const auto& tex = model.textures[pbr.baseColorTexture.index];
-                matDesc.baseColorTextureIndex = tex.source;
+                // const auto& tex = model.textures[pbr.baseColorTexture.index];
+                // matDesc.baseColorTextureIndex = tex.source;
+				matDesc.baseColorTextureIndex = pbr.baseColorTexture.index; // index in the textures array
             }
             if (pbr.metallicRoughnessTexture.index >= 0) {
-                const auto& tex = model.textures[pbr.metallicRoughnessTexture.index];
-                matDesc.metallicRoughnessTextureIndex = tex.source;
+                // const auto& tex = model.textures[pbr.metallicRoughnessTexture.index];
+                // matDesc.metallicRoughnessTextureIndex = tex.source;
+				matDesc.metallicRoughnessTextureIndex = pbr.metallicRoughnessTexture.index;
 			}
             if (gltfMaterial.normalTexture.index >= 0) {
-                const auto& tex = model.textures[gltfMaterial.normalTexture.index];
-                matDesc.normalTextureIndex = tex.source;
+                // const auto& tex = model.textures[gltfMaterial.normalTexture.index];
+                // matDesc.normalTextureIndex = tex.source;
+				matDesc.normalTextureIndex = gltfMaterial.normalTexture.index;
 			}
             if (gltfMaterial.occlusionTexture.index >= 0) {
-                const auto& tex = model.textures[gltfMaterial.occlusionTexture.index];
-                matDesc.occlusionTextureIndex = tex.source;
+                // const auto& tex = model.textures[gltfMaterial.occlusionTexture.index];
+                // matDesc.occlusionTextureIndex = tex.source;
+				matDesc.occlusionTextureIndex = gltfMaterial.occlusionTexture.index;
             }
             if (gltfMaterial.emissiveTexture.index >= 0) {
-                const auto& tex = model.textures[gltfMaterial.emissiveTexture.index];
-                matDesc.emissiveTextureIndex = tex.source;
+                // const auto& tex = model.textures[gltfMaterial.emissiveTexture.index];
+                // matDesc.emissiveTextureIndex = tex.source;
+				matDesc.emissiveTextureIndex = gltfMaterial.emissiveTexture.index;
 			}
 
             desc.materials.push_back(std::move(matDesc));

@@ -30,7 +30,7 @@ namespace Bear
 		explicit Resource(RHIDevice& device);
 		~Resource() = default;
 
-        std::shared_ptr<Texture> CreateTexture(const ImageDescription& desc);
+        std::shared_ptr<Texture> CreateTexture(const ImageDescription& imageDesc, const SamplerDescription& samplerDesc);
         std::shared_ptr<Mesh> CreateMesh(const PrimitiveDescription& desc);
 		std::shared_ptr<Material> CreateMaterial(const MaterialDescription& desc, const std::vector<std::shared_ptr<Texture>>& images);
         Resources CreateResources(const ModelDescription& desc);

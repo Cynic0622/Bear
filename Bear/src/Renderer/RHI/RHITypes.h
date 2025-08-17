@@ -164,6 +164,7 @@ namespace Bear {
     enum class MipmapMode {
         Nearest,
         Linear,
+		None, // no mipmaps.
     };
 
     // Ñ°Ö·Ä£Ê½ (U, V, W ×ø±ê)
