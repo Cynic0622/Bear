@@ -5,6 +5,11 @@
 
 bin/
 bin-int/
+build/
+.vscode/
+.idea/
+models/
+assets/
 
 
 # User-specific files
