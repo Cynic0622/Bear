@@ -27,7 +27,7 @@ namespace Bear
 			m_CameraPosition += GetRightDirection() * deltaTime * speed;
 		}
 		auto mousePos = Input::GetMousePosition();
-		if (Input::IsMouseButtonPressed(Mouse::Left))
+		if ( m_IsMousePressed && Input::IsMouseButtonPressed(Mouse::Left))
 		{
 			glm::vec2 delta = mousePos - m_LastMousePosition;
 			m_CameraPitch = std::clamp(m_CameraPitch + delta.y * 0.1f, -89.0f, 89.0f); // Clamp pitch to avoid gimbal lock
@@ -43,6 +43,8 @@ namespace Bear
 		EventDispatcher dispatcher(event);
 		dispatcher.Dispatch<WindowResizeEvent>([this](const WindowResizeEvent& event) { return this->OnWindowResize(event); });
 		dispatcher.Dispatch<MouseScrolledEvent>([this](const MouseScrolledEvent& event) { return this->OnMouseScroll(event); });
+		dispatcher.Dispatch<MouseButtonPressedEvent>([this](const MouseButtonPressedEvent& event) { return this->OnMousePress(event); });
+		dispatcher.Dispatch<MouseButtonReleasedEvent>([this](const MouseButtonReleasedEvent& event) { return this->OnMouseRelease(event); });
 	}
 	bool EditorCamera::OnWindowResize(const WindowResizeEvent& event)
 	{
@@ -56,5 +58,13 @@ namespace Bear
 		m_CameraPosition += GetForwardDirection() * zoomAmount;
 		SetPosition(m_CameraPosition); // Update camera position
 		return true;
+	}
+	bool EditorCamera::OnMousePress(const MouseButtonPressedEvent& event)
+	{
+		return m_IsMousePressed = true; // Update mouse pressed state.
+	}
+	bool EditorCamera::OnMouseRelease(const MouseButtonReleasedEvent& event)
+	{
+		return m_IsMousePressed = false; // Update mouse pressed state.
 	}
 }

@@ -6,7 +6,6 @@
 #include "Renderer/Backend/Vulkan/Core/Device.h"
 #include "Renderer/Backend/Vulkan/Pipeline/RenderPass.h"
 #include "Renderer/Backend/Vulkan/Command/CommandBuffer.h"
-#include "Renderer/RHI/RHICommandList.h"
 
 // ImGui includes
 #include "imgui.h"
@@ -115,6 +114,12 @@ namespace Bear {
             m_DescriptorPool = VK_NULL_HANDLE;
         }
     }
+
+    bool VulkanGuiLayer::OnMouseButtonPress(MouseButtonPressedEvent& event)
+    {
+        ImGuiIO& io = ImGui::GetIO();
+		return io.WantCaptureMouse; // if ImGui wants to capture the mouse input, return true
+    }
     
     void VulkanGuiLayer::OnUpdate(float deltaTime) {
         
@@ -123,12 +128,9 @@ namespace Bear {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         
-        // 渲染GUI内容
-        // ImGui::ShowDemoWindow();
-        
         // 自定义GUI示例
-        ImGui::Begin("Vulkan Info");
-        ImGui::Text("Renderer: Vulkan");
+        ImGui::Begin("Renderer Info");
+        ImGui::Text("Graphics api: Vulkan");
         ImGui::Text("Frame time: %.3f ms", deltaTime * 1000.0f);
         ImGui::Text("FPS: %.1f", 1.0f / deltaTime);
         ImGui::End();
@@ -138,9 +140,12 @@ namespace Bear {
     }
     
     void VulkanGuiLayer::OnEvent(Event& event) {
-        /*ImGuiIO& io = ImGui::GetIO();
-        event.Handled |= event.IsInCategory(EventCategoryMouse) & io.WantCaptureMouse;
-        event.Handled |= event.IsInCategory(EventCategoryKeyboard) & io.WantCaptureKeyboard;*/
+
+		EventDispatcher dispatcher(event);
+        dispatcher.Dispatch<MouseButtonPressedEvent>([this](MouseButtonPressedEvent& e)
+            {
+				return this->OnMouseButtonPress(e);
+            });
     }
 
     void VulkanGuiLayer::OnRender() const

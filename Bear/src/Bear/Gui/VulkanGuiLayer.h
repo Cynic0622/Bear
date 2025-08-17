@@ -40,6 +40,8 @@ namespace Bear {
         void InitImGui();
         void ShutdownImGui();
 
+		bool OnMouseButtonPress(MouseButtonPressedEvent& event);
+
 
     private:
 		RHIDevice* m_Device = nullptr;
