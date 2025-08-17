@@ -32,6 +32,11 @@ namespace Bear {
 	{
 		glm::mat4 viewMatrix;
 		glm::mat4 projectionMatrix;
+
+		glm::vec4 cameraPosition; // Camera position in world space.
+		glm::vec4 lightPositions[10]; // Positions of lights.
+		glm::vec4 lightColors[10]; // Colors of lights.
+		int lightCount = 10; // Number of lights in the scene.
 	};
 
 	class Renderer {

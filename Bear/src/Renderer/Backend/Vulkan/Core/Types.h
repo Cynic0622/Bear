@@ -17,6 +17,7 @@ namespace Bear {
     struct Vertex {
 		glm::vec3 pos;
 		glm::vec3 normal;
+        glm::vec3 tangent;
 		glm::vec2 texCoord; // 添加纹理坐标属性
 
         // 绑定描述：告诉 Vulkan 如何将数据打包到内存中
@@ -30,7 +31,7 @@ namespace Bear {
 
         // 属性描述：告诉 Vulkan 每个顶点属性的细节
         static std::vector<VkVertexInputAttributeDescription> GetAttributeDescriptions() {
-            std::vector<VkVertexInputAttributeDescription> attributeDescriptions(3);
+            std::vector<VkVertexInputAttributeDescription> attributeDescriptions(4);
 
             // positon (location = 0 in shader)
             attributeDescriptions[0].binding = 0;
@@ -44,11 +45,17 @@ namespace Bear {
             attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT; // 3个32位浮点数
             attributeDescriptions[1].offset = offsetof(Vertex, normal);
 
-			// texcoord (location = 2 in shader)
-			attributeDescriptions[2].binding = 0;
-			attributeDescriptions[2].location = 2;
-			attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT; // 2个32位浮点数
-			attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
+            // tangent (location = 2 in shader)
+            attributeDescriptions[2].binding = 0;
+            attributeDescriptions[2].location = 2;
+            attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+            attributeDescriptions[2].offset = offsetof(Vertex, tangent);
+
+			// texcoord (location = 3 in shader)
+			attributeDescriptions[3].binding = 0;
+			attributeDescriptions[3].location = 3;
+			attributeDescriptions[3].format = VK_FORMAT_R32G32_SFLOAT; // 2个32位浮点数
+			attributeDescriptions[3].offset = offsetof(Vertex, texCoord);
 
             return attributeDescriptions;
         }

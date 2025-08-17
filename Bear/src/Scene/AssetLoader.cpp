@@ -119,6 +119,7 @@ namespace Bear {
                 // --- Vertex ---
                 const float* positions = nullptr;
                 const float* normals = nullptr;
+                const float* tangents = nullptr;
                 const float* texCoords = nullptr;
                 size_t vertexCount = 0;
 
@@ -139,6 +140,14 @@ namespace Bear {
                     normals = reinterpret_cast<const float*>(&(model.buffers[normBufferView.buffer].data[normBufferView.byteOffset + normAccessor.byteOffset]));
                 }
 
+                // tangent
+                if (primitive.attributes.contains("TANGENT"))
+                {
+                    const auto& tangentAccessor = model.accessors[primitive.attributes.at("TANGENT")];
+                    const auto& tangentBufferView = model.bufferViews[tangentAccessor.bufferView];
+                    tangents = reinterpret_cast<const float*>(&(model.buffers[tangentBufferView.buffer].data[tangentBufferView.byteOffset + tangentAccessor.byteOffset]));
+                }
+
 				// texCoords
                 if (primitive.attributes.contains("TEXCOORD_0"))
                 {
@@ -153,6 +162,7 @@ namespace Bear {
                     submeshDesc.vertices[i].position = glm::make_vec3(positions + i * 3);
                     if (normals) submeshDesc.vertices[i].normal = glm::make_vec3(normals + i * 3);
                     if (texCoords) submeshDesc.vertices[i].texCoord = glm::make_vec2(texCoords + i * 2);
+                    if (tangents) submeshDesc.vertices[i].tangent = glm::make_vec3(tangents + i * 3);
                 }
 
                 // --- Index ---

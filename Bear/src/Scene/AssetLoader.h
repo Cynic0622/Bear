@@ -10,6 +10,7 @@ namespace Bear {
 	{
 		glm::vec3 position{ 0.0f };
 		glm::vec3 normal{ 0.0f };
+        glm::vec3 tangent{ 0.f };
 		glm::vec2 texCoord{ 0.0f };
 	};
 

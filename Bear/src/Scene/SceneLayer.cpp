@@ -49,7 +49,7 @@ namespace Bear
 	{
 		m_EditorCamera->Update(deltaTime);
 		m_Scene->Update();
-		m_SceneData = { m_EditorCamera->GetViewMatrix(), m_EditorCamera->GetProjectionMatrix() };
+		m_SceneData = { m_EditorCamera->GetPosition(), m_EditorCamera->GetViewMatrix(), m_EditorCamera->GetProjectionMatrix() };
 	}
 	void SceneLayer::OnRender() const
 	{

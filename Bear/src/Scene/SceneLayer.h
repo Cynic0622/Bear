@@ -7,6 +7,7 @@ namespace Bear
 {
 	struct SceneData
 	{
+		glm::vec3 cameraPosition; // Camera position in world space.
 		glm::mat4 viewMatrix;
 		glm::mat4 projectionMatrix;
 	};

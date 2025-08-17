@@ -45,9 +45,10 @@ namespace Bear {
 	void Renderer::Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData)
 	{
 		auto frameIndex = m_Device->GetCurrentFrameIndex();
+		m_GlobalParams.cameraPosition = glm::vec4(sceneData.cameraPosition, 1.0f);
 		m_GlobalParams.viewMatrix = sceneData.viewMatrix;
 		m_GlobalParams.projectionMatrix = sceneData.projectionMatrix;
-		m_GlobalUniformBuffer[frameIndex]->UploadData(&sceneData, sizeof(globalParams)); // set 0.
+		m_GlobalUniformBuffer[frameIndex]->UploadData(&m_GlobalParams, sizeof(globalParams)); // set 0.
 		m_GlobalDescriptorSet[frameIndex]->UpdateBuffer(0, *m_GlobalUniformBuffer[frameIndex]);
 
 		for (const auto& obj : renderObjects) {
@@ -126,6 +127,24 @@ namespace Bear {
 			m_GlobalDescriptorSet[i] = m_Device->CreateDescriptorSet(m_GlobalDescriptorSetLayout[i]);
 			m_GlobalUniformBuffer[i] = m_Device->CreateBuffer(sizeof(globalParams), BufferUsage::UniformBuffer, true);
 		}
+
+		// randomly generate ten lights in the scene.
+		std::srand(static_cast<unsigned>(std::time(nullptr)));
+		for (int i = 0; i < m_GlobalParams.lightCount - 1; ++i)
+		{
+			m_GlobalParams.lightPositions[i] = glm::vec4(
+				static_cast<float>(std::rand() % 1000 - 500),
+				static_cast<float>(std::rand() % 1000),
+				static_cast<float>(std::rand() % 1000 - 500),
+				1.0f); // w = 1.0 (可当作标志或不使用)
+			m_GlobalParams.lightColors[i] = glm::vec4(
+				static_cast<float>(std::rand() % 100) / 99.0f,
+				static_cast<float>(std::rand() % 100) / 99.0f,
+				static_cast<float>(std::rand() % 100) / 99.0f,
+				1.0f);
+		}
+		m_GlobalParams.lightPositions[9] = glm::vec4(0.f, 5.f, 0.f, 0.f);
+		m_GlobalParams.lightColors[9] = glm::vec4(1.f, 1.f, 1.f, 1.f); // last light is white and at origin
 		
 		LoadResources();
 	}
