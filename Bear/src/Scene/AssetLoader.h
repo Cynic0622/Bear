@@ -6,6 +6,13 @@
 
 namespace Bear {
 
+	struct VertexDescription
+	{
+		glm::vec3 position{ 0.0f };
+		glm::vec3 normal{ 0.0f };
+		glm::vec2 texCoord{ 0.0f };
+	};
+
     struct ImageDescription {
         std::string name;
 		std::string filepath; // generate the key from this
@@ -33,7 +40,7 @@ namespace Bear {
 
     struct PrimitiveDescription {
         // mesh
-        std::vector<Vertex> vertices;
+        std::vector<VertexDescription> vertices;
         std::vector<uint32_t> indices;
 
         // material index

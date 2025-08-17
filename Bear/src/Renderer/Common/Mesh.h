@@ -4,16 +4,17 @@
 #include "RHI/RHIResources.h"
 #include "RHI/RHIDevice.h"
 
+
 namespace Bear {
 
 	class Device;
 	// Vertex structure for the mesh
-	struct Vertex;
+	struct VertexDescription;;
 	class Mesh {
 	
 	public:
 		Mesh(RHIDevice& device, const std::string& path);
-		Mesh(RHIDevice& device, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+		Mesh(RHIDevice& device, const std::vector<VertexDescription>& vertices, const std::vector<uint32_t>& indices);
 		~Mesh();
 
 		void Bind(RHICommandList& cmd) const;

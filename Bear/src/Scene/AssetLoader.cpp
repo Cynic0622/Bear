@@ -7,10 +7,6 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <tiny_gltf.h>
 
-#include <glm/gtc/type_ptr.hpp>
-
-#include "Mesh.h"
-
 namespace Bear {
 
     ModelDescription AssetLoader::ImportModel(const std::string& filepath) {
@@ -124,7 +120,7 @@ namespace Bear {
                 submeshDesc.vertices.resize(vertexCount);
                 for (size_t i = 0; i < vertexCount; ++i)
                 {
-                    submeshDesc.vertices[i].pos = glm::make_vec3(positions + i * 3);
+                    submeshDesc.vertices[i].position = glm::make_vec3(positions + i * 3);
                     if (normals) submeshDesc.vertices[i].normal = glm::make_vec3(normals + i * 3);
                     if (texCoords) submeshDesc.vertices[i].texCoord = glm::make_vec2(texCoords + i * 2);
                 }
