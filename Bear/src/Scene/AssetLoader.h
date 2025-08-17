@@ -31,13 +31,19 @@ namespace Bear {
         glm::vec3 emissiveFactor{ 0.0f };
     };
 
-    struct SubmeshDescription {
+    struct PrimitiveDescription {
         // mesh
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
 
         // material index
         int materialIndex = -1;
+    };
+
+    struct MeshDescription
+    {
+        uint32_t firstPrimitiveIndex = 0;
+        size_t primitiveCount = 0;
     };
 
 	// node description, used for scene graph hierarchy
@@ -55,12 +61,13 @@ namespace Bear {
         std::vector<uint32_t> childrenIndices;
     };
 
-	// the model description, contains all the submeshes, materials and nodes.
+	// the model description, contains all the primitives, materials and nodes.
     struct ModelDescription {
-        std::vector<SubmeshDescription> submeshes;
+        std::vector<PrimitiveDescription> primitives;
 		std::vector<ImageDescription> images; // textures
         std::vector<MaterialDescription> materials;
         std::vector<NodeDescription> nodes;
+        std::vector<MeshDescription> meshes;
         std::vector<uint32_t> rootNodeIndices;
     };
 

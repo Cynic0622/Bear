@@ -47,5 +47,6 @@ namespace Bear {
 
 		virtual void UpdateDescriptorSet(uint32_t binding, const RHIBuffer& buffer) = 0;
 		virtual void UpdateTexture(uint32_t binding, const RHIImage& image, const RHISampler& sampler) = 0;
+		virtual void UpdateBuffer(uint32_t binding, const RHIBuffer& buffer) = 0;
 	};
 }

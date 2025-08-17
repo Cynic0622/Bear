@@ -2,13 +2,18 @@
 
 #include "PbrMaterial.h"
 
+#include "Texture.h"
+
 namespace Bear
 {
 	PbrMaterial::PbrMaterial(RHIDevice& device)
 		:m_Device(device)
 	{
+		m_ParamsBuffer = m_Device.CreateBuffer(sizeof(PbrMaterialParams), BufferUsage::UniformBuffer, true);
 		std::vector<RHIDescriptorSetLayoutBinding> bindings;
 		// ubo
+		bindings.push_back({ .binding = MaterialSlot::Params, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Vertex | ShaderStage::Fragment });
+		// pbr textures
 		bindings.push_back({ .binding = MaterialSlot::BaseColor, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
 		bindings.push_back({ .binding = MaterialSlot::Normal, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
 		bindings.push_back({ .binding = MaterialSlot::MetallicRoughness, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
@@ -17,20 +22,24 @@ namespace Bear
 
 		m_DescriptorSetLayout = m_Device.CreateDescriptorSetLayout(bindings);
 
-		for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			m_DescriptorSets.push_back(m_Device.CreateDescriptorSet(m_DescriptorSetLayout));
-		}
+		m_DescriptorSets = device.CreateDescriptorSet(m_DescriptorSetLayout);
 	}
 	PbrMaterial::~PbrMaterial()
 	{
+		// use smart pointers to automatically release resources.
 	}
-	void PbrMaterial::UpdateParams(uint32_t currentFrame)
+	void PbrMaterial::UpdateParams()
 	{
 		if (!m_ParamsDirty) return;
+		m_ParamsBuffer->UploadData(&m_Params, sizeof(PbrMaterialParams));
+		m_DescriptorSets->UpdateBuffer(MaterialSlot::Params, *m_ParamsBuffer);
+		m_ParamsDirty = false;
 	}
 	void PbrMaterial::SetTexture(uint32_t binding, std::shared_ptr<Texture> texture)
 	{
-
+		BEAR_CORE_ASSERT(binding < MaterialSlot::Count, "Invalid material slot binding: " + std::to_string(binding));
+		m_DescriptorSets->UpdateTexture(binding, texture->GetImage(), texture->GetSampler());
+		m_Textures[binding] = std::move(texture); // store the texture to keep it alive.
 	}
 	void PbrMaterial::SetParam(const std::string& name, float value)
 	{
@@ -73,5 +82,13 @@ namespace Bear
 			BEAR_CORE_ERROR("Failed to set material param: " + name);
 		}
 		m_ParamsDirty = true;
+	}
+	RHIDescriptorSetLayout* PbrMaterial::GetDescriptorSetLayout()
+	{
+		return m_DescriptorSetLayout.get();
+	}
+	RHIDescriptorSet* PbrMaterial::GetDescriptorSet()
+	{
+		return m_DescriptorSets.get();
 	}
 }

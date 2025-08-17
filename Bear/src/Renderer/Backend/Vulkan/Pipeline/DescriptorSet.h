@@ -21,6 +21,7 @@ namespace Bear {
 
 		void UpdateDescriptorSet(uint32_t dstBinding, const RHIBuffer& bufferInfo) override;
 		void UpdateTexture(uint32_t binding, const RHIImage& image, const RHISampler& sampler) override;
+		void UpdateBuffer(uint32_t binding, const RHIBuffer& buffer) override;
 
 		VkDescriptorSet GetHandle() const { return m_DescriptorSet; }
 

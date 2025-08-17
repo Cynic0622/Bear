@@ -7,7 +7,7 @@ namespace Bear
 {
 	struct SceneData
 	{
-		glm::mat4 viewMaterix;
+		glm::mat4 viewMatrix;
 		glm::mat4 projectionMatrix;
 	};
 	class EditorCamera;

@@ -13,7 +13,7 @@ namespace Bear
 {
 	Scene::Scene()
 	{
-		m_RootNode = std::make_unique<Node>("rootNode");
+		//m_RootNode = std::make_unique<Node>("rootNode");
 		m_MeshManager = std::make_unique<MeshManager>();
 		m_MaterialManager = std::make_unique<MaterialManager>();
 		m_TextureManager = std::make_unique<TextureManager>();
@@ -43,14 +43,7 @@ namespace Bear
 	}
 	void Scene::CollectRenderObjects(std::vector<RenderObject>& ObjectsList)
 	{
-		if (m_RootNode)
-		{
-			CollectRenderObjectsRecursive(m_RootNode.get(), ObjectsList);
-		}
-		else
-		{
-			BEAR_CORE_ERROR("Scene has no root node!");
-		}
+		CollectRenderObjectsRecursive(ObjectsList);
 	}
 	Entity Scene::CreateEntity(const std::string& name)
 	{
@@ -67,7 +60,7 @@ namespace Bear
 	}
 	void Scene::CreateSceneGraph(const ModelDescription& desc, const Resources& resources)
 	{
-		// create scene graph from scene roots
+		// create scene graph from scene roots, bind the node description to the entity, such as name, transform, mesh, material, etc.
 		std::function<void(uint32_t, Entity)> buildScene = [&](uint32_t index, Entity parentEntity)
 		{
 			const auto& nodeDesc = desc.nodes[index];
@@ -75,15 +68,23 @@ namespace Bear
 			auto& transform = m_Registry.get<TransformComponent>(entity);
 			transform = TransformComponent(nodeDesc.translation, nodeDesc.scale, nodeDesc.rotation);
 
-			if (nodeDesc.meshIndex >= 0 && nodeDesc.meshIndex < desc.submeshes.size())
+			if (nodeDesc.meshIndex >= 0 && nodeDesc.meshIndex < desc.meshes.size())
 			{
-				const auto& meshDesc = desc.submeshes[nodeDesc.meshIndex];
-				auto mesh = resources.Meshes[nodeDesc.meshIndex];
-				entity.AddComponent<MeshComponent>(mesh);
-				if (meshDesc.materialIndex >= 0 && meshDesc.materialIndex < desc.materials.size())
+				const auto& mesh = desc.meshes[nodeDesc.meshIndex];
+				for (size_t i = mesh.firstPrimitiveIndex; i < mesh.primitiveCount; i++)
 				{
-					auto material = resources.Materials[meshDesc.materialIndex];
-					entity.AddComponent<MaterialComponent>(material);
+					const auto& primitiveDesc = desc.primitives[i];
+					auto primitiveMesh = resources.Meshes[i];
+
+					Entity child = CreateEntity();
+					child.AddComponent<MeshComponent>(primitiveMesh);
+					auto& hierarchy = child.GetComponent<HierarchyComponent>();
+					hierarchy.Parent = entity;
+					if (primitiveDesc.materialIndex >= 0 && primitiveDesc.materialIndex < desc.materials.size())
+					{
+						auto material = resources.Materials[primitiveDesc.materialIndex];
+						child.AddComponent<MaterialComponent>(material);
+					}
 				}
 			}
 
@@ -103,22 +104,19 @@ namespace Bear
 			buildScene(root, CreateEntity()); // root entity has no parent
 		}
 	}
-	void Scene::CollectRenderObjectsRecursive(const Node* node, std::vector<RenderObject>& renderList)
+	void Scene::CollectRenderObjectsRecursive(std::vector<RenderObject>& renderList)
 	{
-		//if (node->GetMesh() && node->GetMaterial())
-		//{
-		//	auto renderObject = RenderObject::Create(node->GetMesh(), node->GetMaterial());
-		//	/*renderObject.mesh = node->GetMesh();
-		//	renderObject.material = node->GetMaterial();
-		//	renderObject.transform = node->GetWorldTransform();*/
-		//	renderObject->transformComponent.SetTransform(node->GetWorldTransform());
-		//	renderList.push_back(*renderObject);
-		//}
-
-		//for (const auto& child : node->GetChildren())
-		//{
-		//	CollectRenderObjectsRecursive(child.get(), renderList);
-		//}
+		auto view = m_Registry.view<MeshComponent, TransformComponent, MaterialComponent>();
+		for (auto entity : view)
+		{
+			auto& meshComponent = m_Registry.get<MeshComponent>(entity);
+			auto& transformComponent = m_Registry.get<TransformComponent>(entity);
+			RenderObject renderObject;
+			renderObject.mesh = meshComponent.MeshRes;
+			renderObject.transform = transformComponent.GetTransform();
+			renderObject.material = m_Registry.try_get<MaterialComponent>(entity) ? m_Registry.get<MaterialComponent>(entity).MaterialRes : nullptr;
+			renderList.push_back(renderObject);
+		}
 	}
 	void Scene::InstantiateModel(const ModelDescription& description)
 	{

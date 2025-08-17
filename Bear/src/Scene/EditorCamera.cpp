@@ -9,21 +9,22 @@ namespace Bear
 	}
 	void EditorCamera::Update(float deltaTime)
 	{
+		float speed = 100.f;
 		if (Input::IsKeyPressed(Key::W))
 		{
-			m_CameraPosition += GetForwardDirection()  * deltaTime;
+			m_CameraPosition += GetForwardDirection()  * deltaTime * speed;
 		}
 		else if (Input::IsKeyPressed(Key::S))
 		{
-			m_CameraPosition -= GetForwardDirection() * deltaTime;
+			m_CameraPosition -= GetForwardDirection() * deltaTime * speed;
 		}
 		if (Input::IsKeyPressed(Key::A))
 		{
-			m_CameraPosition -= GetRightDirection() * deltaTime;
+			m_CameraPosition -= GetRightDirection() * deltaTime * speed;
 		}
 		else if (Input::IsKeyPressed(Key::D))
 		{
-			m_CameraPosition += GetRightDirection() * deltaTime;
+			m_CameraPosition += GetRightDirection() * deltaTime * speed;
 		}
 		auto mousePos = Input::GetMousePosition();
 		if (Input::IsMouseButtonPressed(Mouse::Left))
@@ -51,7 +52,7 @@ namespace Bear
 	}
 	bool EditorCamera::OnMouseScroll(const MouseScrolledEvent& event)
 	{
-		float zoomAmount = event.GetYOffset() * 0.1f; // Adjust zoom sensitivity as needed
+		float zoomAmount = event.GetYOffset() * 10.f; // Adjust zoom sensitivity as needed
 		m_CameraPosition += GetForwardDirection() * zoomAmount;
 		SetPosition(m_CameraPosition); // Update camera position
 		return true;

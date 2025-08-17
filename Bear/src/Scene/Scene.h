@@ -25,7 +25,7 @@ namespace Bear
 
 		void CollectRenderObjects(std::vector<RenderObject>& ObjectsList);
 
-		Node* GetRootNode() const { return m_RootNode.get(); }
+		//Node* GetRootNode() const { return m_RootNode.get(); }
 		MeshManager* GetMeshManager() const { return m_MeshManager.get(); }
 		MaterialManager* GetMaterialManager() const { return m_MaterialManager.get(); }
 		TextureManager* GetTextureManager() const { return m_TextureManager.get(); }
@@ -36,7 +36,7 @@ namespace Bear
 		void CreateSceneGraph(const ModelDescription& desc, const Resources& resources);
 
 	private:
-		std::unique_ptr<Node> m_RootNode; // the root node of the scene graph
+		//std::unique_ptr<Node> m_RootNode; // the root node of the scene graph
 		friend class Entity; // allow Entity class to access registry.
 		friend class SceneLayer;
 		entt::registry m_Registry; // the registry for the scene, used for storing entities and components
@@ -45,7 +45,7 @@ namespace Bear
 		std::unique_ptr<TextureManager> m_TextureManager;
 
 	private:
-		void CollectRenderObjectsRecursive(const Node* node, std::vector<RenderObject>& renderList);
+		void CollectRenderObjectsRecursive(std::vector<RenderObject>& renderList);
 
 		void InstantiateModel(const ModelDescription& description);
 	};

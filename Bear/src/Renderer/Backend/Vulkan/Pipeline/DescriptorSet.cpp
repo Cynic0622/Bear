@@ -55,6 +55,13 @@ namespace Bear {
 
 		VkDescriptorImageInfo imageInfo{};
 		imageInfo.imageView = vkImage.GetView();
+		// BEAR_CORE_INFO("UpdateTexture DescriptorSet={:#x}, binding {}: imageView={:#x}, sampler={:#x}",
+		// 	(uint64_t)m_DescriptorSet, binding, (uint64_t)vkImage.GetView(), (uint64_t)vkSampler.GetHandle());
+
+		if (vkImage.GetView() == VK_NULL_HANDLE) {
+			BEAR_CORE_ERROR("UpdateTexture: imageView is VK_NULL_HANDLE for binding {}", binding);
+			return;
+		}
 		imageInfo.sampler = vkSampler.GetHandle();
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		VkWriteDescriptorSet descriptorWrite{};
@@ -65,6 +72,26 @@ namespace Bear {
 		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		descriptorWrite.descriptorCount = 1;
 		descriptorWrite.pImageInfo = &imageInfo;
+		vkUpdateDescriptorSets(m_Device.GetDevice(), 1, &descriptorWrite, 0, nullptr);
+	}
+	void DescriptorSet::UpdateBuffer(uint32_t binding, const RHIBuffer& buffer)
+	{
+		// BEAR_CORE_INFO("UpdateBuffer DescriptorSet={:#x}, binding {}",
+			// (uint64_t)m_DescriptorSet, binding);
+		const auto& vkBuffer = dynamic_cast<const Buffer&>(buffer);
+		VkDescriptorBufferInfo bufferInfoDesc{};
+		bufferInfoDesc.buffer = vkBuffer.GetHandle();
+		bufferInfoDesc.offset = 0;
+		bufferInfoDesc.range = vkBuffer.GetSize();
+
+		VkWriteDescriptorSet descriptorWrite{};
+		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrite.dstSet = m_DescriptorSet;
+		descriptorWrite.dstBinding = binding;
+		descriptorWrite.dstArrayElement = 0;
+		descriptorWrite.descriptorType = m_SetLayout.GetDescriptorType(binding);
+		descriptorWrite.descriptorCount = 1;
+		descriptorWrite.pBufferInfo = &bufferInfoDesc;
 		vkUpdateDescriptorSets(m_Device.GetDevice(), 1, &descriptorWrite, 0, nullptr);
 	}
 }

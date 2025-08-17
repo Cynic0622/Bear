@@ -9,6 +9,8 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include "Mesh.h"
+
 namespace Bear {
 
     ModelDescription AssetLoader::ImportModel(const std::string& filepath) {
@@ -80,10 +82,12 @@ namespace Bear {
         }
 
         // --- Mesh ---
-		desc.submeshes.reserve(model.meshes.size()); // estimate size.
+		desc.primitives.reserve(model.meshes.size()); // estimate size.
+        uint32_t lastPrimitiveIndex = 0;
         for (const auto& gltfMesh : model.meshes) {
+            MeshDescription meshDesc{ .firstPrimitiveIndex = lastPrimitiveIndex ? lastPrimitiveIndex + 1 : lastPrimitiveIndex, .primitiveCount = gltfMesh.primitives.size() };
             for (const auto& primitive : gltfMesh.primitives) {
-                SubmeshDescription submeshDesc;
+                PrimitiveDescription submeshDesc;
                 submeshDesc.materialIndex = primitive.material;
 
                 // --- Vertex ---
@@ -160,8 +164,10 @@ namespace Bear {
 					}
 					}
                 }
-                desc.submeshes.push_back(std::move(submeshDesc));
+                desc.primitives.push_back(std::move(submeshDesc));
             }
+            desc.meshes.push_back(meshDesc);
+            lastPrimitiveIndex = gltfMesh.primitives.size();
         }
 
         // --- (Nodes) ---

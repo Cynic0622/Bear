@@ -28,6 +28,12 @@ namespace Bear {
 	class RHIRenderPass;
 	class RenderObject;
 
+	struct globalParams
+	{
+		glm::mat4 viewMatrix;
+		glm::mat4 projectionMatrix;
+	};
+
 	class Renderer {
 	public:
 		Renderer(GLFWwindow* window, GraphicsAPI api);
@@ -49,7 +55,7 @@ namespace Bear {
 		Resource& GetResource() { return *m_Resource; }
 
 		void BeginFrame();
-		void Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData) const;
+		void Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData);
 		void EndFrame() const;
 
 
@@ -59,10 +65,12 @@ namespace Bear {
 
 	private:
 		GLFWwindow* m_Window;
-
+		const uint8_t MAX_FRAMES_IN_FLIGHT = 2;
 		std::unique_ptr<RHIDevice> m_Device;
 		std::unique_ptr<RHISwapchain> m_Swapchain;
 		std::shared_ptr<RHIRenderPass> m_RenderPass;
+		std::shared_ptr<RHIPipelineLayout> m_PipelineLayout; // for pipelines
+		std::shared_ptr<RHIPipeline> m_Pipeline; // for rendering
 
 		std::unique_ptr<TextureManager> m_TextureManager;
 		std::unique_ptr<MeshManager> m_MeshManager;
@@ -70,5 +78,10 @@ namespace Bear {
 		RHICommandList* m_CurrentCommandBuffer;
 		uint32_t m_CurrentImageIndex;
 		std::unique_ptr<Resource> m_Resource;
+
+		std::vector<std::shared_ptr<RHIDescriptorSetLayout>> m_GlobalDescriptorSetLayout; // for view matrices, lights, etc.
+		std::vector<std::shared_ptr<RHIDescriptorSet>> m_GlobalDescriptorSet;
+		std::vector<std::shared_ptr<RHIBuffer>> m_GlobalUniformBuffer;
+		globalParams m_GlobalParams;
 	};
 }

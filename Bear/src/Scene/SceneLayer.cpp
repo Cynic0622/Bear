@@ -15,7 +15,7 @@ namespace Bear
 	SceneLayer::SceneLayer(std::unique_ptr<Scene> scene)
 		:Layer("SceneLayer"), m_Scene(std::move(scene))
 	{
-		m_EditorCamera = std::make_unique<EditorCamera>(45.0f, (float)1280/720, 1.f, 1000.f);
+		m_EditorCamera = std::make_unique<EditorCamera>(45.0f, (float)1280/720, 0.1f, 10000.f);
 	}
 
 	SceneLayer::~SceneLayer()
@@ -26,6 +26,11 @@ namespace Bear
 	{
 		// 1. load gltf scene, file --> cpu
 		auto modelDesc = AssetLoader::ImportModel("assets/models/Sponza/glTF/Sponza.gltf");
+		// auto modelDesc = AssetLoader::ImportModel("assets/models/Box/glTF/Box.gltf");
+		// auto modelDesc = AssetLoader::ImportModel("assets/models/Box with Spaces/glTF/Box with Spaces.gltf");
+		// auto modelDesc = AssetLoader::ImportModel("assets/models/ClearCoatTest/glTF/ClearCoatTest.gltf");
+		// auto modelDesc1 = AssetLoader::ImportModel("assets/models/Duck/glTF/Duck.gltf");
+		// auto modelDesc = AssetLoader::ImportModel("assets/models/Suzanne/glTF/Suzanne.gltf");
 		// 2. resource system create descriptor infos, cpu --> gpu
 		auto& app = Application::Get();
 		auto& renderer = app.GetRenderer()->GetResource();
@@ -33,6 +38,9 @@ namespace Bear
 
 		// 3. create scene graph
 		m_Scene->CreateSceneGraph(modelDesc, resources);
+
+		// resources = renderer.CreateResources(modelDesc1);
+		// m_Scene->CreateSceneGraph(modelDesc1, resources);
 	}
 	void SceneLayer::OnDetach()
 	{
@@ -46,12 +54,14 @@ namespace Bear
 	void SceneLayer::OnRender() const
 	{
 		// 1. collect render objects from scene graph
-
-		// 2. sort render objects by material
-
-		// 3. bind descriptor sets and pipeline
-
-		// 4. draw render objects
+		std::vector<RenderObject> renderObjects;
+		m_Scene->CollectRenderObjects(renderObjects);
+		
+		// 2. submit render objects
+		//m_SceneData = { m_EditorCamera->GetViewMatrix(), m_EditorCamera->GetProjectionMatrix() };
+		auto& app = Application::Get();
+		auto renderer = app.GetRenderer();
+		renderer->Submit(renderObjects, m_SceneData);
 	}
 	void SceneLayer::OnEvent(Event& event)
 	{
