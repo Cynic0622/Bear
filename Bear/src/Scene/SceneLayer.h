@@ -5,13 +5,21 @@
 
 namespace Bear
 {
+	struct LightData
+	{
+		glm::vec4 position; // Positions of lights.
+		glm::vec4 colorIntensity; // xyz: color, w: intensity
+	};
 	struct SceneData
 	{
-		glm::vec3 cameraPosition; // Camera position in world space.
 		glm::mat4 viewMatrix;
 		glm::mat4 projectionMatrix;
+
+		glm::vec4 cameraPosition; // Camera position in world space.
+		LightData lightsData[50];
+		alignas(16) int lightCount = 50; // Number of lights in the scene.
 	};
-	class EditorCamera;
+	class CameraController;
 	class Renderer;
 	class Scene;
 	
@@ -31,10 +39,13 @@ namespace Bear
 		void OnRender() const override;
 
 		void OnEvent(Event& event) override;
+		bool OnKeyPress(Event& event);
 
 	private:
 		std::unique_ptr<Scene> m_Scene;
-		std::unique_ptr<EditorCamera> m_EditorCamera;
+		std::unique_ptr<CameraController> m_EditorCamera;
 		SceneData m_SceneData;
+		// editor mode
+		bool m_EditorMode = false; // true: editor mode, false: game mode
 	};
 }

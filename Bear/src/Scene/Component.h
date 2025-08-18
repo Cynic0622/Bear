@@ -93,4 +93,14 @@ namespace Bear
 		//std::vector<Entity> Children;
 		std::vector<entt::entity> Children;
 	};
+
+	struct LightComponent
+	{
+		glm::vec3 Color = glm::vec3(1.0f);
+		float Intensity = 1.0f; // Light intensity
+		LightComponent() = default;
+		LightComponent(const glm::vec3& color, float intensity)
+			: Color(color), Intensity(intensity) {
+		}
+	};
 }

@@ -7,7 +7,7 @@
 #include "Node.h"
 #include "Scene.h"
 #include "RenderObject.h"
-#include "Scene/EditorCamera.h"
+#include "Scene/CameraController.h"
 #include "Entity.h"
 #include "Core/Resource.h"
 namespace Bear
@@ -15,7 +15,7 @@ namespace Bear
 	SceneLayer::SceneLayer(std::unique_ptr<Scene> scene)
 		:Layer("SceneLayer"), m_Scene(std::move(scene))
 	{
-		m_EditorCamera = std::make_unique<EditorCamera>(45.0f, (float)1280/720, 0.1f, 10000.f);
+		m_EditorCamera = std::make_unique<CameraController>(45.0f, (float)1280/720, 0.1f, 10000.f);
 	}
 
 	SceneLayer::~SceneLayer()
@@ -47,24 +47,48 @@ namespace Bear
 	}
 	void SceneLayer::OnUpdate(float deltaTime)
 	{
-		m_EditorCamera->Update(deltaTime);
-		m_Scene->Update();
-		m_SceneData = { m_EditorCamera->GetPosition(), m_EditorCamera->GetViewMatrix(), m_EditorCamera->GetProjectionMatrix() };
+		if (m_EditorMode)
+		{
+			m_EditorCamera->Update(deltaTime);
+		}
+		m_Scene->Update(m_EditorMode, deltaTime);
 	}
 	void SceneLayer::OnRender() const
 	{
 		// 1. collect render objects from scene graph
 		std::vector<RenderObject> renderObjects;
-		m_Scene->CollectRenderObjects(renderObjects);
-		
+		SceneData sceneData;
+		m_Scene->CollectRenderObjects(renderObjects, sceneData);
+		if (m_EditorMode)
+		{
+			sceneData.cameraPosition = glm::vec4(m_EditorCamera->GetPosition(), 1.f);
+			sceneData.viewMatrix = m_EditorCamera->GetViewMatrix();
+			sceneData.projectionMatrix = m_EditorCamera->GetProjectionMatrix();
+		}
 		// 2. submit render objects
-		//m_SceneData = { m_EditorCamera->GetViewMatrix(), m_EditorCamera->GetProjectionMatrix() };
 		auto& app = Application::Get();
 		auto renderer = app.GetRenderer();
-		renderer->Submit(renderObjects, m_SceneData);
+		renderer->Submit(renderObjects, sceneData);
 	}
 	void SceneLayer::OnEvent(Event& event)
 	{
-		m_EditorCamera->OnEvent(event);
+		EventDispatcher dispatcher(event);
+		dispatcher.Dispatch<KeyPressedEvent>([this](KeyPressedEvent& e) { return this->OnKeyPress(e); });
+		if (event.IsHandled()) return;
+		if (m_EditorMode)
+		{
+			m_EditorCamera->OnEvent(event);
+		}
+		if (!event.IsHandled())
+		m_Scene->OnEvent(event);
+	}
+	bool SceneLayer::OnKeyPress(Event& event)
+	{
+		if (Input::IsKeyPressed(Key::Q))
+		{
+			m_EditorMode = !m_EditorMode; // toggle editor mode
+			return true;
+		}
+		return false;
 	}
 }

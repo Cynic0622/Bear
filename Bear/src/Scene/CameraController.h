@@ -6,10 +6,10 @@ namespace Bear
 {
 	class Event;
 
-	class BEAR_API EditorCamera : public Camera
+	class BEAR_API CameraController : public Camera
 	{
 	public:
-		EditorCamera(float fov, float aspectRatio, float nearPlane, float farPlane);
+		CameraController(float fov, float aspectRatio, float nearPlane, float farPlane);
 
 		void Update(float deltaTime);
 		void OnEvent(Event& event);

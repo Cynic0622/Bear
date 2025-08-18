@@ -1,12 +1,15 @@
 #version 450
-
-layout(set = 0, binding = 0) uniform GlobalParams {
+struct LightData
+{
+    vec4 position;
+    vec4 colorIntensity; // xyz: color, w: intensity
+};
+layout(std140, set = 0, binding = 0) uniform GlobalParams {
     mat4 viewMatrix;
     mat4 projMatrix;
 
     vec4 cameraPosition;
-    vec4 lightPositions[10];
-    vec4 lightColors[10];
+    LightData lightsData[50];
     int lightCount;
 } globalParamsData;
 
@@ -88,13 +91,13 @@ void main() {
     // pbr render cook-torrance
     for (int i = 0; i < globalParamsData.lightCount; ++i)
     {
-        vec3 lightPos = globalParamsData.lightPositions[i].xyz;
+        vec3 lightPos = globalParamsData.lightsData[i].position.xyz;
         vec3 L = normalize(lightPos - fragPos);
         vec3 H = normalize(V + L);
         float distance = length(lightPos - fragPos);
-        // float attenuation = 1.0 / (distance * distance); // simple quadratic attenuation
-        // float attenuation = 1.0 / distance; // linear attenuation
-        vec3 radiance = globalParamsData.lightColors[i].rgb;
+        float attenuation = 1.0 / (distance * distance); // simple quadratic attenuation
+        // attenuation = 1.0 / distance; // linear attenuation
+        vec3 radiance = globalParamsData.lightsData[i].colorIntensity.rgb * globalParamsData.lightsData[i].colorIntensity.a * attenuation;
 
         // cook-torrance BRDF
         float NDF = DistributionGGX(N, H, roughness);

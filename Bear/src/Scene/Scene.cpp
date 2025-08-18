@@ -1,7 +1,7 @@
 #include "bearpch.h"
 #include "Node.h"
 #include "Scene.h"
-
+#include "SceneLayer.h"
 #include "Application.h"
 #include "AssetLoader.h"
 #include "Component.h"
@@ -9,16 +9,31 @@
 #include "Entity.h"
 #include "Resource.h"
 #include "Common/Mesh.h"
+#include "CameraController.h"
 namespace Bear
 {
 	Scene::Scene()
 	{
-		//m_RootNode = std::make_unique<Node>("rootNode");
-		m_MeshManager = std::make_unique<MeshManager>();
-		m_MaterialManager = std::make_unique<MaterialManager>();
-		m_TextureManager = std::make_unique<TextureManager>();
+		m_Camera = std::make_unique<CameraController>(45.0f, (float)1280 / 720, 0.1f, 10000.f);
+
+		// add some random lights for sponza scene.
+		std::srand(static_cast<unsigned>(std::time(nullptr)));
+		for (int i = 0; i < 50; i++)
+		{
+			Entity light = CreateEntity("Light" + std::to_string(i));
+			auto& transform = light.GetComponent<TransformComponent>();
+			transform.Position = glm::vec3(static_cast<float>(std::rand() % 1000 - 500),
+				static_cast<float>(std::rand() % 1000),
+				static_cast<float>(std::rand() % 1000 - 500));
+			light.AddComponent<LightComponent>(glm::vec3(static_cast<float>(std::rand() % 100) / 99.0f,
+				static_cast<float>(std::rand() % 100) / 99.0f,
+				static_cast<float>(std::rand() % 100) / 99.0f), std::rand() % 50000);
+		}
 	}
-	void Scene::Update()
+	Scene::~Scene()
+	{
+	}
+	void Scene::Update(bool editorMode, float deltaTime)
 	{
 		/*glm::quat newRot = glm::angleAxis((float)glfwGetTime(), glm::vec3(0, 0, 1));
 		m_RootNode->SetRotation(newRot);
@@ -40,10 +55,39 @@ namespace Bear
 				transform.Transform = transform.GetTransform();
 			}
 		}
+		if (!editorMode)
+		{
+			m_Camera->Update(deltaTime);
+		}
 	}
-	void Scene::CollectRenderObjects(std::vector<RenderObject>& ObjectsList)
+	void Scene::CollectRenderObjects(std::vector<RenderObject>& ObjectsList, SceneData& sceneData)
 	{
-		CollectRenderObjectsRecursive(ObjectsList);
+		auto view = m_Registry.view<MeshComponent, TransformComponent, MaterialComponent>();
+		for (auto entity : view)
+		{
+			auto& meshComponent = m_Registry.get<MeshComponent>(entity);
+			auto& transformComponent = m_Registry.get<TransformComponent>(entity);
+			RenderObject renderObject;
+			renderObject.mesh = meshComponent.MeshRes;
+			renderObject.transform = transformComponent.GetTransform();
+			renderObject.material = m_Registry.try_get<MaterialComponent>(entity) ? m_Registry.get<MaterialComponent>(entity).MaterialRes : nullptr;
+			ObjectsList.push_back(renderObject);
+		}
+		// collect scene data
+		auto lightView = m_Registry.view<TransformComponent, LightComponent>();
+		uint8_t index = 0;
+		for (auto entity : lightView)
+		{
+			auto& transformComponent = m_Registry.get<TransformComponent>(entity);
+			auto& lightComponent = m_Registry.get<LightComponent>(entity);
+			sceneData.lightsData[index].position = glm::vec4(transformComponent.Position, 1.0f);
+			sceneData.lightsData[index].colorIntensity = glm::vec4(lightComponent.Color, lightComponent.Intensity);
+			index++;
+		}
+		// camera data
+		sceneData.cameraPosition = glm::vec4(m_Camera->GetPosition(), 1.f);
+		sceneData.viewMatrix = m_Camera->GetViewMatrix();
+		sceneData.projectionMatrix = m_Camera->GetProjectionMatrix();
 	}
 	Entity Scene::CreateEntity(const std::string& name)
 	{
@@ -104,19 +148,15 @@ namespace Bear
 			buildScene(root, CreateEntity()); // root entity has no parent
 		}
 	}
+
+	void Scene::OnEvent(Event& event)
+	{
+		m_Camera->OnEvent(event);
+	}
+
 	void Scene::CollectRenderObjectsRecursive(std::vector<RenderObject>& renderList)
 	{
-		auto view = m_Registry.view<MeshComponent, TransformComponent, MaterialComponent>();
-		for (auto entity : view)
-		{
-			auto& meshComponent = m_Registry.get<MeshComponent>(entity);
-			auto& transformComponent = m_Registry.get<TransformComponent>(entity);
-			RenderObject renderObject;
-			renderObject.mesh = meshComponent.MeshRes;
-			renderObject.transform = transformComponent.GetTransform();
-			renderObject.material = m_Registry.try_get<MaterialComponent>(entity) ? m_Registry.get<MaterialComponent>(entity).MaterialRes : nullptr;
-			renderList.push_back(renderObject);
-		}
+		
 	}
 	void Scene::InstantiateModel(const ModelDescription& description)
 	{

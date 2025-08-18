@@ -111,7 +111,7 @@ namespace Bear
 			samplerConfig.mipmapMode = MipmapMode::Linear;
 			break;
 		default:
-			BEAR_CORE_ERROR("Unsupported minFilter value: {}", samplerDesc.minFilter);
+			BEAR_CORE_WARN("Unsupported minFilter value: {}", samplerDesc.minFilter);
 			samplerConfig.minFilter = Filter::Linear; // default to linear if unsupported
 			samplerConfig.mipmapMode = MipmapMode::Linear; // default to linear mipmap mode
 			break;
