@@ -1,6 +1,5 @@
 #pragma once
 #include "Layer.h"
-#include "Mesh.h"
 #include "Texture.h"
 
 namespace Bear
@@ -43,9 +42,5 @@ namespace Bear
 
 	private:
 		std::unique_ptr<Scene> m_Scene;
-		std::unique_ptr<CameraController> m_EditorCamera;
-		SceneData m_SceneData;
-		// editor mode
-		bool m_EditorMode = false; // true: editor mode, false: game mode
 	};
 }

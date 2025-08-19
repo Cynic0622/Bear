@@ -1,5 +1,4 @@
 #include "bearpch.h"
-#include "Node.h"
 #include "Scene.h"
 #include "SceneLayer.h"
 #include "Application.h"
@@ -8,14 +7,13 @@
 #include "RenderObject.h"
 #include "Entity.h"
 #include "Resource.h"
-#include "Common/Mesh.h"
 #include "CameraController.h"
 namespace Bear
 {
 	Scene::Scene()
 	{
-		m_Camera = std::make_unique<CameraController>(45.0f, (float)1280 / 720, 0.1f, 10000.f);
-
+		m_GameCamera = std::make_unique<CameraController>(45.0f, (float)1280 / 720, 0.1f, 10000.f);
+		m_EditorCamera = std::make_unique<CameraController>(45.0f, (float)1280 / 720, 0.1f, 10000.f);
 		// add some random lights for sponza scene.
 		std::srand(static_cast<unsigned>(std::time(nullptr)));
 		for (int i = 0; i < 50; i++)
@@ -33,11 +31,8 @@ namespace Bear
 	Scene::~Scene()
 	{
 	}
-	void Scene::Update(bool editorMode, float deltaTime)
+	void Scene::Update(float deltaTime)
 	{
-		/*glm::quat newRot = glm::angleAxis((float)glfwGetTime(), glm::vec3(0, 0, 1));
-		m_RootNode->SetRotation(newRot);
-		m_RootNode->Update();*/
 		auto view = m_Registry.view<TransformComponent, HierarchyComponent>();
 		for (auto entity : view)
 		{
@@ -55,10 +50,7 @@ namespace Bear
 				transform.Transform = transform.GetTransform();
 			}
 		}
-		if (!editorMode)
-		{
-			m_Camera->Update(deltaTime);
-		}
+		GetActiveCamera()->Update(deltaTime);
 	}
 	void Scene::CollectRenderObjects(std::vector<RenderObject>& ObjectsList, SceneData& sceneData)
 	{
@@ -71,8 +63,12 @@ namespace Bear
 			renderObject.mesh = meshComponent.MeshRes;
 			renderObject.transform = transformComponent.GetTransform();
 			renderObject.material = m_Registry.try_get<MaterialComponent>(entity) ? m_Registry.get<MaterialComponent>(entity).MaterialRes : nullptr;
+			// frustum culling check.
+			if (m_FrustumCull && !GetActiveCamera()->GetFrustum().Contains(renderObject.GetAABB()))
+				continue;
 			ObjectsList.push_back(renderObject);
 		}
+		// BEAR_CORE_INFO("FrustumCull state: {}, RenderObject size: {}", m_FrustumCull, ObjectsList.size());
 		// collect scene data
 		auto lightView = m_Registry.view<TransformComponent, LightComponent>();
 		uint8_t index = 0;
@@ -85,9 +81,9 @@ namespace Bear
 			index++;
 		}
 		// camera data
-		sceneData.cameraPosition = glm::vec4(m_Camera->GetPosition(), 1.f);
-		sceneData.viewMatrix = m_Camera->GetViewMatrix();
-		sceneData.projectionMatrix = m_Camera->GetProjectionMatrix();
+		sceneData.cameraPosition = glm::vec4(GetActiveCamera()->GetPosition(), 1.f);
+		sceneData.viewMatrix = GetActiveCamera()->GetViewMatrix();
+		sceneData.projectionMatrix = GetActiveCamera()->GetProjectionMatrix();
 	}
 	Entity Scene::CreateEntity(const std::string& name)
 	{
@@ -151,7 +147,25 @@ namespace Bear
 
 	void Scene::OnEvent(Event& event)
 	{
-		m_Camera->OnEvent(event);
+		EventDispatcher dispatcher(event);
+		dispatcher.Dispatch<KeyPressedEvent>([this](KeyPressedEvent& event) { return this->OnKeyPress(event); });
+		if (event.IsHandled()) return;
+		GetActiveCamera()->OnEvent(event);
+	}
+
+	bool Scene::OnKeyPress(Event& event)
+	{
+		if (Input::IsKeyPressed(Key::Z))
+		{
+			m_FrustumCull = !m_FrustumCull;
+			return true;
+		}
+		if (Input::IsKeyPressed(Key::Q))
+		{
+			m_EditorMode = !m_EditorMode;
+			return true;
+		}
+		return false;
 	}
 
 	void Scene::CollectRenderObjectsRecursive(std::vector<RenderObject>& renderList)
@@ -176,5 +190,9 @@ namespace Bear
 			auto material = m_MaterialManager->Load(matDesc.name, matDesc.shaderName, textures);
 			materials.push_back(std::move(material));
 		}*/
+	}
+	CameraController* Scene::GetActiveCamera() const
+	{
+		return m_EditorMode ? m_EditorCamera.get() : m_GameCamera.get();
 	}
 }

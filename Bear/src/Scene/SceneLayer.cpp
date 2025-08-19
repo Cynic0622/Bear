@@ -15,7 +15,6 @@ namespace Bear
 	SceneLayer::SceneLayer(std::unique_ptr<Scene> scene)
 		:Layer("SceneLayer"), m_Scene(std::move(scene))
 	{
-		m_EditorCamera = std::make_unique<CameraController>(45.0f, (float)1280/720, 0.1f, 10000.f);
 	}
 
 	SceneLayer::~SceneLayer()
@@ -47,11 +46,7 @@ namespace Bear
 	}
 	void SceneLayer::OnUpdate(float deltaTime)
 	{
-		if (m_EditorMode)
-		{
-			m_EditorCamera->Update(deltaTime);
-		}
-		m_Scene->Update(m_EditorMode, deltaTime);
+		m_Scene->Update(deltaTime);
 	}
 	void SceneLayer::OnRender() const
 	{
@@ -59,12 +54,6 @@ namespace Bear
 		std::vector<RenderObject> renderObjects;
 		SceneData sceneData;
 		m_Scene->CollectRenderObjects(renderObjects, sceneData);
-		if (m_EditorMode)
-		{
-			sceneData.cameraPosition = glm::vec4(m_EditorCamera->GetPosition(), 1.f);
-			sceneData.viewMatrix = m_EditorCamera->GetViewMatrix();
-			sceneData.projectionMatrix = m_EditorCamera->GetProjectionMatrix();
-		}
 		// 2. submit render objects
 		auto& app = Application::Get();
 		auto renderer = app.GetRenderer();
@@ -72,23 +61,11 @@ namespace Bear
 	}
 	void SceneLayer::OnEvent(Event& event)
 	{
-		EventDispatcher dispatcher(event);
-		dispatcher.Dispatch<KeyPressedEvent>([this](KeyPressedEvent& e) { return this->OnKeyPress(e); });
-		if (event.IsHandled()) return;
-		if (m_EditorMode)
-		{
-			m_EditorCamera->OnEvent(event);
-		}
-		if (!event.IsHandled())
 		m_Scene->OnEvent(event);
 	}
 	bool SceneLayer::OnKeyPress(Event& event)
 	{
-		if (Input::IsKeyPressed(Key::Q))
-		{
-			m_EditorMode = !m_EditorMode; // toggle editor mode
-			return true;
-		}
+		// TODO: implement key press handling
 		return false;
 	}
 }

@@ -1,5 +1,8 @@
 #pragma once
 #include <glm/glm.hpp>
+
+#include "Frustum.h"
+
 namespace Bear
 {
 	// perspective or orthographic projection
@@ -7,7 +10,7 @@ namespace Bear
 		Perspective,
 		Orthographic
 	};
-
+	
 	class BEAR_API Camera
 	{
 	public:
@@ -33,6 +36,9 @@ namespace Bear
 		float GetPitch() const { return m_Pitch; }
 		float GetYaw() const { return m_Yaw; }
 		void SetRotation(float pitch, float yaw) { m_Pitch = pitch; m_Yaw = yaw; RecalculateViewMatrix(); }
+
+		// get frustum
+		const Frustum& GetFrustum() const { return m_Frustum; }
 
 	private:
 		void RecalculateViewMatrix();
@@ -63,5 +69,8 @@ namespace Bear
 		glm::mat4 m_ViewMatrix{ 1.0f };
 		glm::mat4 m_ViewProjectionMatrix{ 1.0f };
 		glm::vec3 m_Position{ 0.0f, 0.0f, 10.0f };
+
+		// frustum
+		Frustum m_Frustum;
 	};
 }

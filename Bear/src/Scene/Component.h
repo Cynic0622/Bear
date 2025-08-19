@@ -4,6 +4,8 @@
 #include <glm/gtx/quaternion.hpp>
 
 #include "Entity.h"
+#include "Material.h"
+
 namespace Bear
 {
 	using UID = uint32_t;

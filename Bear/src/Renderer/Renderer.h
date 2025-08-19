@@ -5,20 +5,6 @@
 #include "Mesh.h"
 #include "Texture.h"
 
-namespace Bear
-{
-	class Resource;
-	struct SceneData;
-	class Scene;
-	class LayerStack;
-	class Material;
-}
-
-namespace Bear
-{
-	class RHIPipelineLayout;
-}
-
 struct GLFWwindow;
 namespace Bear {
 
@@ -26,7 +12,9 @@ namespace Bear {
 	class RHIDevice;
 	class RHISwapchain;
 	class RHIRenderPass;
-	class RenderObject;
+	struct RenderObject;
+	struct SceneData;
+	class Resource;
 
 	struct globalParams
 	{
