@@ -65,10 +65,10 @@ vec3 FresnelSchlick(float cosTheta, vec3 F0)
 
 void main() {
     vec4 baseColor = texture(baseColorSampler, fragTexCoord);
-    if (baseColor.a < 0.1) discard;
 
     vec3 albedo = baseColor.rgb * materialData.baseColorFactor.rgb;
     float alpha = baseColor.a * materialData.baseColorFactor.a;
+    if (baseColor.a < 0.2) discard;
 
     vec3 normal = texture(normalSampler, fragTexCoord).xyz * 2.0 - 1.0;
     normal.xy *= materialData.normalScale;

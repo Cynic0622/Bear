@@ -9,6 +9,7 @@ namespace Bear {
 
     VkBufferUsageFlags ToVulkanBufferUsage(Bear::BufferUsage usage);
 
+	// -------------------------- pipeline utils --------------------------
     VkPrimitiveTopology ToVulkanTopology(PrimitiveTopology topology);
 
     VkPolygonMode ToVulkanPolygonMode(PolygonMode mode);
@@ -17,6 +18,15 @@ namespace Bear {
 
     VkFrontFace ToVulkanFrontFace(FrontFace face);
 
+	VkCompareOp ToVulkanCompareOp(CompareOp op);
+
+	VkBlendFactor ToVulkanBlendFactor(BlendFactor factor);
+
+	VkBlendOp ToVulkanBlendOp(BlendOp op);
+
+	VkColorComponentFlags ToVulkanColorWriteMask(ColorWriteMask components);
+
+	// -------------------------- render pass utils --------------------------
     VkAttachmentLoadOp ToVulkanLoadOp(AttachmentLoadOp op);
 
     VkAttachmentStoreOp ToVulkanStoreOp(AttachmentStoreOp op);

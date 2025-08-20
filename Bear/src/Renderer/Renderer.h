@@ -7,6 +7,7 @@
 
 struct GLFWwindow;
 namespace Bear {
+	class UIPass;
 
 	enum class GraphicsAPI;
 	class RHIDevice;
@@ -54,7 +55,6 @@ namespace Bear {
 
 	private:
 		void Init(GraphicsAPI api);
-		void LoadResources();
 
 	private:
 		GLFWwindow* m_Window;
@@ -62,8 +62,12 @@ namespace Bear {
 		std::unique_ptr<RHIDevice> m_Device;
 		std::unique_ptr<RHISwapchain> m_Swapchain;
 		std::shared_ptr<RHIRenderPass> m_RenderPass;
+		std::shared_ptr<RHIRenderPass> m_PreZRenderPass; // for pre-z rendering
+		std::shared_ptr<RHIRenderPass> m_UIRenderPass; // for UI rendering
 		std::shared_ptr<RHIPipelineLayout> m_PipelineLayout; // for pipelines
-		std::shared_ptr<RHIPipeline> m_Pipeline; // for rendering
+		std::shared_ptr<RHIPipelineLayout> m_PreZPipelineLayout;
+		std::shared_ptr<RHIPipeline> m_PbrPipeline; // for pbr rendering
+		std::shared_ptr<RHIPipeline> m_PreZPipeline;
 
 		std::unique_ptr<TextureManager> m_TextureManager;
 		std::unique_ptr<MeshManager> m_MeshManager;
@@ -76,5 +80,8 @@ namespace Bear {
 		std::vector<std::shared_ptr<RHIDescriptorSet>> m_GlobalDescriptorSet;
 		std::vector<std::shared_ptr<RHIBuffer>> m_GlobalUniformBuffer;
 		globalParams m_GlobalParams;
+
+		RenderContext* m_RenderContext; // Context for rendering operations
+		std::unique_ptr<UIPass> m_UIPass; // UI rendering pass
 	};
 }

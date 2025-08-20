@@ -20,6 +20,7 @@ namespace Bear {
 		RenderPass(RenderPass&&) = delete;
 		RenderPass& operator=(RenderPass&&) = delete;
 
+		void* GetNativeHandle() const override { return m_RenderPass; }
 		VkRenderPass GetHandle() const { return m_RenderPass; }
 
 	private:

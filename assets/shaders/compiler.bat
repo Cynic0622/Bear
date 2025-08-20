@@ -17,6 +17,8 @@ echo Compiling shaders...
 
 "%GLSLC_PATH%" tri.vert -o vert.spv
 "%GLSLC_PATH%" tri.frag -o frag.spv
+"%GLSLC_PATH%" preZ.vert -o preZvert.spv
+"%GLSLC_PATH%" preZ.frag -o preZfrag.spv
 
 echo Done.
 pause

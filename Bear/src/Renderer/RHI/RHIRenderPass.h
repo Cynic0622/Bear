@@ -6,5 +6,8 @@ namespace Bear {
 	{
 	public:
 		virtual ~RHIRenderPass() = default;
+
+		// get origin handle
+		virtual void* GetNativeHandle() const = 0;
 	};
 }

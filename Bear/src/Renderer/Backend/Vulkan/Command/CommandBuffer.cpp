@@ -192,4 +192,8 @@ namespace Bear {
 		const auto& vkPipelineLayout = dynamic_cast<const PipelineLayout&>(pipelineLayout);
 		vkCmdPushConstants(m_CommandBuffer, vkPipelineLayout.GetHandle(), ToVulkanShaderStage(stage), offset, size, data);
 	}
+	void CommandBuffer::NextSubpass()
+	{
+		vkCmdNextSubpass(m_CommandBuffer, VK_SUBPASS_CONTENTS_INLINE);
+	}
 }

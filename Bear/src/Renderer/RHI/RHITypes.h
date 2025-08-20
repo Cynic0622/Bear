@@ -2,6 +2,17 @@
 #include <cstdint>
 
 namespace Bear {
+	class RHIDevice;
+    class RHISwapchain;
+	// render context
+    struct RenderContext
+    {
+		RHIDevice* device = nullptr;
+		RHISwapchain* swapchain = nullptr;
+        uint8_t MAX_FRAMES_IN_FLIGHT;
+		GLFWwindow* window = nullptr;
+		// uint8_t currentFrameIndex = 0; // frame index for current frame
+    };
 
     // 定义一个颜色结构体
     struct ClearColor {
@@ -213,4 +224,54 @@ namespace Bear {
 		uint32_t size;
         uint32_t offset;
     };
+
+    // input rate
+    enum class VertexInputRate {
+        Vertex,
+        Instance
+    };
+	// blend factor
+    enum class BlendFactor {
+        Zero,
+        One,
+        SrcColor,
+        OneMinusSrcColor,
+        DstColor,
+        OneMinusDstColor,
+        SrcAlpha,
+        OneMinusSrcAlpha,
+    };
+
+	// depth/stencil compare operation
+    enum class CompareOp {
+        Never,
+        Less,
+        Equal,
+        LessOrEqual,
+        Greater,
+        NotEqual,
+        GreaterOrEqual,
+        Always
+    };
+	// blend operation
+    enum class BlendOp {
+        Add,
+        Subtract,
+        ReverseSubtract,
+        Min,
+        Max,
+    };
+	// attachment blend state
+    enum class ColorWriteMask : uint8_t {
+        None = 0,
+        R = 1 << 0,
+        G = 1 << 1,
+        B = 1 << 2,
+        A = 1 << 3,
+        All = R | G | B | A
+    };
+
+    inline ColorWriteMask operator|(ColorWriteMask a, ColorWriteMask b) {
+        return static_cast<ColorWriteMask>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+    }
 }

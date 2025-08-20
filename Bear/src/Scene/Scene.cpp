@@ -158,11 +158,13 @@ namespace Bear
 		if (Input::IsKeyPressed(Key::Z))
 		{
 			m_FrustumCull = !m_FrustumCull;
+			BEAR_CORE_TRACE("The state of the FrustumCull : {}", m_FrustumCull);
 			return true;
 		}
 		if (Input::IsKeyPressed(Key::Q))
 		{
 			m_EditorMode = !m_EditorMode;
+			BEAR_CORE_TRACE("The state of the EditorMode : {}", m_EditorMode);
 			return true;
 		}
 		return false;

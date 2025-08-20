@@ -38,6 +38,8 @@ namespace Bear {
 		void TransitionImageLayout(RHIImage& texture, ImageLayout oldLayout, ImageLayout newLayout) override;
 		void CopyBufferToTexture(const RHIBuffer& srcBuffer, RHIImage& dstTexture) override;
 		void PushConstants(const RHIPipelineLayout& pipelineLayout, ShaderStage stage, const void* data, size_t size, uint32_t offset) override;
+		void NextSubpass() override;
+		void* GetNativeHandle() const override { return m_CommandBuffer; }
 		VkCommandBuffer GetHandle() const { return m_CommandBuffer; }
 
 	private:

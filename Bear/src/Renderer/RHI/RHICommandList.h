@@ -39,5 +39,11 @@ namespace Bear {
 
 		// push constants
 		virtual void PushConstants(const RHIPipelineLayout& pipelineLayout, ShaderStage stage, const void* data, size_t size, uint32_t offset) = 0;
+
+		// next subpass
+		virtual void NextSubpass() = 0;
+
+		// get original handle
+		virtual void* GetNativeHandle() const = 0;
 	};
 }

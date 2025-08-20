@@ -44,7 +44,7 @@ namespace Bear {
 		void GetExtent(uint32_t& width, uint32_t& height) const override;
 		const std::vector<VkImageView>& GetImageViews() const { return m_ImageViews; }
 		uint32_t GetImageCount() const override { return static_cast<uint32_t>(m_Images.size()); } //rhi
-
+		// const VkImageView& GetImage(uint32_t index) const { return m_ImageViews[index]; }
 	private:
 		void Init();
 		void Cleanup();
