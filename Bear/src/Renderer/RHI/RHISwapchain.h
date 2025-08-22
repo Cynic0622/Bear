@@ -21,5 +21,7 @@ namespace Bear {
 		virtual uint32_t GetHeight() const = 0;
 		virtual uint32_t GetImageCount() const = 0;
 		virtual void GetExtent(uint32_t& width, uint32_t& height) const = 0;
+		virtual void* GetDepthView() const = 0;
+		virtual void* GetColorView(uint8_t index) const = 0;
 	};
 }

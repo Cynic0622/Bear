@@ -128,7 +128,7 @@ namespace Bear
 			case 33648: // MIRRORED_REPEAT
 				return SamplerAddressMode::MirroredRepeat;
 			default:
-				BEAR_CORE_ERROR("Unsupported wrap mode: {}", wrapMode);
+				BEAR_CORE_WARN("Unsupported wrap mode: {}", wrapMode);
 				return SamplerAddressMode::Repeat; // default to repeat if unsupported
 			}
 		};

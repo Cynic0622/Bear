@@ -34,7 +34,7 @@ namespace Bear
 		InitGUI();
 	}
 
-	void UIPass::Execute(RHICommandList* cmd)
+	void UIPass::Execute(RHICommandList* cmd, std::vector<RenderObject> renderObjects)
 	{
 		uint32_t imageIndex = m_Context->device->GetCurrentImageIndex();
 		ImDrawData* drawData = ImGui::GetDrawData();
@@ -48,6 +48,7 @@ namespace Bear
 
 	void UIPass::Resize()
 	{
+		m_Context->device->WaitIdle();
 		auto* vkDevice = dynamic_cast<Device*>(m_Context->device);
 
 		m_Framebuffers.clear();

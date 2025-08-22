@@ -5,7 +5,7 @@ namespace Bear {
 
 	class Device;
 	class Swapchain;
-	struct RHIAttachmentDescription;
+	struct AttachmentDescription;
 
 	class RenderPass : public RHIRenderPass {
 
@@ -28,6 +28,6 @@ namespace Bear {
 		VkRenderPass m_RenderPass = VK_NULL_HANDLE;
 
 	private:
-		void CreateRenderPass(const std::vector<RHIAttachmentDescription>& attachments);
+		void CreateRenderPass(const std::vector<AttachmentDescription>& attachments);
 	};
 }

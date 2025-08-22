@@ -25,10 +25,10 @@ namespace Bear {
 
     struct SamplerDescription
     {
-        int minFilter;
-		int magFilter;
-		int wrapS; // REPEAT, CLAMP_TO_EDGE, etc.
-		int wrapT; // REPEAT, CLAMP_TO_EDGE, etc.
+        int minFilter = 9987;
+		int magFilter = 9727;
+		int wrapS = 33071; // REPEAT, CLAMP_TO_EDGE, etc.
+		int wrapT = 33071; // REPEAT, CLAMP_TO_EDGE, etc.
     };
 
     struct TextureDescription

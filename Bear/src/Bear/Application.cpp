@@ -96,7 +96,7 @@ namespace Bear
 	{
 		BEAR_CORE_ASSERT(e.GetWidth() > 0 && e.GetHeight() > 0, "Window resize event with invalid dimensions!");
 		BEAR_CORE_TRACE("WindowResizeEvent: {0}, {1}", e.GetWidth(), e.GetHeight());
-		m_Renderer->OnWindowResized();
+		m_Renderer->OnWindowResize();
 		return false;
 	}
 }

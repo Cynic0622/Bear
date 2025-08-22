@@ -9,7 +9,7 @@ namespace Bear
 	}
 	void CameraController::Update(float deltaTime)
 	{
-		float speed = 100.f;
+		float speed = 10.f;
 		if (Input::IsKeyPressed(Key::W))
 		{
 			m_CameraPosition += GetForwardDirection()  * deltaTime * speed;
@@ -55,7 +55,7 @@ namespace Bear
 	}
 	bool CameraController::OnMouseScroll(const MouseScrolledEvent& event)
 	{
-		float zoomAmount = event.GetYOffset() * 10.f; // Adjust zoom sensitivity as needed
+		float zoomAmount = event.GetYOffset() * .5f; // Adjust zoom sensitivity as needed
 		m_CameraPosition += GetForwardDirection() * zoomAmount;
 		SetPosition(m_CameraPosition); // Update camera position
 		return true;

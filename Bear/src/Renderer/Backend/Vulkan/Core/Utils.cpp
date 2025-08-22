@@ -225,6 +225,73 @@ namespace Bear
 		}
 	}
 
+	VkAttachmentDescription ToVulkanAttachmentDescription(const AttachmentDescription& desc)
+	{
+		VkAttachmentDescription attachment = {};
+		attachment.format = ToVulkanFormat(desc.format);
+		attachment.samples = static_cast<VkSampleCountFlagBits>(desc.samples);
+		attachment.loadOp = ToVulkanLoadOp(desc.loadOp);
+		attachment.storeOp = ToVulkanStoreOp(desc.storeOp);
+		attachment.stencilLoadOp = ToVulkanLoadOp(desc.stencilLoadOp);
+		attachment.stencilStoreOp = ToVulkanStoreOp(desc.storeOp);
+		attachment.initialLayout = ToVulkanImageLayout(desc.initialLayout);
+		attachment.finalLayout = ToVulkanImageLayout(desc.finalLayout);
+		return attachment;
+	}
+
+	VkPipelineStageFlags ToVulkanPipelineStageFlags(PipelineStage flags)
+	{
+		VkPipelineStageFlags vulkanFlags = 0;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::VertexShader)) vulkanFlags |=
+			VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::FragmentShader)) vulkanFlags |=
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::ComputeShader)) vulkanFlags |=
+			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::Transfer)) vulkanFlags |=
+			VK_PIPELINE_STAGE_TRANSFER_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::BottomOfPipe)) vulkanFlags |=
+			VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::TopOfPipe)) vulkanFlags |=
+			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::AllGraphics)) vulkanFlags |=
+			VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::AllCommands)) vulkanFlags |=
+			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::Host)) vulkanFlags |=
+			VK_PIPELINE_STAGE_HOST_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::DrawIndirect)) vulkanFlags |=
+			VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::EarlyFragmentTests)) vulkanFlags |=
+			VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::LateFragmentTests)) vulkanFlags |=
+			VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::ColorAttachmentOutput)) vulkanFlags |=
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+		return vulkanFlags;
+	}
+
+	VkAccessFlags ToVulkanAccessFlags(AccessFlags flags)
+	{
+		VkAccessFlags vulkanFlags = 0;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::VertexAttributeRead)) vulkanFlags |=
+			VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::IndexRead)) vulkanFlags |=
+			VK_ACCESS_INDEX_READ_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::UniformRead)) vulkanFlags |=
+			VK_ACCESS_UNIFORM_READ_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::ShaderRead)) vulkanFlags |=
+			VK_ACCESS_SHADER_READ_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::ShaderWrite)) vulkanFlags |=
+			VK_ACCESS_SHADER_WRITE_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::TransferRead)) vulkanFlags |=
+			VK_ACCESS_TRANSFER_READ_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::TransferWrite)) vulkanFlags |=
+			VK_ACCESS_TRANSFER_WRITE_BIT;
+		return vulkanFlags;
+	}
+
 	VkFormat FindDepthFormat(const Device& device)
 	{
 		std::vector<VkFormat> candidates = {

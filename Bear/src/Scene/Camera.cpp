@@ -65,18 +65,8 @@ namespace Bear
 	}
 	void Camera::CalculateForwardDirection()
 	{
-		m_ForwardDirection =  glm::normalize(glm::vec3(cos(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch)),
+		m_ForwardDirection =  glm::normalize(glm::vec3(sin(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch)),
 			sin(glm::radians(m_Pitch)),
-			sin(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch))));
+			-cos(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch))));
 	}
-	/*void Camera::SetOrthographic(float left, float right, float bottom, float top, float nearPlane, float farPlane)
-	{
-		m_OrthographicLeft = left;
-		m_OrthographicRight = right;
-		m_OrthographicBottom = bottom;
-		m_OrthographicTop = top;
-		m_OrthographicNear = nearPlane;
-		m_OrthographicFar = farPlane;
-		RecalculateProjectionMatrix();
-	}*/
 }

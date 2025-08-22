@@ -68,7 +68,7 @@ namespace Bear
 		glm::mat4 m_ProjectionMatrix{ 1.0f };
 		glm::mat4 m_ViewMatrix{ 1.0f };
 		glm::mat4 m_ViewProjectionMatrix{ 1.0f };
-		glm::vec3 m_Position{ 0.0f, 0.0f, 10.0f };
+		glm::vec3 m_Position{ 0.0f, 0.0f, 3.0f };
 
 		// frustum
 		Frustum m_Frustum;

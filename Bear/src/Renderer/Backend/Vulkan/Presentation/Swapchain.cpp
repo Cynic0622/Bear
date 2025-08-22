@@ -32,7 +32,8 @@ namespace Bear {
 	{
 		m_Framebuffers.resize(m_ImageCount);
 
-		for (size_t i = 0; i < m_ImageCount; ++i) {
+		for (size_t i = 0; i < m_ImageCount; ++i)
+		{
 			std::vector<VkImageView> attachments = { m_ImageViews[i], m_DepthImage->GetView()};
 			m_Framebuffers[i] = std::make_unique<Framebuffer>(m_Device, renderPass, attachments, m_Extent.width, m_Extent.height);
 		}

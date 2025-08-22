@@ -12,13 +12,9 @@ layout(push_constant) uniform PerObjectPushConstants {
 layout(location = 0) in vec3 inPosition;
 layout(location = 3) in vec2 inTexCoord;
 
-// 输出（最小化）
-layout(location = 0) out vec2 fragTexCoord;  // 仅用于alpha test
-
+layout(location = 0) out vec2 fragTexCoord;
 void main() {
     mat4 mvp = globalParamsData.projMatrix * globalParamsData.viewMatrix * pushConstants.model;
     gl_Position = mvp * vec4(inPosition, 1.0);
-    
-    // 只传递纹理坐标用于alpha test
     fragTexCoord = inTexCoord;
 }

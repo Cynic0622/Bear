@@ -4,12 +4,13 @@
 
 namespace Bear
 {
+	struct RenderObject;
 	class UIPass : public IRenderPass
 	{
 	public:
 		~UIPass() override;
 		void Setup(RenderContext* context) override;
-		void Execute(RHICommandList* cmd) override;
+		void Execute(RHICommandList* cmd, std::vector<RenderObject> renderObjects = {}) override;
 		void Resize() override;
 		void Cleanup() override;
 

@@ -56,7 +56,14 @@ namespace Bear
 		std::vector<std::shared_ptr<Texture>> textures(desc.textures.size());
 		for (size_t i = 0; i < desc.textures.size(); ++i)
 		{
-			textures[i] = CreateTexture(desc.images[desc.textures[i].imageIndex], desc.samplers[desc.textures[i].samplerIndex]);
+			if (desc.samplers.size())
+			{
+				textures[i] = CreateTexture(desc.images[desc.textures[i].imageIndex], desc.samplers[desc.textures[i].samplerIndex == -1 ? 0 : desc.textures[i].samplerIndex]);
+			}
+			else
+			{
+				textures[i] = CreateTexture(desc.images[desc.textures[i].imageIndex], SamplerDescription{}); // use default sampler if not specified
+			}
 		}
 
 		for (size_t i = 0; i < desc.materials.size(); ++i)

@@ -36,6 +36,10 @@ namespace Bear {
     VkFormat ToVulkanFormat(PixelFormat format);
     PixelFormat FromVulkanFormat(VkFormat format);
 
+	VkAttachmentDescription ToVulkanAttachmentDescription(const AttachmentDescription& desc);
+    VkPipelineStageFlags ToVulkanPipelineStageFlags(PipelineStage flags);
+    VkAccessFlags ToVulkanAccessFlags(AccessFlags flags);
+
     VkFormat FindDepthFormat(const Device& device);
 
     uint32_t FindMemoryType(VkPhysicalDevice& physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);

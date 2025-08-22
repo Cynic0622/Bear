@@ -42,12 +42,12 @@ namespace Bear
 			{
 				auto& parentTransform = m_Registry.get<TransformComponent>(hierarchy.Parent);
 				auto& transform = m_Registry.get<TransformComponent>(entity);
-				transform.Transform = parentTransform.Transform * transform.GetTransform();
+				transform.WorldTransform = parentTransform.GetWorldTransform() * transform.GetLocalTransform();
 			}
 			else
 			{
 				auto& transform = m_Registry.get<TransformComponent>(entity);
-				transform.Transform = transform.GetTransform();
+				transform.WorldTransform = transform.GetLocalTransform();
 			}
 		}
 		GetActiveCamera()->Update(deltaTime);
@@ -61,7 +61,7 @@ namespace Bear
 			auto& transformComponent = m_Registry.get<TransformComponent>(entity);
 			RenderObject renderObject;
 			renderObject.mesh = meshComponent.MeshRes;
-			renderObject.transform = transformComponent.GetTransform();
+			renderObject.transform = transformComponent.GetWorldTransform();
 			renderObject.material = m_Registry.try_get<MaterialComponent>(entity) ? m_Registry.get<MaterialComponent>(entity).MaterialRes : nullptr;
 			// frustum culling check.
 			if (m_FrustumCull && !GetActiveCamera()->GetFrustum().Contains(renderObject.GetAABB()))
@@ -111,7 +111,7 @@ namespace Bear
 			if (nodeDesc.meshIndex >= 0 && nodeDesc.meshIndex < desc.meshes.size())
 			{
 				const auto& mesh = desc.meshes[nodeDesc.meshIndex];
-				for (size_t i = mesh.firstPrimitiveIndex; i < mesh.primitiveCount; i++)
+				for (size_t i = mesh.firstPrimitiveIndex; i < mesh.primitiveCount + mesh.firstPrimitiveIndex; i++)
 				{
 					const auto& primitiveDesc = desc.primitives[i];
 					auto primitiveMesh = resources.Meshes[i];
@@ -170,29 +170,6 @@ namespace Bear
 		return false;
 	}
 
-	void Scene::CollectRenderObjectsRecursive(std::vector<RenderObject>& renderList)
-	{
-		
-	}
-	void Scene::InstantiateModel(const ModelDescription& description)
-	{
-		// instanced the textures
-		std::vector<std::shared_ptr<Texture>> textures;
-		/*for (const auto& imgDesc : description.images)
-		{
-			auto texture = m_TextureManager->Load(imgDesc.filepath, *Application::Get().GetRenderer()->GetDevice(), 
-				imgDesc.width, imgDesc.height, imgDesc.pixels.data());
-			textures.push_back(std::move(texture));
-		}*/
-
-		// instanced the materials
-		std::vector<std::shared_ptr<Material>> materials;
-		/*for (const auto& matDesc : description.materials)
-		{
-			auto material = m_MaterialManager->Load(matDesc.name, matDesc.shaderName, textures);
-			materials.push_back(std::move(material));
-		}*/
-	}
 	CameraController* Scene::GetActiveCamera() const
 	{
 		return m_EditorMode ? m_EditorCamera.get() : m_GameCamera.get();

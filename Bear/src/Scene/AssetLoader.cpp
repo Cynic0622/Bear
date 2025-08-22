@@ -111,7 +111,7 @@ namespace Bear {
 		desc.primitives.reserve(model.meshes.size()); // estimate size.
         uint32_t lastPrimitiveIndex = 0;
         for (const auto& gltfMesh : model.meshes) {
-            MeshDescription meshDesc{ .firstPrimitiveIndex = lastPrimitiveIndex ? lastPrimitiveIndex + 1 : lastPrimitiveIndex, .primitiveCount = gltfMesh.primitives.size() };
+            MeshDescription meshDesc{ .firstPrimitiveIndex = lastPrimitiveIndex, .primitiveCount = gltfMesh.primitives.size() };
             for (const auto& primitive : gltfMesh.primitives) {
                 PrimitiveDescription submeshDesc;
                 submeshDesc.materialIndex = primitive.material;
@@ -203,7 +203,7 @@ namespace Bear {
                 desc.primitives.push_back(std::move(submeshDesc));
             }
             desc.meshes.push_back(meshDesc);
-            lastPrimitiveIndex = gltfMesh.primitives.size();
+            lastPrimitiveIndex += gltfMesh.primitives.size();
         }
 
         // --- (Nodes) ---

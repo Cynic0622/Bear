@@ -5,6 +5,11 @@
 #include "Mesh.h"
 #include "Texture.h"
 
+namespace Bear
+{
+	class PbrPass;
+}
+
 struct GLFWwindow;
 namespace Bear {
 	class UIPass;
@@ -37,7 +42,8 @@ namespace Bear {
 		Renderer& operator=(const Renderer&) = delete;
 		Renderer&& operator=(Renderer&&) = delete;
 
-		void OnWindowResized() const;
+		bool OnWindowResize() const;
+		void OnEvent(Event& event) const;
 
 		// getter
 		RHIDevice* GetDevice() const { return m_Device.get(); }
@@ -76,12 +82,13 @@ namespace Bear {
 		uint32_t m_CurrentImageIndex;
 		std::unique_ptr<Resource> m_Resource;
 
-		std::vector<std::shared_ptr<RHIDescriptorSetLayout>> m_GlobalDescriptorSetLayout; // for view matrices, lights, etc.
+		std::shared_ptr<RHIDescriptorSetLayout> m_GlobalDescriptorSetLayout; // for view matrices, lights, etc.
 		std::vector<std::shared_ptr<RHIDescriptorSet>> m_GlobalDescriptorSet;
 		std::vector<std::shared_ptr<RHIBuffer>> m_GlobalUniformBuffer;
 		globalParams m_GlobalParams;
 
 		RenderContext* m_RenderContext; // Context for rendering operations
 		std::unique_ptr<UIPass> m_UIPass; // UI rendering pass
+		std::unique_ptr<PbrPass> m_PbrPass; // PBR rendering pass
 	};
 }

@@ -1,6 +1,9 @@
 #include "bearpch.h"
 
 #include "Device.h"
+
+#include <entt/entity/entity.hpp>
+
 #include "Instance.h"
 #include "Presentation/Surface.h"
 #include "Buffer.h"
@@ -264,7 +267,7 @@ namespace Bear {
 		auto vkLayout = std::dynamic_pointer_cast<DescriptorSetLayout>(layout);
 		return std::make_unique<DescriptorSet>(*this, *vkLayout, *m_GlobalDescriptorPool);
 	}
-	std::shared_ptr<RHIRenderPass> Device::CreateRenderPass(const std::vector<RHIAttachmentDescription>& attachments)
+	std::shared_ptr<RHIRenderPass> Device::CreateRenderPass(const std::vector<AttachmentDescription>& attachments)
 	{
 		std::vector<VkAttachmentDescription> vkAttachments;
 		vkAttachments.reserve(attachments.size());
@@ -328,6 +331,96 @@ namespace Bear {
 		renderPassInfo.pDependencies = &dependency;
 
 		return std::make_shared<RenderPass>(*this, renderPassInfo);
+	}
+	std::shared_ptr<RHIRenderPass> Device::CreateRenderPass(const RenderPassDescription& desc)
+	{
+		std::vector<VkAttachmentDescription> vkAttachments;
+		for (uint8_t i = 0; i < desc.attachmentCount; i++)
+		{
+			VkAttachmentDescription attachment = {};
+			attachment.format = ToVulkanFormat(desc.attachments[i].format);
+			attachment.samples = VK_SAMPLE_COUNT_1_BIT; // temp
+			attachment.loadOp = ToVulkanLoadOp(desc.attachments[i].loadOp);
+			attachment.storeOp = ToVulkanStoreOp(desc.attachments[i].storeOp);
+			attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			attachment.initialLayout = ToVulkanImageLayout(desc.attachments[i].initialLayout);
+			attachment.finalLayout = ToVulkanImageLayout(desc.attachments[i].finalLayout);
+			vkAttachments.push_back(attachment);
+		}
+
+		// subpass, attachments, and dependencies
+		std::vector<VkSubpassDescription> subpasses;
+		std::vector<VkAttachmentReference> inputAttachments;
+		std::vector<VkAttachmentReference> colorAttachments;
+		std::vector<VkAttachmentReference> resolveAttachments;
+		for (uint8_t i = 0; i < desc.subpassCount; i++)
+		{
+			const auto& subpass = desc.subpasses[i];
+			for (uint8_t j = 0; j < subpass.inputAttachmentCount; j++)
+			{
+				VkAttachmentReference inputAttachmentRef = {};
+				inputAttachmentRef.attachment = subpass.inputAttachments[j].attachment;
+				inputAttachmentRef.layout = ToVulkanImageLayout(subpass.inputAttachments[j].layout);
+				inputAttachments.push_back(inputAttachmentRef);
+			}
+			for (uint8_t j = 0; j < subpass.colorAttachmentCount; j++)
+			{
+				VkAttachmentReference colorAttachmentRef = {};
+				colorAttachmentRef.attachment = subpass.colorAttachments[j].attachment;
+				colorAttachmentRef.layout = ToVulkanImageLayout(subpass.colorAttachments[j].layout);
+				colorAttachments.push_back(colorAttachmentRef);
+			}
+			
+			for (uint8_t j = 0; j < subpass.resolveAttachmentCount; j++)
+			{
+				VkAttachmentReference resolveAttachmentRef = {};
+				resolveAttachmentRef.attachment = subpass.resolveAttachments[j].attachment;
+				resolveAttachmentRef.layout = ToVulkanImageLayout(subpass.resolveAttachments[j].layout);
+				resolveAttachments.push_back(resolveAttachmentRef);
+			}
+			VkAttachmentReference depthAttachmentRef = {};
+			if (subpass.hasDepthStencil)
+			{
+				depthAttachmentRef.attachment = subpass.depthStencilAttachment.attachment;
+				depthAttachmentRef.layout = ToVulkanImageLayout(subpass.depthStencilAttachment.layout);
+			}
+
+			VkSubpassDescription subpassDesc = {};
+			subpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+			subpassDesc.inputAttachmentCount = static_cast<uint32_t>(inputAttachments.size());
+			subpassDesc.pInputAttachments = inputAttachments.data();
+			subpassDesc.colorAttachmentCount = static_cast<uint32_t>(colorAttachments.size());
+			subpassDesc.pColorAttachments = colorAttachments.data();
+			subpassDesc.pResolveAttachments = resolveAttachments.empty() ? nullptr : resolveAttachments.data();
+			subpassDesc.pDepthStencilAttachment = subpass.hasDepthStencil ? &depthAttachmentRef : nullptr;
+			subpasses.push_back(subpassDesc);
+		}
+		std::vector<VkSubpassDependency> dependencies;
+		for (uint8_t i = 0; i < desc.dependencyCount; i++)
+		{
+			const auto& dep = desc.dependencies[i];
+			VkSubpassDependency dependency = {};
+			dependency.srcSubpass = dep.srcSubpass;
+			dependency.dstSubpass = dep.dstSubpass;
+			dependency.srcStageMask = ToVulkanPipelineStageFlags(dep.srcStageMask);
+			dependency.dstStageMask = ToVulkanPipelineStageFlags(dep.dstStageMask);
+			dependency.srcAccessMask = ToVulkanAccessFlags(dep.srcAccessMask);
+			dependency.dstAccessMask = ToVulkanAccessFlags(dep.dstAccessMask);
+			// dependency.dependencyFlags = ToVulkanDependencyFlags(dep.dependencyFlags);
+			dependencies.push_back(dependency);
+		}
+
+		VkRenderPassCreateInfo renderPassInfo = {};
+		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+		renderPassInfo.attachmentCount = static_cast<uint32_t>(vkAttachments.size());
+		renderPassInfo.pAttachments = vkAttachments.data();
+		renderPassInfo.subpassCount = static_cast<uint32_t>(subpasses.size());
+		renderPassInfo.pSubpasses = subpasses.data();
+		renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
+		renderPassInfo.pDependencies = dependencies.data();
+
+		return  std::make_shared<RenderPass>(*this, renderPassInfo);
 	}
 	std::unique_ptr<RHISwapchain> Device::CreateSwapchain(RHIRenderPass& renderPass)
 	{
@@ -423,6 +516,26 @@ namespace Bear {
 			framebuffers.push_back(std::make_shared<Framebuffer>(*this, framebufferInfo));
 		}
 		return framebuffers;
+	}
+
+	std::shared_ptr<RHIFramebuffer> Device::CreateFramebuffer(RHIRenderPass& renderPass, const std::vector<void*>& attachments, uint32_t width, uint32_t height)
+	{
+		std::vector<std::shared_ptr<RHIFramebuffer>> framebuffers;
+		std::vector<VkImageView> vkAttachments;
+		for (auto attachment : attachments)
+		{
+			vkAttachments.push_back(static_cast<VkImageView>(attachment)); // Cast to VkImageView
+		}
+		VkFramebufferCreateInfo framebufferInfo = {};
+		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		// auto& vkRenderPass = static_cast<RenderPass&>(renderPass);
+		framebufferInfo.renderPass = static_cast<VkRenderPass>(renderPass.GetNativeHandle());
+		framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+		framebufferInfo.pAttachments = vkAttachments.data();
+		framebufferInfo.width = width;
+		framebufferInfo.height = height;
+		framebufferInfo.layers = 1; // No layers for single-layer framebuffer
+		return std::make_shared<Framebuffer>(*this, framebufferInfo);
 	}
 	
 	void Device::ImmediateSubmit(std::function<void(RHICommandList&)>&& function)

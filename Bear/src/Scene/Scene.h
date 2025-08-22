@@ -48,9 +48,6 @@ namespace Bear
 		bool m_FrustumCull = true; // true: frustum culling enabled, false: disabled
 
 	private:
-		void CollectRenderObjectsRecursive(std::vector<RenderObject>& renderList);
-
-		void InstantiateModel(const ModelDescription& description);
 
 		CameraController* GetActiveCamera() const;
 	};
