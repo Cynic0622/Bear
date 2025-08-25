@@ -6,6 +6,7 @@
 #include "Shader.h"
 #include "UIPass.h"
 #include "PbrPass.h"
+#include "OitPass.h"
 #include "RHI/RHIDevice.h"
 #include "RHI/RHI.h"
 #include "RHI/RHISwapchain.h"
@@ -28,6 +29,7 @@ namespace Bear {
 		}
 		m_UIPass.reset();
 		m_PbrPass.reset();
+		m_OitPass.reset();
 		m_RenderPass.reset();
 	}
 	uint32_t Renderer::GetSwapchainImageCount() const
@@ -52,6 +54,10 @@ namespace Bear {
 		auto frameIndex = m_Device->GetCurrentFrameIndex();
 		m_GlobalUniformBuffer[frameIndex]->UploadData(&sceneData, sizeof(sceneData)); // set 0.
 		m_PbrPass->Execute(m_CurrentCommandBuffer, renderObjects);
+		if (OitEnabled)
+		{
+			m_OitPass->Execute(m_CurrentCommandBuffer, renderObjects);
+		}
 	}
 	
 	void Renderer::EndFrame() const
@@ -95,6 +101,16 @@ namespace Bear {
 		m_GlobalDescriptorSetLayout = m_Device->CreateDescriptorSetLayout({
 			{0, DescriptorType::UniformBuffer, 1, ShaderStage::Vertex | ShaderStage::Fragment}
 			});
+		std::vector<RHIDescriptorSetLayoutBinding> bindings;
+		// ubo
+		bindings.push_back({ .binding = MaterialSlot::Params, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Vertex | ShaderStage::Fragment });
+		// pbr textures
+		bindings.push_back({ .binding = MaterialSlot::BaseColor, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+		bindings.push_back({ .binding = MaterialSlot::Normal, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+		bindings.push_back({ .binding = MaterialSlot::MetallicRoughness, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+		bindings.push_back({ .binding = MaterialSlot::Occlusion, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+		bindings.push_back({ .binding = MaterialSlot::Emissive, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+		m_PbrDescriptorSetLayout = m_Device->CreateDescriptorSetLayout(bindings);
 		for (uint8_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 		{
 			m_GlobalDescriptorSet[i] = m_Device->CreateDescriptorSet(m_GlobalDescriptorSetLayout);
@@ -108,11 +124,14 @@ namespace Bear {
 		m_RenderContext->window = m_Window;
 		m_RenderContext->MAX_FRAMES_IN_FLIGHT = MAX_FRAMES_IN_FLIGHT;
 		m_RenderContext->globalDescriptorSetLayout = m_GlobalDescriptorSetLayout.get();
+		m_RenderContext->globalPbrDescriptorSetLayout = m_PbrDescriptorSetLayout.get();
 		
 		m_UIPass = std::make_unique<UIPass>();
 		m_UIPass->Setup(m_RenderContext);
 		m_PbrPass = std::make_unique<PbrPass>();
 		m_PbrPass->Setup(m_RenderContext);
+		m_OitPass = std::make_unique<OitPass>();
+		m_OitPass->Setup(m_RenderContext);
 	}
 	
 	
@@ -129,11 +148,27 @@ namespace Bear {
 		{
 			m_PbrPass->Resize();
 		}
+		if (m_OitPass)
+		{
+			m_OitPass->Resize();
+		}
 		return false; // Returning false to propagate the event further
 	}
-	void Renderer::OnEvent(Event& event) const
+	bool Renderer::OnKeyPress()
+	{
+		if (Input::IsKeyPressed(Key::X))
+		{
+			OitEnabled = !OitEnabled;
+			BEAR_CORE_INFO("OIT: {}", OitEnabled ? "ON" : "OFF");
+			return true;
+			// std::cout << "OIT: " << (OitEnabled ? "ON" : "OFF") << std::endl;
+		}
+		return false;
+	}
+	void Renderer::OnEvent(Event& event)
 	{
 		EventDispatcher dispatcher(event);
 		dispatcher.Dispatch<WindowResizeEvent>([this](WindowResizeEvent& e) { return this->OnWindowResize(); });
+		dispatcher.Dispatch<KeyPressedEvent>([this](KeyPressedEvent& e) { return this->OnKeyPress(); });
 	}
 }

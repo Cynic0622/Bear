@@ -40,6 +40,10 @@ namespace Bear {
 		void PushConstants(const RHIPipelineLayout& pipelineLayout, ShaderStage stage, const void* data, size_t size, uint32_t offset) override;
 		void NextSubpass() override;
 		void* GetNativeHandle() const override { return m_CommandBuffer; }
+		void CopyBuffer(const RHIBuffer& srcBuffer, const RHIBuffer& dstBuffer, size_t size, size_t srcOffset, size_t dstOffset) override;
+		void PipelineBarrier(const MemoryBarrier& memoryBarrier) override;
+		void FillBuffer(const RHIBuffer& buffer, const void* data, size_t size, size_t offset) override;
+		void ClearImage(const RHIImage& image, const ClearColor& clearColor) override;
 		VkCommandBuffer GetHandle() const { return m_CommandBuffer; }
 
 	private:

@@ -7,6 +7,7 @@
 
 namespace Bear
 {
+	class OitPass;
 	class PbrPass;
 }
 
@@ -43,7 +44,8 @@ namespace Bear {
 		Renderer&& operator=(Renderer&&) = delete;
 
 		bool OnWindowResize() const;
-		void OnEvent(Event& event) const;
+		bool OnKeyPress();
+		void OnEvent(Event& event);
 
 		// getter
 		RHIDevice* GetDevice() const { return m_Device.get(); }
@@ -83,6 +85,7 @@ namespace Bear {
 		std::unique_ptr<Resource> m_Resource;
 
 		std::shared_ptr<RHIDescriptorSetLayout> m_GlobalDescriptorSetLayout; // for view matrices, lights, etc.
+		std::shared_ptr<RHIDescriptorSetLayout> m_PbrDescriptorSetLayout; // for pbr descriptor set layout
 		std::vector<std::shared_ptr<RHIDescriptorSet>> m_GlobalDescriptorSet;
 		std::vector<std::shared_ptr<RHIBuffer>> m_GlobalUniformBuffer;
 		globalParams m_GlobalParams;
@@ -90,5 +93,8 @@ namespace Bear {
 		RenderContext* m_RenderContext; // Context for rendering operations
 		std::unique_ptr<UIPass> m_UIPass; // UI rendering pass
 		std::unique_ptr<PbrPass> m_PbrPass; // PBR rendering pass
+		std::unique_ptr<OitPass> m_OitPass; // Order Independent Transparency pass
+
+		bool OitEnabled = false; // Toggle for Order Independent Transparency
 	};
 }

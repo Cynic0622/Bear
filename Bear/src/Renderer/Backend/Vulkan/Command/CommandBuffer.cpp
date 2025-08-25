@@ -157,11 +157,48 @@ namespace Bear {
 			sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 			destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 		}
+		else if (vkOldLayout == VK_IMAGE_LAYOUT_UNDEFINED && vkNewLayout == VK_IMAGE_LAYOUT_GENERAL)
+		{
+			barrier.srcAccessMask = 0;
+			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		}
 		else if (vkOldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && vkNewLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
 			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 			sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 			destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		}
+		else if (vkOldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && vkNewLayout == VK_IMAGE_LAYOUT_GENERAL) {
+			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+			sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			destinationStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+		}
+		else if (vkOldLayout == VK_IMAGE_LAYOUT_GENERAL && vkNewLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+			barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+			barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+			sourceStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+			destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		}
+		else if (vkOldLayout == VK_IMAGE_LAYOUT_GENERAL && vkNewLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+			barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+			barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+			sourceStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+			destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+		}
+		else if (vkOldLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && vkNewLayout == VK_IMAGE_LAYOUT_GENERAL) {
+			barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+			sourceStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+			destinationStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+		}
+		else if (vkOldLayout == VK_IMAGE_LAYOUT_GENERAL && vkNewLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+			barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+			barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			sourceStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+			destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 		}
 		else {
 			throw std::invalid_argument("unsupported layout transition!");
@@ -195,5 +232,50 @@ namespace Bear {
 	void CommandBuffer::NextSubpass()
 	{
 		vkCmdNextSubpass(m_CommandBuffer, VK_SUBPASS_CONTENTS_INLINE);
+	}
+	void CommandBuffer::CopyBuffer(const RHIBuffer& srcBuffer, const RHIBuffer& dstBuffer, size_t size, size_t srcOffset, size_t dstOffset)
+	{
+		const auto& vkSrcBuffer = dynamic_cast<const Buffer&>(srcBuffer);
+		const auto& vkDstBuffer = dynamic_cast<const Buffer&>(dstBuffer);
+		VkBufferCopy copyRegion{};
+		copyRegion.srcOffset = static_cast<VkDeviceSize>(srcOffset);
+		copyRegion.dstOffset = static_cast<VkDeviceSize>(dstOffset);
+		copyRegion.size = static_cast<VkDeviceSize>(size);
+		vkCmdCopyBuffer(m_CommandBuffer, vkSrcBuffer.GetHandle(), vkDstBuffer.GetHandle(), 1, &copyRegion);
+	}
+	void CommandBuffer::PipelineBarrier(const MemoryBarrier& memoryBarrier)
+	{
+		VkMemoryBarrier barrier {};
+		barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+		barrier.srcAccessMask = ToVulkanAccessFlags(memoryBarrier.srcAccessMask);
+		barrier.dstAccessMask = ToVulkanAccessFlags(memoryBarrier.dstAccessMask);
+
+		vkCmdPipelineBarrier(m_CommandBuffer,
+			ToVulkanPipelineStage(memoryBarrier.srcStageMask),
+			ToVulkanPipelineStage(memoryBarrier.dstStageMask),
+			0, 1, &barrier, 0, nullptr, 0, nullptr);
+	}
+	void CommandBuffer::FillBuffer(const RHIBuffer& buffer, const void* data, size_t size, size_t offset)
+	{
+		const auto& vkBuffer = dynamic_cast<const Buffer&>(buffer);
+		vkCmdUpdateBuffer(m_CommandBuffer, vkBuffer.GetHandle(), static_cast<VkDeviceSize>(offset), static_cast<VkDeviceSize>(size), data);
+	}
+	void CommandBuffer::ClearImage(const RHIImage& image, const ClearColor& clearColor)
+	{
+		VkClearColorValue vkClearColor{};
+		for (int i = 0; i < 3; i++)
+		{
+			vkClearColor.float32[i] = clearColor.float32[i];
+			vkClearColor.int32[i] = clearColor.int32[i];
+			vkClearColor.uint32[i] = clearColor.uint32[i];
+		}
+		const auto& vkImage = dynamic_cast<const Image&>(image);
+		VkImageSubresourceRange vkSubresourceRange{};
+		vkSubresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		vkSubresourceRange.baseMipLevel = 0;
+		vkSubresourceRange.levelCount = 1;
+		vkSubresourceRange.baseArrayLayer = 0;
+		vkSubresourceRange.layerCount = 1;
+		vkCmdClearColorImage(m_CommandBuffer, vkImage.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &vkClearColor, 1, &vkSubresourceRange);
 	}
 }

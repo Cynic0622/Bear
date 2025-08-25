@@ -4,7 +4,7 @@
 namespace Bear
 {
 	struct Resources;
-	class Node;
+	class OitNode;
 	struct RenderObject;
 	class Entity;
 	struct ModelDescription;

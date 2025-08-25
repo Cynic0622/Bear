@@ -9,7 +9,7 @@ namespace Bear
 	}
 	void CameraController::Update(float deltaTime)
 	{
-		float speed = 10.f;
+		float speed = 3.f;
 		if (Input::IsKeyPressed(Key::W))
 		{
 			m_CameraPosition += GetForwardDirection()  * deltaTime * speed;

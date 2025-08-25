@@ -71,7 +71,7 @@ namespace Bear {
         for (const auto& gltfMaterial : model.materials) {
             MaterialDescription matDesc;
             matDesc.name = gltfMaterial.name;
-
+            matDesc.isTransparent = gltfMaterial.alphaMode == "BLEND";
             const auto& pbr = gltfMaterial.pbrMetallicRoughness;
             matDesc.baseColorFactor = glm::make_vec4(pbr.baseColorFactor.data());
             matDesc.metallicFactor = static_cast<float>(pbr.metallicFactor);

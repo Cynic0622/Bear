@@ -12,20 +12,19 @@ namespace Bear
 {
 	Scene::Scene()
 	{
-		m_GameCamera = std::make_unique<CameraController>(45.0f, (float)1280 / 720, 0.1f, 10000.f);
-		m_EditorCamera = std::make_unique<CameraController>(45.0f, (float)1280 / 720, 0.1f, 10000.f);
+		m_GameCamera = std::make_unique<CameraController>(45.0f, (float)1280 / 720, 0.1f, 1000.f);
+		m_EditorCamera = std::make_unique<CameraController>(45.0f, (float)1280 / 720, 0.1f, 1000.f);
 		// add some random lights for sponza scene.
 		std::srand(static_cast<unsigned>(std::time(nullptr)));
-		for (int i = 0; i < 50; i++)
+		for (int i = 0; i < 5; i++)
 		{
 			Entity light = CreateEntity("Light" + std::to_string(i));
 			auto& transform = light.GetComponent<TransformComponent>();
-			transform.Position = glm::vec3(static_cast<float>(std::rand() % 1000 - 500),
-				static_cast<float>(std::rand() % 1000),
-				static_cast<float>(std::rand() % 1000 - 500));
-			light.AddComponent<LightComponent>(glm::vec3(static_cast<float>(std::rand() % 100) / 99.0f,
-				static_cast<float>(std::rand() % 100) / 99.0f,
-				static_cast<float>(std::rand() % 100) / 99.0f), std::rand() % 50000);
+			transform.Position = glm::vec3(static_cast<float>(std::rand() % 100 - 50),
+				static_cast<float>(std::rand() % 100),
+				static_cast<float>(std::rand() % 100 - 50));
+			glm::vec3 color = glm::vec3(static_cast<float>(std::rand() % 100) / 99.0f);
+			light.AddComponent<LightComponent>(glm::vec3(color),std::rand() % 5);
 		}
 	}
 	Scene::~Scene()

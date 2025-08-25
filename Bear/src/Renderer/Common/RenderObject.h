@@ -20,7 +20,6 @@ namespace Bear {
 		glm::mat4 transform {1.0f};
 		mutable AABB m_CachedAABB; // cache the world AABB for this object
 		mutable bool m_AABBDirty = true;
-
 		RenderObject() = default;
 
 		const AABB& GetAABB () const

@@ -26,8 +26,11 @@ namespace Bear
 		cmd->BeginRenderPass(*m_RenderPass, *m_Framebuffers[currentImageIndex], width, height, clearValues);
 		cmd->SetScissor(0, 0, width, height);
 		cmd->SetViewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
+		uint32_t count = 0;
 		for (const auto& obj : renderObjects)
 		{
+			if (obj.material->IsTransparent())
+				continue;
 			cmd->BindPipeline(*m_PreZPipeline);
 			cmd->BindDescriptorSet(*m_PreZPipelineLayout, *m_Context->globalDescriptorSet[currentFrameIndex], 0);
 			cmd->BindDescriptorSet(*m_PreZPipelineLayout, *obj.material->GetDescriptorSet(), 1);
@@ -35,10 +38,14 @@ namespace Bear
 			cmd->PushConstants(*m_PreZPipelineLayout, ShaderStage::Vertex, &pushConstants, sizeof(PerObjectPushConstants), 0);
 			obj.mesh->Bind(*cmd);
 			obj.mesh->Draw(*cmd);
+			count++;
 		}
+		BEAR_CORE_INFO("The model has {} Q entity of total count : {}", count, renderObjects.size());
 		cmd->NextSubpass();
 		for (const auto& obj : renderObjects)
 		{
+			if (obj.material->IsTransparent())
+				continue;
 			cmd->BindPipeline(*m_PbrPipeline);
 			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *m_Context->globalDescriptorSet[currentFrameIndex], 0);
 			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *obj.material->GetDescriptorSet(), 1);

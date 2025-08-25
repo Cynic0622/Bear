@@ -36,7 +36,7 @@ namespace Bear
 		dispatcher.Dispatch<WindowCloseEvent>([this](WindowCloseEvent& e) { return this->OnWindowClose(e); });
 
 		dispatcher.Dispatch<WindowResizeEvent>([this](WindowResizeEvent& e) { return this->OnWindowResize(e); });
-
+		m_Renderer->OnEvent(e);
 		if (e.IsHandled()) return;
 
 		for (auto it = m_LayerStack.rbegin(); it != m_LayerStack.rend(); ++it)

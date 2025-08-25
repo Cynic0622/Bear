@@ -44,9 +44,11 @@ namespace Bear {
 		BEAR_CORE_ASSERT(m_Allocator != VK_NULL_HANDLE, "Failed to create VMA allocator!");
 		// ****************�����ʵ�ֲ�̫��********************
 		std::vector<VkDescriptorPoolSize> globalPoolSizes = {
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 }
-		// δ���������Ӹ������ͣ����� StorageBuffer
+			{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
+			{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+			{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
+			{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000}
+
 		};
 		m_GlobalDescriptorPool = std::make_unique<DescriptorPool>(*this, 1000, globalPoolSizes);
 
@@ -181,10 +183,10 @@ namespace Bear {
 
 		VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-		vertexInputInfo.vertexBindingDescriptionCount = 1;
-		vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-		vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-		vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+		vertexInputInfo.vertexBindingDescriptionCount = config.vertexInput ? 1 : 0;
+		vertexInputInfo.pVertexBindingDescriptions = config.vertexInput ? &bindingDescription : nullptr;
+		vertexInputInfo.vertexAttributeDescriptionCount = config.vertexInput ? static_cast<uint32_t>(attributeDescriptions.size()) : 0;
+		vertexInputInfo.pVertexAttributeDescriptions = config.vertexInput ? attributeDescriptions.data() : nullptr;
 
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo{};
 		inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -403,8 +405,8 @@ namespace Bear {
 			VkSubpassDependency dependency = {};
 			dependency.srcSubpass = dep.srcSubpass;
 			dependency.dstSubpass = dep.dstSubpass;
-			dependency.srcStageMask = ToVulkanPipelineStageFlags(dep.srcStageMask);
-			dependency.dstStageMask = ToVulkanPipelineStageFlags(dep.dstStageMask);
+			dependency.srcStageMask = ToVulkanPipelineStage(dep.srcStageMask);
+			dependency.dstStageMask = ToVulkanPipelineStage(dep.dstStageMask);
 			dependency.srcAccessMask = ToVulkanAccessFlags(dep.srcAccessMask);
 			dependency.dstAccessMask = ToVulkanAccessFlags(dep.dstAccessMask);
 			// dependency.dependencyFlags = ToVulkanDependencyFlags(dep.dependencyFlags);
@@ -431,6 +433,8 @@ namespace Bear {
 	{
 		VkFormat vkFormat = ToVulkanFormat(config.format);
 		VkImageUsageFlags vkUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		if (config.usage != ImageUsage::None)
+			vkUsage = ToVulkanImageUsage(config.usage);
 		return std::make_unique<Image>(*this, config.width, config.height, vkFormat, VK_IMAGE_TILING_OPTIMAL, vkUsage, VMA_MEMORY_USAGE_GPU_ONLY);
 	}
 	std::shared_ptr<RHISampler> Device::CreateSampler(const RHISamplerConfig& config)
@@ -605,7 +609,8 @@ namespace Bear {
 			queueCreateInfos.push_back(queueCreateInfo);
 		}
 		VkPhysicalDeviceFeatures deviceFeatures = {};
-		deviceFeatures.samplerAnisotropy = VK_TRUE; // ���ø������Թ���
+		deviceFeatures.samplerAnisotropy = VK_TRUE;
+		deviceFeatures.fragmentStoresAndAtomics = VK_TRUE;
 
 		VkDeviceCreateInfo createInfo = {};
 		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

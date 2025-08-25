@@ -46,6 +46,7 @@ namespace Bear
 		material->SetParam("emissiveFactor", desc.emissiveFactor);
 		material->SetParam("normalScale", 1.0f); // default normal scale
 		material->SetParam("occlusionStrength", 1.0f); // default occlusion strength
+		material->SetTransparent(desc.isTransparent);
 		return material;
 	}
 	Resources Resource::CreateResources(const ModelDescription& desc)

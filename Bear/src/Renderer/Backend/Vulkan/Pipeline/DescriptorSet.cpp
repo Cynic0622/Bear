@@ -53,6 +53,7 @@ namespace Bear {
 		const auto& vkImage = dynamic_cast<const Image&>(image);
 		const auto& vkSampler = dynamic_cast<const Sampler&>(sampler);
 
+
 		VkDescriptorImageInfo imageInfo{};
 		imageInfo.imageView = vkImage.GetView();
 		// BEAR_CORE_INFO("UpdateTexture DescriptorSet={:#x}, binding {}: imageView={:#x}, sampler={:#x}",
@@ -62,14 +63,27 @@ namespace Bear {
 			BEAR_CORE_ERROR("UpdateTexture: imageView is VK_NULL_HANDLE for binding {}", binding);
 			return;
 		}
-		imageInfo.sampler = vkSampler.GetHandle();
-		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		// imageInfo.sampler = vkSampler.GetHandle();
+		// imageInfo.imageLayout = vkImage.GetLa;
+		auto descriptorType = m_SetLayout.GetDescriptorType(binding);
+		if (descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+			imageInfo.sampler = vkSampler.GetHandle();
+			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		}
+		else if (descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE) {
+			imageInfo.sampler = VK_NULL_HANDLE; // No sampler for sampled image
+		}
+		else if (descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
+			imageInfo.sampler = VK_NULL_HANDLE; // No sampler for storage image
+			imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL; // Storage images use GENERAL layout
+		}
+		
 		VkWriteDescriptorSet descriptorWrite{};
 		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrite.dstSet = m_DescriptorSet;
 		descriptorWrite.dstBinding = binding;
 		descriptorWrite.dstArrayElement = 0;
-		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrite.descriptorType = m_SetLayout.GetDescriptorType(binding);
 		descriptorWrite.descriptorCount = 1;
 		descriptorWrite.pImageInfo = &imageInfo;
 		vkUpdateDescriptorSets(m_Device.GetDevice(), 1, &descriptorWrite, 0, nullptr);

@@ -25,11 +25,12 @@ namespace Bear
 		GLFWwindow* window = nullptr;
 		RHIDescriptorSetLayout* globalDescriptorSetLayout = nullptr; // global descriptor set layout for all pass.
 		std::vector<RHIDescriptorSet*> globalDescriptorSet; // global descriptor set for all pass.
+		RHIDescriptorSetLayout* globalPbrDescriptorSetLayout = nullptr; // global descriptor set for pbr pass.
 		// uint8_t currentFrameIndex = 0; // frame index for current frame
 	};
 
 	// ����һ����ɫ�ṹ��
-	struct ClearColor
+	struct ClearVaule
 	{
 		float r = 0.0f, g = 0.0f, b = 0.0f, a = 1.0f;
 	};
@@ -44,11 +45,19 @@ namespace Bear
 	// RHI ��������ֵ�ṹ��
 	struct RHIClearValue
 	{
-		ClearColor color;
+		ClearVaule color;
 		ClearDepthStencil depthStencil;
 		// ��־������������ֵ��������ɫ�������
 		bool isDepth = false;
 	};
+
+	struct ClearColor
+	{
+		uint32_t uint32[4];
+		int32_t int32[4];
+		float float32[4];
+	};
+	
 
 	enum class PrimitiveTopology
 	{
@@ -90,11 +99,27 @@ namespace Bear
 		TransferDstBuffer = 1 << 6
 	};
 
+	enum class ImageUsage : uint32_t
+	{
+		None = 0,
+		ColorAttachment = 1 << 0,
+		DepthStencilAttachment = 1 << 1,
+		Sampled = 1 << 2,
+		TransferSrc = 1 << 3,
+		TransferDst = 1 << 4,
+		Storage = 1 << 5
+	};
+	inline ImageUsage operator|(ImageUsage a, ImageUsage b)
+	{
+		return static_cast<ImageUsage>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
+	}
+
 	enum class DescriptorType
 	{
 		UniformBuffer,
 		CombinedImageSampler,
 		StorageBuffer,
+		StorageImage,
 	};
 
 	enum class ShaderStage : uint32_t
@@ -150,13 +175,15 @@ namespace Bear
 		TransferDst,
 		ShaderReadOnly,
 		DepthStencilAttachment,
-		PresentSrc // ���ڳ��ֵ���Ļ
+		PresentSrc,
+		General
 	};
 
 	enum class PixelFormat
 	{
 		Unknown,
 		R8_SRGB,
+		R32_UINT,
 		R8G8_SRGB,
 		R8G8B8_SRGB,
 		R8G8B8A8_UNORM,
@@ -328,6 +355,8 @@ namespace Bear
 		uint32_t width = 0;
 		uint32_t height = 0;
 		PixelFormat format = PixelFormat::Unknown;
+		ImageUsage usage = ImageUsage::None;
+
 	};
 
 	// --------------------------- sampler ---------------------------
@@ -454,4 +483,15 @@ namespace Bear
 	{
 		return static_cast<ColorWriteMask>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
 	}
+
+	struct MemoryBarrier
+	{
+		PipelineStage srcStageMask = PipelineStage::TopOfPipe;
+		PipelineStage dstStageMask = PipelineStage::BottomOfPipe;
+
+		AccessFlags srcAccessMask = AccessFlags::None;
+		AccessFlags dstAccessMask = AccessFlags::None;
+
+		bool byRegion = true; // framebuffer-local dependency
+	};
 }

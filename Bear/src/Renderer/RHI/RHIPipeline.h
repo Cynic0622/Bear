@@ -55,6 +55,8 @@ namespace Bear {
 		RHIDepthStencilState depthStencilState;
 		uint16_t subpassIndex = 0;
 
+		bool vertexInput = true;
+
 		// ... 未来可以添加 BlendState, DepthState 等
 	};
 

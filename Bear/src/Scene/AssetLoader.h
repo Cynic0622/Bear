@@ -39,7 +39,7 @@ namespace Bear {
     };
     struct MaterialDescription {
         std::string name;
-
+		bool isTransparent = false;
         // PBR Metallic-Roughness Workflow
         glm::vec4 baseColorFactor{ 1.0f };
         int baseColorTextureIndex = -1;

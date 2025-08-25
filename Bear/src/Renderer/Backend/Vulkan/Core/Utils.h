@@ -8,6 +8,7 @@ namespace Bear {
     VkShaderStageFlags ToVulkanShaderStage(Bear::ShaderStage stage);
 
     VkBufferUsageFlags ToVulkanBufferUsage(Bear::BufferUsage usage);
+	VkImageUsageFlags ToVulkanImageUsage(Bear::ImageUsage usage);
 
 	// -------------------------- pipeline utils --------------------------
     VkPrimitiveTopology ToVulkanTopology(PrimitiveTopology topology);
@@ -37,7 +38,7 @@ namespace Bear {
     PixelFormat FromVulkanFormat(VkFormat format);
 
 	VkAttachmentDescription ToVulkanAttachmentDescription(const AttachmentDescription& desc);
-    VkPipelineStageFlags ToVulkanPipelineStageFlags(PipelineStage flags);
+    VkPipelineStageFlags ToVulkanPipelineStage(PipelineStage flags);
     VkAccessFlags ToVulkanAccessFlags(AccessFlags flags);
 
     VkFormat FindDepthFormat(const Device& device);

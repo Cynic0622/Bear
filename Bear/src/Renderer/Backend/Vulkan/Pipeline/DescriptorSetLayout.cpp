@@ -49,7 +49,7 @@ namespace Bear {
 	{
 		if (m_Layout != VK_NULL_HANDLE) {
 			vkDestroyDescriptorSetLayout(m_Device.GetDevice(), m_Layout, nullptr);
-			m_Layout = VK_NULL_HANDLE;
+			// m_Layout = VK_NULL_HANDLE;
 		}
 	}
 	VkDescriptorType DescriptorSetLayout::GetDescriptorType(uint32_t binding) const

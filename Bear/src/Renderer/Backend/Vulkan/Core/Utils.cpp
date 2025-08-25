@@ -10,6 +10,7 @@ namespace Bear
 		case Bear::DescriptorType::UniformBuffer: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		case Bear::DescriptorType::CombinedImageSampler: return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		case Bear::DescriptorType::StorageBuffer: return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		case DescriptorType::StorageImage: return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 		default:
 			BEAR_CORE_ERROR("Unsupported DescriptorType: {}", static_cast<int>(type));
 		}
@@ -46,6 +47,24 @@ namespace Bear
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 		if (static_cast<uint32_t>(usage) & static_cast<uint32_t>(Bear::BufferUsage::TransferDstBuffer)) flags |=
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		return flags;
+	}
+
+	VkImageUsageFlags ToVulkanImageUsage(Bear::ImageUsage usage)
+	{
+		VkImageUsageFlags flags = 0;
+		if (static_cast<uint32_t>(usage) & static_cast<uint32_t>(Bear::ImageUsage::ColorAttachment)) flags |=
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		if (static_cast<uint32_t>(usage) & static_cast<uint32_t>(Bear::ImageUsage::DepthStencilAttachment)) flags |=
+			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		if (static_cast<uint32_t>(usage) & static_cast<uint32_t>(Bear::ImageUsage::Sampled)) flags |=
+			VK_IMAGE_USAGE_SAMPLED_BIT;
+		if (static_cast<uint32_t>(usage) & static_cast<uint32_t>(Bear::ImageUsage::Storage)) flags |=
+			VK_IMAGE_USAGE_STORAGE_BIT;
+		if (static_cast<uint32_t>(usage) & static_cast<uint32_t>(Bear::ImageUsage::TransferSrc)) flags |=
+			VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+		if (static_cast<uint32_t>(usage) & static_cast<uint32_t>(Bear::ImageUsage::TransferDst)) flags |=
+			VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 		return flags;
 	}
 
@@ -187,6 +206,7 @@ namespace Bear
 		case ImageLayout::PresentSrc: return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 		case ImageLayout::ShaderReadOnly: return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		case ImageLayout::TransferDst: return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		case ImageLayout::General: return VK_IMAGE_LAYOUT_GENERAL;
 		}
 		return VK_IMAGE_LAYOUT_UNDEFINED;
 	}
@@ -202,6 +222,7 @@ namespace Bear
 		case PixelFormat::D16_UNORM: return VK_FORMAT_D16_UNORM;
 		case PixelFormat::D24_UNORM_S8_UINT: return VK_FORMAT_D24_UNORM_S8_UINT;
 		case PixelFormat::D32_SFLOAT: return VK_FORMAT_D32_SFLOAT;
+		case PixelFormat::R32_UINT: return VK_FORMAT_R32_UINT;
 		default:
 			BEAR_CORE_ERROR("Unsupported Format: {}", static_cast<int>(format));
 			return VK_FORMAT_UNDEFINED;
@@ -239,7 +260,7 @@ namespace Bear
 		return attachment;
 	}
 
-	VkPipelineStageFlags ToVulkanPipelineStageFlags(PipelineStage flags)
+	VkPipelineStageFlags ToVulkanPipelineStage(PipelineStage flags)
 	{
 		VkPipelineStageFlags vulkanFlags = 0;
 		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(PipelineStage::VertexShader)) vulkanFlags |=

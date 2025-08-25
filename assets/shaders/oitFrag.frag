@@ -1,4 +1,11 @@
 #version 450
+
+struct Node
+{
+    vec4 color;
+    float depth;
+    uint next;
+};
 struct LightData
 {
     vec4 position;
@@ -7,12 +14,10 @@ struct LightData
 layout(std140, set = 0, binding = 0) uniform GlobalParams {
     mat4 viewMatrix;
     mat4 projMatrix;
-
     vec4 cameraPosition;
     LightData lightsData[50];
     int lightCount;
 } globalParamsData;
-
 layout(set = 1, binding = 0) uniform Material {
     vec4 baseColorFactor;
     float metallicFactor;
@@ -21,42 +26,28 @@ layout(set = 1, binding = 0) uniform Material {
     float occlusionStrength;
     vec3 emissiveFactor;
 } materialData;
-
 layout(set = 1, binding = 1) uniform sampler2D baseColorSampler;
 layout(set = 1, binding = 2) uniform sampler2D normalSampler;
 layout(set = 1, binding = 3) uniform sampler2D metallicRoughnessSampler;
 layout(set = 1, binding = 4) uniform sampler2D occlusionSampler;
 layout(set = 1, binding = 5) uniform sampler2D emissiveSampler;
+
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) in vec3 fragPos;
 layout(location = 2) in vec3 viewDir;
 layout(location = 3) in mat3 TBN; // tangent, bitangent, normal matrix
-layout(location = 0) out vec4 outColor;
 
-// PBR helpers
-float DistributionGGX(vec3 N, vec3 H, float roughness)
+layout (set = 2, binding = 0) buffer LinkedListSBO
 {
-    float a = roughness*roughness;
-    float a2 = a*a;
-    float NdotH = max(dot(N,H), 0.0);
-    float NdotH2 = NdotH*NdotH;
-
-    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
-    denom = 3.14159265 * denom * denom;
-    return a2 / denom;
-}
-
-float GeometrySchlickGGX(float NdotV, float k)
+    Node nodes[];
+};
+layout (set = 2, binding = 1) buffer AtomicCounter
 {
-    return NdotV / (NdotV * (1.0 - k) + k);
-}
+    uint counter;
+    uint maxNodeCount;
+};
 
-float GeometrySmith(vec3 N, vec3 V, vec3 L, float k)
-{
-    float NdotV = max(dot(N, V), 0.0);
-    float NdotL = max(dot(N, L), 0.0);
-    return GeometrySchlickGGX(NdotV, k) * GeometrySchlickGGX(NdotL, k);
-}
+layout (set = 2, binding = 2, r32ui) uniform uimage2D headIndexImage;
 
 vec3 FresnelSchlick(float cosTheta, vec3 F0)
 {
@@ -68,7 +59,7 @@ void main() {
 
     vec3 albedo = baseColor.rgb * materialData.baseColorFactor.rgb;
     float alpha = baseColor.a * materialData.baseColorFactor.a;
-    if (baseColor.a < 0.1) discard;
+    if (baseColor.a < 0.2) discard;
 
     vec3 normal = texture(normalSampler, fragTexCoord).xyz * 2.0 - 1.0;
     normal.xy *= materialData.normalScale;
@@ -96,37 +87,36 @@ void main() {
         vec3 H = normalize(V + L);
         float distance = length(lightPos - fragPos);
         float attenuation = 1.0 / (distance * distance); // simple quadratic attenuation
-        // attenuation = 1.0 / distance; // linear attenuation
         vec3 radiance = globalParamsData.lightsData[i].colorIntensity.rgb * globalParamsData.lightsData[i].colorIntensity.a * attenuation;
 
-        // cook-torrance BRDF
-        float NDF = DistributionGGX(N, H, roughness);
-        float G = GeometrySmith(N, V, L, (roughness+1.0)*(roughness+1.0)/8.0);
-        vec3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
-
-        vec3 numerator = NDF * G * F;
-        float denom = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001;
-        vec3 specular = numerator / denom;
-
-        float NdotL = max(dot(N, L), 0.0);
+        // blin-phong
+        float shininess = clamp(2.0 / (roughness * roughness) - 2.0, 1.0, 4096.0);
+        vec3 spec = pow(max(dot(N, H), 0.0), shininess) * radiance;
+        vec3 diff = max(dot(N, L), 0.0) * radiance;
 
         // kS is specular, kD is diffuse (energy conservation)
-        vec3 kS = F;
+        vec3 kS = FresnelSchlick(max(dot(H, V), 0.0), F0);
         vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
 
         // Lambert diffuse
-        vec3 diffuse = kD * albedo / 3.14159265;
-
-        Lo += (diffuse + specular) * radiance * NdotL;
+        vec3 diffuse = kD * diff;
+        vec3 specular = kS * spec;
+        Lo += diffuse + specular;
     }
 
-    vec3 ambient = vec3(0.15) * albedo * ao;
-    // ambient = vec3(0.2, 0.2, 0.2) * albedo * ao;
+    vec3 ambient = vec3(0.03) * albedo * ao;
     vec3 color = ambient + Lo + emissive;
-
     color = color / (color + vec3(1.0));
-    // color = pow(color, vec3(1.0 / 2.2));
-    // Combine the textures and material properties
-    outColor = vec4(color, alpha);
-    // outColor = vec4(albedo, 1.0);
+    // vec4 color = baseColor * materialData.baseColorFactor;
+    uint nodeIdx = atomicAdd(counter, 1);
+
+    if (nodeIdx < maxNodeCount)
+    {
+        uint prevHeadIdx = imageAtomicExchange(headIndexImage, ivec2(gl_FragCoord.xy), nodeIdx);
+        // Write the fragment data to the linked list
+        nodes[nodeIdx].color = vec4(color, alpha);
+        // nodes[nodeIdx].color = color;
+        nodes[nodeIdx].next = prevHeadIdx;
+        nodes[nodeIdx].depth = gl_FragCoord.z;
+    }
 }
