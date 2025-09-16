@@ -30,7 +30,9 @@ layout(location = 2) out vec3 viewDir;
 layout(location = 3) out mat3 TBN;
 
 void main() {
-    gl_Position = globalParamsData.projMatrix * globalParamsData.viewMatrix * perObjectData.modelMatrix * vec4(inPosition, 1.0);
+    mat4 mvp = globalParamsData.projMatrix * globalParamsData.viewMatrix * perObjectData.modelMatrix;
+    gl_Position = mvp * vec4(inPosition, 1.0);
+
     fragTexCoord = inTexCoord;
 
     fragPos = vec3(perObjectData.modelMatrix * vec4(inPosition, 1.0));

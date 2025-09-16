@@ -21,6 +21,14 @@ namespace Bear
 
 	void OitPass::Execute(RHICommandList* cmd, std::vector<RenderObject> renderObjects)
 	{
+		// set a barrier to make sure last pass(pbr) depth write finished before oit pass read depth.
+		MemoryBarrier depthBarrier{};
+		depthBarrier.srcAccessMask = AccessFlags::DepthStencilAttachmentWrite;
+		depthBarrier.srcStageMask = PipelineStage::LateFragmentTests;
+		depthBarrier.dstAccessMask = AccessFlags::DepthStencilAttachmentRead;
+		depthBarrier.dstStageMask = PipelineStage::EarlyFragmentTests;
+		cmd->PipelineBarrier(depthBarrier);
+
 		// reset buffer value
 		uint32_t fillValue = 0;
 		cmd->FillBuffer(*m_AtomicCounterBuffer, &fillValue, sizeof(fillValue), offsetof(AtomicCounter, count));
@@ -110,14 +118,6 @@ namespace Bear
 	{
 		RenderPassDescription desc;
 		desc.attachmentCount = 1; // 1 for color
-		// AttachmentDescription& colorAttachment = desc.attachments[0];
-		// colorAttachment.format = PixelFormat::B8G8R8A8_SRGB;
-		// colorAttachment.samples = AttachmentSamples::Count1;
-		// colorAttachment.loadOp = AttachmentLoadOp::Load;
-		// colorAttachment.storeOp = AttachmentStoreOp::Store;
-		// colorAttachment.initialLayout = ImageLayout::ColorAttachment;
-		// colorAttachment.finalLayout = ImageLayout::ColorAttachment;
-
 		AttachmentDescription& depthAttachment = desc.attachments[0];
 		depthAttachment.format = PixelFormat::D32_SFLOAT;
 		depthAttachment.samples = AttachmentSamples::Count1;
@@ -157,15 +157,6 @@ namespace Bear
 		SubpassDescription& blendSubpass = blendDesc.subpasses[0];
 		blendSubpass.colorAttachmentCount = 1;
 		blendSubpass.colorAttachments[0] = { 0, ImageLayout::ColorAttachment };
-
-		blendDesc.dependencyCount = 1;
-		SubpassDependency& blendDependency = blendDesc.dependencies[0];
-		blendDependency.srcSubpass = UINT_MAX;
-		blendDependency.dstSubpass = 0;
-		blendDependency.srcStageMask = PipelineStage::LateFragmentTests | PipelineStage::EarlyFragmentTests;
-		blendDependency.dstStageMask = PipelineStage::FragmentShader | PipelineStage::LateFragmentTests;
-		blendDependency.srcAccessMask = AccessFlags::DepthStencilAttachmentWrite;
-		blendDependency.dstAccessMask = AccessFlags::DepthStencilAttachmentRead;
 
 		m_BlendRenderPass = m_Context->device->CreateRenderPass(blendDesc);
 	}

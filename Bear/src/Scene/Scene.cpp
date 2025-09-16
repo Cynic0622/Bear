@@ -20,11 +20,11 @@ namespace Bear
 		{
 			Entity light = CreateEntity("Light" + std::to_string(i));
 			auto& transform = light.GetComponent<TransformComponent>();
-			transform.Position = glm::vec3(static_cast<float>(std::rand() % 100 - 50),
-				static_cast<float>(std::rand() % 100),
-				static_cast<float>(std::rand() % 100 - 50));
-			glm::vec3 color = glm::vec3(static_cast<float>(std::rand() % 100) / 99.0f);
-			light.AddComponent<LightComponent>(glm::vec3(color),std::rand() % 5);
+			transform.Position = glm::vec3(static_cast<float>(std::rand() % 30 - 15),
+				static_cast<float>(std::rand() % 30),
+				static_cast<float>(std::rand() % 30 - 15));
+			glm::vec3 color = glm::vec3(static_cast<float>(std::rand() % 100) / 99.0f, static_cast<float>(std::rand() % 100) / 99.0f, static_cast<float>(std::rand() % 100) / 99.0f);
+			light.AddComponent<LightComponent>(glm::vec3(color),std::rand() % 50);
 		}
 	}
 	Scene::~Scene()
@@ -48,6 +48,15 @@ namespace Bear
 				auto& transform = m_Registry.get<TransformComponent>(entity);
 				transform.WorldTransform = transform.GetLocalTransform();
 			}
+		}
+		// update light position
+		auto lightView = m_Registry.view<TransformComponent, LightComponent>();
+		for (auto entity : lightView)
+		{
+			auto& transform = m_Registry.get<TransformComponent>(entity);
+			glm::vec3 rotate = glm::rotate(glm::mat4(1.0f), glm::radians((float)glfwGetTime() / 2), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(transform.Position, 1.0f);
+			transform.Position = rotate;
+			transform.WorldTransform = transform.GetLocalTransform();
 		}
 		GetActiveCamera()->Update(deltaTime);
 	}

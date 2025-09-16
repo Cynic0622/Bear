@@ -16,7 +16,7 @@ namespace Bear
 
 		glm::vec4 cameraPosition; // Camera position in world space.
 		LightData lightsData[50];
-		alignas(16) int lightCount = 50; // Number of lights in the scene.
+		alignas(16) int lightCount = 5; // Number of lights in the scene.
 	};
 	class CameraController;
 	class Renderer;

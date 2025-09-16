@@ -40,7 +40,7 @@ namespace Bear
 			obj.mesh->Draw(*cmd);
 			count++;
 		}
-		BEAR_CORE_INFO("The model has {} Q entity of total count : {}", count, renderObjects.size());
+		// BEAR_CORE_INFO("The model has {} Q entity of total count : {}", count, renderObjects.size());
 		cmd->NextSubpass();
 		for (const auto& obj : renderObjects)
 		{
