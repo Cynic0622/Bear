@@ -181,6 +181,7 @@ target_link_libraries(Bear PUBLIC
     VulkanMemoryAllocator
     glm
     EnTT::EnTT
+    libntc
 )
 
 # 设置包含目录

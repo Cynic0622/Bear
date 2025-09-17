@@ -1,7 +1,5 @@
-# ==================== 根目录 CMakeLists.txt ====================
 cmake_minimum_required(VERSION 3.16)
 
-# 设置项目名称和语言
 project(Bear LANGUAGES CXX)
 
 # 设置C++标准
@@ -10,8 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 全局设置UTF-8编码（用于MSVC）
 if(MSVC)
-    add_compile_options(/utf-8)
-    add_compile_options(/wd4828) # 禁用警告：'function': function will not be inlined
+    #add_compile_options(/utf-8)
+    #add_compile_options(/wd4828) # 禁用警告：'function': function will not be inlined
 endif()
 
 # Windows特定设置
@@ -24,7 +22,6 @@ if(WIN32)
     set(CMAKE_SYSTEM_VERSION 10.0)
 endif()
 
-# ==================== 全局输出目录设置 ====================
 # 统一的输出目录设置
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -60,14 +57,19 @@ set(TINYGLTF_HEADER_ONLY ON CACHE INTERNAL "" FORCE)
 set(TINYGLTF_INSTALL OFF CACHE INTERNAL "" FORCE)
 set(TINYGLTF_BUILD_LOADER_EXAMPLE OFF CACHE INTERNAL "" FORCE)
 
-# 添加子项目
+set(NTC_WITH_DX12 OFF CACHE BOOL "" FORCE)
+set(NTC_WITH_VULKAN OFF CACHE BOOL "" FORCE)
 
+# 添加子项目
+add_subdirectory(Bear/extern/rtxntc)
 add_subdirectory(Bear/extern/glfw)
 add_subdirectory(Bear/extern/spdlog)
 add_subdirectory(Bear/extern/vma)
 add_subdirectory(Bear/extern/glm)
 add_subdirectory(Bear/extern/entt)
+
 add_subdirectory(Bear/extern/tinygltf)
+
 
 add_subdirectory(Bear)
 add_subdirectory(Sandbox)
@@ -128,6 +130,10 @@ endif()
 
 if (TARGET tinygltf)
     set_target_properties(tinygltf PROPERTIES FOLDER "External")
+endif()
+
+if (TARGET libntc)
+    set_target_properties(libntc PROPERTIES FOLDER "External")
 endif()
 
 # set working directory for Visual Studio
