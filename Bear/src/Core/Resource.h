@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "Material.h"
-
+#include <libntc/ntc.h>
 namespace Bear
 {
 	struct MaterialDescription;
@@ -28,6 +28,7 @@ namespace Bear
 	{
 	public:
 		explicit Resource(RHIDevice& device);
+		Resource(RenderContext* context);
 		~Resource() = default;
 
         std::shared_ptr<Texture> CreateTexture(const ImageDescription& imageDesc, const SamplerDescription& samplerDesc);
@@ -36,10 +37,14 @@ namespace Bear
         Resources CreateResources(const ModelDescription& desc);
 		// const std::string& GetName() const;
 		std::shared_ptr<Texture> GetDefaultTexture(int bindingSlot);
-
+		// neural texture compression
+		void CompressTexture(const ModelDescription& modelDesc);
 	private:
 		std::string m_Name;
 		RHIDevice& m_Device;
+		RenderContext* m_RenderContext = nullptr;
 		std::array<std::shared_ptr<Texture>, MaterialSlot::Count> m_DefaultTextures;
+		bool m_TextureCompressed = true;
+		ntc::IContext* m_NTCContext = nullptr; // neural texture compression context.
 	};
 }

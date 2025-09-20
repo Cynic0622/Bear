@@ -6,6 +6,7 @@
 #include "RHIRenderPass.h"
 #include "RHISwapchain.h"
 #include "RHICommandList.h"
+#include "Backend/Vulkan/Core/Device.h"
 namespace Bear {
 	class RHIDevice {
 		public:

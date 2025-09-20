@@ -1,17 +1,22 @@
 #include "bearpch.h"
 #include "Resource.h"
 #include "AssetLoader.h"
+#include "Instance.h"
 #include "Material.h"
 #include "RHI/RHIDevice.h"
 #include "Texture.h"
 #include "Mesh.h"
 #include "PbrMaterial.h"
-
 namespace Bear
 {
 	Resource::Resource(RHIDevice& device)
 		:m_Device(device)
 	{
+	}
+	Resource::Resource(RenderContext* context)
+		:m_Device(*context->device)
+	{
+		m_RenderContext = context;
 	}
 	std::shared_ptr<Texture> Resource::CreateTexture(const ImageDescription& imageDesc, const SamplerDescription& samplerDesc)
 	{
@@ -77,6 +82,10 @@ namespace Bear
 		{
 			res.Meshes[i] = CreateMesh(desc.primitives[i]);
 		}
+		if (m_TextureCompressed)
+		{
+			CompressTexture(desc);
+		}
 		return res;
 	}
 	std::shared_ptr<Texture> Resource::GetDefaultTexture(int bindingSlot)
@@ -120,5 +129,146 @@ namespace Bear
 		if (bindingSlot >= 0 && bindingSlot < (int)m_DefaultTextures.size())
 			m_DefaultTextures[bindingSlot] = tex;
 		return tex;
+	}
+	void Resource::CompressTexture(const ModelDescription& modelDesc)
+	{
+		ntc::ContextParameters contextParams;
+		ntc::Status ntcStatus;
+		BEAR_CORE_ASSERT((ntcStatus = ntc::CreateContext(&m_NTCContext, contextParams)) == ntc::Status::Ok, "Filed to create the ntc context!");
+
+		ntc::TextureSetWrapper textureSet(m_NTCContext);
+		uint8_t numChannels = 0;
+		for (auto& desc : modelDesc.textures)
+		{
+			numChannels += modelDesc.images[desc.imageIndex].channels;
+		}
+		BEAR_CORE_INFO("texture set has {} channels.", numChannels);
+		BEAR_CORE_ASSERT(numChannels <= 16, "The number of the texture channels must be less than 16!");
+
+		uint32_t height = modelDesc.images[0].height;
+		uint32_t width = modelDesc.images[0].width;
+		ntc::TextureSetDesc textureSetDesc;
+		textureSetDesc.channels = numChannels;
+		textureSetDesc.width = width;
+		textureSetDesc.height = height;
+		// TODO: generate mipmaps
+		textureSetDesc.mips = 1;
+
+		ntc::TextureSetFeatures features;
+		BEAR_CORE_ASSERT((ntcStatus = m_NTCContext->CreateTextureSet(textureSetDesc, features, textureSet.ptr())) == ntc::Status::Ok,
+			"Filed to create the textureSet!");
+
+		// The target compression parameters setting.
+		float expectedBitsPerPixel = 4.0f; // 4 bits per pixel
+		int networkVersion = NTC_NETWORK_UNKNOWN;
+		float actualBitsPerPixel;
+		ntc::LatentShape latentShape;
+		ntcStatus = ntc::PickLatentShape(expectedBitsPerPixel, networkVersion, actualBitsPerPixel, latentShape);
+		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to pick the suitable latent shape, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
+		ntcStatus = textureSet->SetLatentShape(latentShape, networkVersion);
+		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to set the latent shape, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
+
+		int firstChannel = 0;
+		for (auto& desc : modelDesc.textures)
+		{
+			int numChannels = modelDesc.images[desc.imageIndex].channels;
+			ntc::ColorSpace colorSpaces[4] = { ntc::ColorSpace::sRGB, ntc::ColorSpace::sRGB, ntc::ColorSpace::sRGB, ntc::ColorSpace::Linear };
+			ntc::ITextureMetadata* textureMetadata = textureSet->AddTexture();
+			textureMetadata->SetName(desc.name.c_str());
+			textureMetadata->SetChannels(firstChannel, numChannels);
+			// textureMetadata->SetBlockCompressedFormat(ntc::BlockCompressedFormat::None);
+			textureMetadata->SetRgbColorSpace(ntc::ColorSpace::sRGB);
+			textureMetadata->SetAlphaColorSpace(ntc::ColorSpace::Linear);
+
+			// write the pixel data to the texture set
+			ntc::WriteChannelsParameters writeParams;
+			writeParams.mipLevel = 0;
+			writeParams.firstChannel = firstChannel;
+			writeParams.numChannels = numChannels;
+			writeParams.pData = modelDesc.images[desc.imageIndex].pixels.data();
+			writeParams.addressSpace = ntc::AddressSpace::Host;
+			writeParams.width = width;
+			writeParams.height = height;
+			writeParams.pixelStride = static_cast<size_t>(numChannels);
+			writeParams.rowPitch = static_cast<size_t>(width * numChannels);
+			writeParams.channelFormat = ntc::ChannelFormat::UNORM8;
+			writeParams.srcColorSpaces = colorSpaces;
+			writeParams.dstColorSpaces = colorSpaces;
+
+			ntcStatus = textureSet->WriteChannels(writeParams);
+			BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to write the pixel data into textureSet, code = {} : {}",
+				ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
+
+			firstChannel += numChannels;
+		}
+		ntc::CompressionSettings compSettings;
+		ntcStatus = textureSet->BeginCompression(compSettings);
+		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to begin to compress, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
+
+		ntc::CompressionStats stats;
+		do
+		{
+			ntcStatus = textureSet->RunCompressionSteps(&stats);
+			if (ntcStatus == ntc::Status::Ok || ntcStatus == ntc::Status::Incomplete)
+			{
+				printf("\rCompression step %d/%d (%.2f ms/step), loss = %.6f (PSNR %.2f dB), LR: net %.6f, grid %.6f",
+					stats.currentStep, compSettings.trainingSteps,
+					stats.millisecondsPerStep,
+					stats.loss, ntc::LossToPSNR(stats.loss),
+					stats.learningRate, stats.learningRate * (compSettings.gridLearningRate / compSettings.networkLearningRate));
+				fflush(stdout);
+			}
+			else
+			{
+				BEAR_CORE_ERROR("Filed to run the compression step, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
+			}
+		}
+		while (ntcStatus == ntc::Status::Incomplete);
+		printf("\n");
+		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to compress texture, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
+
+		ntcStatus = textureSet->FinalizeCompression();
+		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to end compression steps, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
+
+		// save the compressed texture set to a file for debug
+		for (int index = 0; index < textureSet->GetTextureCount(); ++index)
+		{
+			ntc::ITextureMetadata* texMeta = textureSet->GetTexture(index);
+			BEAR_CORE_INFO("Texture[{}] '{}': channels {}..{}, block compression {}, RGB space {}, Alpha space {}",
+				index, texMeta->GetName(),
+				texMeta->GetFirstChannel(), texMeta->GetFirstChannel() + texMeta->GetNumChannels() - 1,
+				ntc::BlockCompressedFormatToString(texMeta->GetBlockCompressedFormat()),
+				ntc::ColorSpaceToString(texMeta->GetRgbColorSpace()),
+				ntc::ColorSpaceToString(texMeta->GetAlphaColorSpace()));
+		}
+		ntcStatus = textureSet->SaveToFile("assets/compress/compressed.ntc");
+		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to save the compressed texture, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
+
+		// upload the compressed texture set to GPU
+		ntc::FileStreamWrapper inputFile(m_NTCContext);
+		ntcStatus = m_NTCContext->OpenFile("assets/compress/compressed.ntc", false, inputFile.ptr());
+		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to open the compressed texture, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
+		ntc::TextureSetMetadataWrapper textureSetMetadata(m_NTCContext);
+		ntcStatus = m_NTCContext->CreateTextureSetMetadataFromStream(inputFile, textureSetMetadata.ptr());
+		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to create the texture metadata from stream, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
+
+		auto const weightType = ntc::InferenceWeightType::GenericInt8;
+		void const* pWeightData = nullptr;
+		size_t weightDataSize = 0;
+		size_t convertedSize = 0;
+		ntcStatus = textureSetMetadata->GetInferenceWeights(weightType, &pWeightData, &weightDataSize, &convertedSize);
+		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to get the inference weights, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
+
+		ntc::StreamRange latentRange;
+		ntcStatus = textureSetMetadata->GetStreamRangeForLatents(0, textureSetMetadata->GetDesc().mips, latentRange);
+		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to get the stream range for latents, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
+
+		ntc::InferenceData inferenceData;
+		ntcStatus = m_NTCContext->MakeInferenceData(textureSetMetadata, latentRange, weightType, &inferenceData);
+		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to make the inference data, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
+
+		// create the GPU resources for inference data.
+		size_t bufferSize = sizeof(inferenceData.constants);
+		m_RenderContext->device->CreateBuffer(bufferSize, BufferUsage::UniformBuffer, true);
 	}
 }
