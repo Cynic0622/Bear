@@ -26,6 +26,7 @@ namespace Bear
 		RHIDescriptorSetLayout* globalDescriptorSetLayout = nullptr; // global descriptor set layout for all pass.
 		std::vector<RHIDescriptorSet*> globalDescriptorSet; // global descriptor set for all pass.
 		RHIDescriptorSetLayout* globalPbrDescriptorSetLayout = nullptr; // global descriptor set for pbr pass.
+		bool useTextureCompression = true;
 		// uint8_t currentFrameIndex = 0; // frame index for current frame
 	};
 

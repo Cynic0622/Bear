@@ -93,7 +93,6 @@ namespace Bear {
 
 		m_TextureManager = std::make_unique<TextureManager>();
 		m_MeshManager = std::make_unique<MeshManager>();
-		m_Resource = std::make_unique<Resource>(*m_Device);
 
 		m_GlobalUniformBuffer.resize(MAX_FRAMES_IN_FLIGHT);
 		m_GlobalDescriptorSet.resize(MAX_FRAMES_IN_FLIGHT);
@@ -125,7 +124,9 @@ namespace Bear {
 		m_RenderContext->MAX_FRAMES_IN_FLIGHT = MAX_FRAMES_IN_FLIGHT;
 		m_RenderContext->globalDescriptorSetLayout = m_GlobalDescriptorSetLayout.get();
 		m_RenderContext->globalPbrDescriptorSetLayout = m_PbrDescriptorSetLayout.get();
-		
+
+		m_Resource = std::make_unique<Resource>(m_RenderContext);
+
 		m_UIPass = std::make_unique<UIPass>();
 		m_UIPass->Setup(m_RenderContext);
 		m_PbrPass = std::make_unique<PbrPass>();

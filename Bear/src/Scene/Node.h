@@ -7,17 +7,17 @@ namespace Bear
 	class Material;
 	class Mesh;
 
-	class OitNode
+	class Node
 	{
 	public:
-		OitNode(std::string name = "Node");
-		virtual ~OitNode() = default;
+		Node(std::string name = "Node");
+		virtual ~Node() = default;
 
-		OitNode(const OitNode&) = delete;
-		OitNode& operator=(const OitNode&) = delete;
+		Node(const Node&) = delete;
+		Node& operator=(const Node&) = delete;
 		// allow move semantics
-		OitNode(OitNode&&) = default;
-		OitNode& operator=(OitNode&&) = default;
+		Node(Node&&) = default;
+		Node& operator=(Node&&) = default;
 
 		// transform methods
 		void SetPosition(const glm::vec3& position);
@@ -31,9 +31,9 @@ namespace Bear
 		const glm::vec3& GetScale() const { return m_Scale; }
 
 		// scene layer
-		void AddChild(std::unique_ptr<OitNode> child);
-		OitNode* GetParent() const { return m_Parent; }
-		const std::vector<std::unique_ptr<OitNode>>& GetChildren() const { return m_Children; }
+		void AddChild(std::unique_ptr<Node> child);
+		Node* GetParent() const { return m_Parent; }
+		const std::vector<std::unique_ptr<Node>>& GetChildren() const { return m_Children; }
 		// update method for scene graph traversal
 		void Update(bool forceUpdate = false);
 		const glm::mat4& GetWorldTransform() const { return m_WorldTransform; }
@@ -48,8 +48,8 @@ namespace Bear
 		glm::vec3 m_Position{ 0.0f, 0.0f, 0.0f };
 		glm::quat m_Rotation{ 1.0f, 0.0f, 0.0f, 0.0f }; // quaternion for rotation w, x, y, z
 		glm::vec3 m_Scale{ 1.0f, 1.0f, 1.0f };
-		OitNode* m_Parent{ nullptr };
-		std::vector<std::unique_ptr<OitNode>> m_Children;
+		Node* m_Parent{ nullptr };
+		std::vector<std::unique_ptr<Node>> m_Children;
 		glm::mat4 m_WorldTransform{ 1.0f };
 		std::shared_ptr<Mesh> m_Mesh{ nullptr };
 		std::shared_ptr<Material> m_Material{ nullptr };

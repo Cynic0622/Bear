@@ -39,6 +39,7 @@ namespace Bear
 		std::shared_ptr<Texture> GetDefaultTexture(int bindingSlot);
 		// neural texture compression
 		void CompressTexture(const ModelDescription& modelDesc);
+		std::shared_ptr<Material> CreateNtcMaterial();
 	private:
 		std::string m_Name;
 		RHIDevice& m_Device;

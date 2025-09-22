@@ -1,11 +1,15 @@
 #include "bearpch.h"
 #include "Resource.h"
+
+#include <filesystem>
+
 #include "AssetLoader.h"
 #include "Instance.h"
 #include "Material.h"
 #include "RHI/RHIDevice.h"
 #include "Texture.h"
 #include "Mesh.h"
+#include "NtcMaterial.h"
 #include "PbrMaterial.h"
 namespace Bear
 {
@@ -85,6 +89,11 @@ namespace Bear
 		if (m_TextureCompressed)
 		{
 			CompressTexture(desc);
+			for (size_t i = 0; i < desc.materials.size(); ++i)
+			{
+				res.Materials[i] = CreateNtcMaterial();
+			}
+
 		}
 		return res;
 	}
@@ -136,6 +145,13 @@ namespace Bear
 		ntc::Status ntcStatus;
 		BEAR_CORE_ASSERT((ntcStatus = ntc::CreateContext(&m_NTCContext, contextParams)) == ntc::Status::Ok, "Filed to create the ntc context!");
 
+		std::string filePath = "assets/compress/compressed.ntc";
+		// if the file exists, skip the compression.
+		if (std::filesystem::exists(filePath))
+		{
+			BEAR_CORE_WARN("The compressed texture file already exists, skip the compression.");
+			return;
+		}
 		ntc::TextureSetWrapper textureSet(m_NTCContext);
 		uint8_t numChannels = 0;
 		for (auto& desc : modelDesc.textures)
@@ -243,10 +259,14 @@ namespace Bear
 		}
 		ntcStatus = textureSet->SaveToFile("assets/compress/compressed.ntc");
 		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to save the compressed texture, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
-
+	}
+	std::shared_ptr<Material> Resource::CreateNtcMaterial()
+	{
 		// upload the compressed texture set to GPU
 		ntc::FileStreamWrapper inputFile(m_NTCContext);
-		ntcStatus = m_NTCContext->OpenFile("assets/compress/compressed.ntc", false, inputFile.ptr());
+
+		// set the constanet path temporarily.
+		ntc::Status ntcStatus = m_NTCContext->OpenFile("assets/compress/compressed.ntc", false, inputFile.ptr());
 		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to open the compressed texture, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
 		ntc::TextureSetMetadataWrapper textureSetMetadata(m_NTCContext);
 		ntcStatus = m_NTCContext->CreateTextureSetMetadataFromStream(inputFile, textureSetMetadata.ptr());
@@ -267,8 +287,16 @@ namespace Bear
 		ntcStatus = m_NTCContext->MakeInferenceData(textureSetMetadata, latentRange, weightType, &inferenceData);
 		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to make the inference data, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
 
+		std::shared_ptr<NtcMaterial> material = std::make_shared<NtcMaterial>(*m_RenderContext->device);
 		// create the GPU resources for inference data.
-		size_t bufferSize = sizeof(inferenceData.constants);
-		m_RenderContext->device->CreateBuffer(bufferSize, BufferUsage::UniformBuffer, true);
+		size_t dataSize = sizeof(inferenceData.constants);
+		material->SetBuffer(NtcMaterialSlot::Constant, dataSize, &inferenceData);
+		dataSize = sizeof(latentRange);
+		material->SetBuffer(NtcMaterialSlot::Latent, dataSize, &latentRange);
+		dataSize = convertedSize ? convertedSize : weightDataSize;
+		material->SetBuffer(NtcMaterialSlot::Weight, dataSize, pWeightData);
+		material->m_WeightBuffer = m_RenderContext->device->CreateBuffer(dataSize, BufferUsage::UniformBuffer, true);
+
+		return material;
 	}
 }
