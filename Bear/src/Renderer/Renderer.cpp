@@ -131,8 +131,13 @@ namespace Bear {
 		m_UIPass->Setup(m_RenderContext);
 		m_PbrPass = std::make_unique<PbrPass>();
 		m_PbrPass->Setup(m_RenderContext);
-		m_OitPass = std::make_unique<OitPass>();
-		m_OitPass->Setup(m_RenderContext);
+		if (OitEnabled)
+		{
+			m_OitPass = std::make_unique<OitPass>();
+			m_OitPass->Setup(m_RenderContext);
+		}
+		// m_OitPass = std::make_unique<OitPass>();
+		// m_OitPass->Setup(m_RenderContext);
 	}
 	
 	

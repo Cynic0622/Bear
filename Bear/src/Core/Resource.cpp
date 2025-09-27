@@ -9,6 +9,7 @@
 #include "RHI/RHIDevice.h"
 #include "Texture.h"
 #include "Mesh.h"
+#include "NtcChannelMapping.h"
 #include "NtcMaterial.h"
 #include "PbrMaterial.h"
 namespace Bear
@@ -66,7 +67,7 @@ namespace Bear
 		std::vector<std::shared_ptr<Texture>> textures(desc.textures.size());
 		for (size_t i = 0; i < desc.textures.size(); ++i)
 		{
-			if (desc.samplers.size())
+			if (!desc.samplers.empty())
 			{
 				textures[i] = CreateTexture(desc.images[desc.textures[i].imageIndex], desc.samplers[desc.textures[i].samplerIndex == -1 ? 0 : desc.textures[i].samplerIndex]);
 			}
@@ -143,7 +144,7 @@ namespace Bear
 	{
 		ntc::ContextParameters contextParams;
 		ntc::Status ntcStatus;
-		BEAR_CORE_ASSERT((ntcStatus = ntc::CreateContext(&m_NTCContext, contextParams)) == ntc::Status::Ok, "Filed to create the ntc context!");
+		BEAR_CORE_ASSERT((ntcStatus = ntc::CreateContext(&m_NtcContext, contextParams)) == ntc::Status::Ok, "Filed to create the ntc context!");
 
 		std::string filePath = "assets/compress/compressed.ntc";
 		// if the file exists, skip the compression.
@@ -152,7 +153,7 @@ namespace Bear
 			BEAR_CORE_WARN("The compressed texture file already exists, skip the compression.");
 			return;
 		}
-		ntc::TextureSetWrapper textureSet(m_NTCContext);
+		ntc::TextureSetWrapper textureSet(m_NtcContext);
 		uint8_t numChannels = 0;
 		for (auto& desc : modelDesc.textures)
 		{
@@ -168,15 +169,16 @@ namespace Bear
 		textureSetDesc.width = width;
 		textureSetDesc.height = height;
 		// TODO: generate mipmaps
-		textureSetDesc.mips = 1;
+		// textureSetDesc.mips = 16;
 
 		ntc::TextureSetFeatures features;
-		BEAR_CORE_ASSERT((ntcStatus = m_NTCContext->CreateTextureSet(textureSetDesc, features, textureSet.ptr())) == ntc::Status::Ok,
+		BEAR_CORE_ASSERT((ntcStatus = m_NtcContext->CreateTextureSet(textureSetDesc, features, textureSet.ptr())) == ntc::Status::Ok,
 			"Filed to create the textureSet!");
-
+		// ntcStatus = textureSet->GenerateMips();
+		// BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Failed to generate the mipmaps.");
 		// The target compression parameters setting.
 		float expectedBitsPerPixel = 4.0f; // 4 bits per pixel
-		int networkVersion = NTC_NETWORK_UNKNOWN;
+		int networkVersion = NTC_NETWORK_LARGE;
 		float actualBitsPerPixel;
 		ntc::LatentShape latentShape;
 		ntcStatus = ntc::PickLatentShape(expectedBitsPerPixel, networkVersion, actualBitsPerPixel, latentShape);
@@ -214,7 +216,7 @@ namespace Bear
 			ntcStatus = textureSet->WriteChannels(writeParams);
 			BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to write the pixel data into textureSet, code = {} : {}",
 				ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
-
+			
 			firstChannel += numChannels;
 		}
 		ntc::CompressionSettings compSettings;
@@ -263,15 +265,25 @@ namespace Bear
 	std::shared_ptr<Material> Resource::CreateNtcMaterial()
 	{
 		// upload the compressed texture set to GPU
-		ntc::FileStreamWrapper inputFile(m_NTCContext);
+		ntc::FileStreamWrapper inputFile(m_NtcContext);
 
 		// set the constanet path temporarily.
-		ntc::Status ntcStatus = m_NTCContext->OpenFile("assets/compress/compressed.ntc", false, inputFile.ptr());
+		ntc::Status ntcStatus = m_NtcContext->OpenFile("assets/compress/compressed.ntc", false, inputFile.ptr());
 		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to open the compressed texture, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
-		ntc::TextureSetMetadataWrapper textureSetMetadata(m_NTCContext);
-		ntcStatus = m_NTCContext->CreateTextureSetMetadataFromStream(inputFile, textureSetMetadata.ptr());
+		ntc::TextureSetMetadataWrapper textureSetMetadata(m_NtcContext);
+		
+		ntcStatus = m_NtcContext->CreateTextureSetMetadataFromStream(inputFile, textureSetMetadata.ptr());
 		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to create the texture metadata from stream, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
-
+		// BEAR_CORE_INFO(textureSetMetadata->GetNetworkVersion());
+		m_NtcChannelMap.fill(ntc::ShuffleSource::Constant(1.f));
+		m_NtcChannelMap[CHANNEL_NORMAL + 0] = ntc::ShuffleSource::Constant(0.5f);
+		m_NtcChannelMap[CHANNEL_NORMAL + 1] = ntc::ShuffleSource::Constant(0.5f);
+		// base color.
+		m_NtcChannelMap[CHANNEL_BASE_COLOR + 0] = ntc::ShuffleSource::Channel(0);
+		m_NtcChannelMap[CHANNEL_BASE_COLOR + 1] = ntc::ShuffleSource::Channel(1);
+		m_NtcChannelMap[CHANNEL_BASE_COLOR + 2] = ntc::ShuffleSource::Channel(2);
+		m_NtcChannelMap[CHANNEL_OPACITY] = ntc::ShuffleSource::Channel(3);
+		textureSetMetadata->ShuffleInferenceOutputs(m_NtcChannelMap.data());
 		auto const weightType = ntc::InferenceWeightType::GenericInt8;
 		void const* pWeightData = nullptr;
 		size_t weightDataSize = 0;
@@ -284,18 +296,21 @@ namespace Bear
 		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to get the stream range for latents, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
 
 		ntc::InferenceData inferenceData;
-		ntcStatus = m_NTCContext->MakeInferenceData(textureSetMetadata, latentRange, weightType, &inferenceData);
+		ntcStatus = m_NtcContext->MakeInferenceData(textureSetMetadata, latentRange, weightType, &inferenceData);
 		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to make the inference data, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
 
 		std::shared_ptr<NtcMaterial> material = std::make_shared<NtcMaterial>(*m_RenderContext->device);
 		// create the GPU resources for inference data.
 		size_t dataSize = sizeof(inferenceData.constants);
 		material->SetBuffer(NtcMaterialSlot::Constant, dataSize, &inferenceData);
-		dataSize = sizeof(latentRange);
-		material->SetBuffer(NtcMaterialSlot::Latent, dataSize, &latentRange);
+		dataSize = latentRange.size;
+		std::vector<uint8_t> latentData(dataSize);
+		inputFile->Seek(latentRange.offset);
+		auto status = inputFile->Read(latentData.data(), dataSize);
+		BEAR_CORE_ASSERT(status, "Failed to read latent data from input file!");
+		material->SetBuffer(NtcMaterialSlot::Latent, dataSize, latentData.data());
 		dataSize = convertedSize ? convertedSize : weightDataSize;
 		material->SetBuffer(NtcMaterialSlot::Weight, dataSize, pWeightData);
-		material->m_WeightBuffer = m_RenderContext->device->CreateBuffer(dataSize, BufferUsage::UniformBuffer, true);
 
 		return material;
 	}

@@ -46,6 +46,7 @@ namespace Bear
 		RenderContext* m_RenderContext = nullptr;
 		std::array<std::shared_ptr<Texture>, MaterialSlot::Count> m_DefaultTextures;
 		bool m_TextureCompressed = true;
-		ntc::IContext* m_NTCContext = nullptr; // neural texture compression context.
+		ntc::IContext* m_NtcContext = nullptr; // neural texture compression context.
+		std::array<ntc::ShuffleSource, NTC_MAX_CHANNELS> m_NtcChannelMap;
 	};
 }

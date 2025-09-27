@@ -148,11 +148,13 @@ namespace Bear
 			{ pushConstantRanges });
 
 		pipelineConfig.pipelineLayout = m_PbrPipelineLayout;
-		pipelineConfig.vertexShaderPath = "Bear/src/Shaders/pbrVert.spv";
-		pipelineConfig.fragmentShaderPath = "Bear/src/Shaders/pbrFrag.spv";
+		// pipelineConfig.vertexShaderPath = "Bear/src/Shaders/pbrVert.spv";
+		// pipelineConfig.fragmentShaderPath = "Bear/src/Shaders/pbrFrag.spv";
+		pipelineConfig.vertexShaderPath = "Bear/src/Shaders/ntcVS.spv";
+		pipelineConfig.fragmentShaderPath = "Bear/src/Shaders/ntcPS.spv";
 		pipelineConfig.colorBlendAttachmentState.colorWriteMask = ColorWriteMask::All;
 		pipelineConfig.depthStencilState.depthWriteEnable = false;
-		pipelineConfig.depthStencilState.depthCompareOp = CompareOp::Equal;
+		pipelineConfig.depthStencilState.depthCompareOp = CompareOp::LessOrEqual;
 		pipelineConfig.subpassIndex = 1;
 		m_PbrPipeline = m_Context->device->CreatePipeline(pipelineConfig, *m_RenderPass);
 	}
@@ -173,8 +175,8 @@ namespace Bear
 		else
 		{
 			bindings.push_back({ .binding = NtcMaterialSlot::Constant, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Fragment });
-			bindings.push_back({ .binding = NtcMaterialSlot::Latent, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Fragment });
-			bindings.push_back({ .binding = NtcMaterialSlot::Weight, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Fragment });
+			bindings.push_back({ .binding = NtcMaterialSlot::Latent, .descriptorType = DescriptorType::StorageBuffer, .stageFlags = ShaderStage::Fragment });
+			bindings.push_back({ .binding = NtcMaterialSlot::Weight, .descriptorType = DescriptorType::StorageBuffer, .stageFlags = ShaderStage::Fragment });
 		}
 		m_DescriptorSetLayout = m_Context->device->CreateDescriptorSetLayout(bindings);
 	}

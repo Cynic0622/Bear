@@ -81,6 +81,12 @@ file(GLOB BEAR_SHADERS_SOURCES
     "src/Shaders/*.vert"
     "src/Shaders/*.frag"
     "src/Shaders/*.bat"
+    "src/Shaders/*.hlsl"
+    "src/Shaders/*.slang"
+)
+set_source_files_properties(${BEAR_SHADERS_SOURCES} PROPERTIES VS_TOOL_OVERRIDE "None")
+file(GLOB HLSL_SHADERS_SOURCES
+    "src/Shaders/*.hlsl"
 )
 file(GLOB RENERDER_RHI_SOURCES
     "src/Renderer/RHI/*.cpp"
@@ -213,6 +219,7 @@ target_include_directories(Bear
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/tinyobjloader
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/entt/include
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/tinygltf
+        ${CMAKE_CURRENT_SOURCE_DIR}/extern/rtxntc/include
 )
 
 # DLL导出设置

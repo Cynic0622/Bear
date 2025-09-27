@@ -7,8 +7,8 @@ namespace Bear
 		:m_Device(device)
 	{
 		std::vector<RHIDescriptorSetLayoutBinding> bindings;
-		bindings.push_back({ .binding = NtcMaterialSlot::Latent, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Fragment });
-		bindings.push_back({ .binding = NtcMaterialSlot::Weight, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Fragment });
+		bindings.push_back({ .binding = NtcMaterialSlot::Latent, .descriptorType = DescriptorType::StorageBuffer, .stageFlags = ShaderStage::Fragment });
+		bindings.push_back({ .binding = NtcMaterialSlot::Weight, .descriptorType = DescriptorType::StorageBuffer, .stageFlags = ShaderStage::Fragment });
 		bindings.push_back({ .binding = NtcMaterialSlot::Constant, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Fragment });
 		m_DescriptorSetLayout = device.CreateDescriptorSetLayout(bindings);
 		m_DescriptorSets = device.CreateDescriptorSet(m_DescriptorSetLayout);
@@ -18,13 +18,13 @@ namespace Bear
 		switch (slot)
 		{
 		case NtcMaterialSlot::Latent:
-			m_LatentBuffer = m_Device.CreateBuffer(dataSize, BufferUsage::UniformBuffer, true);
+			m_LatentBuffer = m_Device.CreateBuffer(dataSize, BufferUsage::StorageBuffer, true);
 			m_DescriptorSets->UpdateBuffer(NtcMaterialSlot::Latent, *m_LatentBuffer);
 			m_LatentBuffer->UploadData(data, dataSize);
 			latentStreamRange = { 0, dataSize };
 			break;
 		case NtcMaterialSlot::Weight:
-			m_WeightBuffer = m_Device.CreateBuffer(dataSize, BufferUsage::UniformBuffer, true);
+			m_WeightBuffer = m_Device.CreateBuffer(dataSize, BufferUsage::StorageBuffer, true);
 			m_DescriptorSets->UpdateBuffer(NtcMaterialSlot::Weight, *m_WeightBuffer);
 			m_WeightBuffer->UploadData(data, dataSize);
 			break;
