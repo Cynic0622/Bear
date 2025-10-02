@@ -124,6 +124,7 @@ namespace Bear {
 		m_RenderContext->MAX_FRAMES_IN_FLIGHT = MAX_FRAMES_IN_FLIGHT;
 		m_RenderContext->globalDescriptorSetLayout = m_GlobalDescriptorSetLayout.get();
 		m_RenderContext->globalPbrDescriptorSetLayout = m_PbrDescriptorSetLayout.get();
+		m_RenderContext->useTextureCompression = true;
 
 		m_Resource = std::make_unique<Resource>(m_RenderContext);
 

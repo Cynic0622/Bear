@@ -148,10 +148,16 @@ namespace Bear
 			{ pushConstantRanges });
 
 		pipelineConfig.pipelineLayout = m_PbrPipelineLayout;
-		// pipelineConfig.vertexShaderPath = "Bear/src/Shaders/pbrVert.spv";
-		// pipelineConfig.fragmentShaderPath = "Bear/src/Shaders/pbrFrag.spv";
-		pipelineConfig.vertexShaderPath = "Bear/src/Shaders/ntcVS.spv";
-		pipelineConfig.fragmentShaderPath = "Bear/src/Shaders/ntcPS.spv";
+		if (!m_Context->useTextureCompression)
+		{
+			pipelineConfig.vertexShaderPath = "Bear/src/Shaders/pbrVert.spv";
+			pipelineConfig.fragmentShaderPath = "Bear/src/Shaders/pbrFrag.spv";
+		}
+		else
+		{
+			pipelineConfig.vertexShaderPath = "Bear/src/Shaders/ntcVS.spv";
+			pipelineConfig.fragmentShaderPath = "Bear/src/Shaders/ntcPS.spv";
+		}
 		pipelineConfig.colorBlendAttachmentState.colorWriteMask = ColorWriteMask::All;
 		pipelineConfig.depthStencilState.depthWriteEnable = false;
 		pipelineConfig.depthStencilState.depthCompareOp = CompareOp::LessOrEqual;

@@ -21,10 +21,25 @@ namespace Bear
 
 		const RHIImage& GetImage() const { return *m_Image; }
 		const RHISampler& GetSampler() const { return *m_Sampler; }
+		const uint32_t GetWidth() const { return m_Width; }
+		const uint32_t GetHeight() const { return m_Height; }
+        const uint8_t GetChannels() const { return m_Channels; }
+		const void* GetImageData() const
+		{
+            if (!m_ImageData)
+            {
+                BEAR_CORE_ERROR("Invalid image data!");
+            }
+			return m_ImageData;
+		}
 
 	private:
 		std::shared_ptr<RHIImage> m_Image;
 		std::shared_ptr<RHISampler> m_Sampler;
+        uint8_t m_Channels;
+        uint32_t m_Width;
+		uint32_t m_Height;
+        const void* m_ImageData;
 
     private:
         PixelFormat selectFormat(uint32_t channels);

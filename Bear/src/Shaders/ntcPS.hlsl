@@ -23,11 +23,7 @@ struct MaterialTextureSample
 
 MaterialTextureSample SampleNtcMaterial(float2 uv)
 {
-    // HashBasedRNG rng = HashBasedRNG::Create2D(pixelPosition, g_Pass.frameIndex);
-
     // Find out which texel to decompress.
-    int mipLevel;
-    // GetSamplePositionWithSTF(rng, uv, texel, mipLevel);
 	const int2 textureSize = NtcGetTextureDimensions(g_NtcMaterial, 0);
 	const int mipLevels = NtcGetTextureMipLevels(g_NtcMaterial);
 	// caculate mip level based on texture coordinate derivatives.
@@ -55,10 +51,9 @@ MaterialTextureSample SampleNtcMaterial(float2 uv)
 		minAxisLength *= scale;
     }
 	const float log2MinAxis = minAxisLength > 0.00001 ? log2(minAxisLength) : 0.0;
-	const int mipValue = int(clamp(log2MinAxis, 0.0, float(maxLevel)));
-	const int2 mipSize = NtcGetTextureDimensions(g_NtcMaterial, mipValue);
+	const int mipLevel = int(clamp(log2MinAxis, 0.0, float(maxLevel)));
+	const int2 mipSize = NtcGetTextureDimensions(g_NtcMaterial, mipLevel);
     int2 texel = int2(floor(uv.xy * mipSize));
-	mipLevel = mipValue;
     // The NtcSampleTextureSet... functions can convert all channels to linear color based on metadata stored
     // in the constant buffer. But that can be relatively slow if not optimized away by the driver.
     // Since we know the color spaces for all channels in advance, linearize explicitly below.

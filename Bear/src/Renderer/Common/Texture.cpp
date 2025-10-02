@@ -29,7 +29,9 @@ namespace Bear
 		config.format = selectFormat(texChannels);
 
 		m_Image = device.CreateTexture(config);
-
+		m_Channels = texChannels;
+		m_Width = texWidth;
+		m_Height = texHeight;
 		device.ImmediateSubmit([&](RHICommandList& cmd)
 			{
 				cmd.TransitionImageLayout(*m_Image, ImageLayout::Undefined, ImageLayout::TransferDst);
@@ -43,6 +45,7 @@ namespace Bear
 		m_Sampler = device.CreateSampler(samplerConfig);
 	}
 	Texture::Texture(RHIDevice& device, uint32_t width, uint32_t height, uint32_t channels, const void* pixels)
+		:m_Channels(channels), m_Width(width), m_Height(height)
 	{
 		size_t imageSize = width * height * channels;
 
@@ -70,11 +73,15 @@ namespace Bear
 		size_t imageSize = imageDesc.width * imageDesc.height * imageDesc.channels;
 		auto stagingBuffer = device.CreateBuffer(imageSize, BufferUsage::StagingBuffer, true);
 		stagingBuffer->UploadData(imageDesc.pixels.data(), imageSize);
+		m_ImageData = imageDesc.pixels.data();
 		RHITextureConfig config;
 		config.width = imageDesc.width;
 		config.height = imageDesc.height;
 		config.format = selectFormat(imageDesc.channels);
 		m_Image = device.CreateTexture(config);
+		m_Channels = imageDesc.channels;
+		m_Height = imageDesc.height;
+		m_Width = imageDesc.width;
 		device.ImmediateSubmit([&](RHICommandList& cmd)
 			{
 				cmd.TransitionImageLayout(*m_Image, ImageLayout::Undefined, ImageLayout::TransferDst);
