@@ -25,3 +25,6 @@
 [submodule "Bear/extern/rtxntc"]
 	path = Bear/extern/rtxntc
 	url = https://github.com/NVIDIA-RTX/RTXNTC-Library.git
+[submodule "Bear/extern/rtxtf"]
+	path = Bear/extern/rtxtf
+	url = https://github.com/NVIDIA-RTX/RTXTF-Library.git
