@@ -193,10 +193,9 @@ namespace Bear
 		R32G32B32A32_SFLOAT,
 		R16G16B16A16_FLOAT,
 		D24_UNORM_S8_UINT,
-		D32_SFLOAT_S8_UINT, // ��Ⱥ�ģ���ʽ
+		D32_SFLOAT_S8_UINT,
 		D16_UNORM,
 		D32_SFLOAT
-		// ������ʽ...
 	};
 
     enum class AttachmentSamples

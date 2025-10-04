@@ -1,8 +1,9 @@
 // Include the constants header unconditionally so that NTC_NETWORK_UNKNOWN is always defined
 #include "libntc/shaders/InferenceConstants.h"
 #include "libntc/shaders/Inference.hlsli"
-#include "libntc/shaders/InferenceCoopVec.hlsli"
 #include "NtcChannelMapping.h"
+#include "STFSamplerState.hlsli"
+#include "shaders/HashBasedRNG.hlsli"
 
 struct MaterialTextureSample
 {
@@ -21,39 +22,32 @@ struct MaterialTextureSample
 
 [[vk::binding(2, 1)]] ConstantBuffer<NtcTextureSetConstants> g_NtcMaterial;
 
-MaterialTextureSample SampleNtcMaterial(float2 uv)
+void GetSamplePositionWithSTF(inout HashBasedRNG rng, float2 uv, out int2 texel, out int mipLevel)
 {
-    // Find out which texel to decompress.
-	const int2 textureSize = NtcGetTextureDimensions(g_NtcMaterial, 0);
-	const int mipLevels = NtcGetTextureMipLevels(g_NtcMaterial);
-	// caculate mip level based on texture coordinate derivatives.
-    float2 ddxUV = ddx(uv);
-	float2 ddyUV = ddy(uv);
-    int maxLevel = mipLevels - 1;
-	const float dudx = textureSize.x * ddxUV.x;
-	const float dvdx = textureSize.y * ddxUV.y;
-	const float dudy = textureSize.x * ddyUV.x;
-	const float dvdy = textureSize.y * ddyUV.y;
-	float2 maxAxis = float2(dudx, dvdx);
-	float2 minAxis = float2(dudy, dvdy);
-    if (dot(minAxis, minAxis) > dot(maxAxis, maxAxis))
-    {
-		float2 temp = minAxis;
-        minAxis = maxAxis;
-		maxAxis = temp;
-    }
-	float minAxisLength = length(minAxis);
-	float maxAxisLength = length(maxAxis);
-    float maxAnisotropy = 16;
-    if (minAxisLength > 0 && (minAxisLength * maxAnisotropy) < maxAxisLength)
-    {
-	    float scale = maxAxisLength / (minAxisLength * maxAnisotropy);
-		minAxisLength *= scale;
-    }
-	const float log2MinAxis = minAxisLength > 0.00001 ? log2(minAxisLength) : 0.0;
-	const int mipLevel = int(clamp(log2MinAxis, 0.0, float(maxLevel)));
-	const int2 mipSize = NtcGetTextureDimensions(g_NtcMaterial, mipLevel);
-    int2 texel = int2(floor(uv.xy * mipSize));
+    float4 random = rng.NextFloat4();
+    STF_SamplerState sampler = STF_SamplerState::Create(random);
+    sampler.SetAnisoMethod(STF_ANISO_LOD_METHOD_DEFAULT);
+    sampler.SetFilterType(STF_FILTER_TYPE_GAUSSIAN);
+
+    const int2 textureSize = NtcGetTextureDimensions(g_NtcMaterial, 0);
+    const int mipLevels = NtcGetTextureMipLevels(g_NtcMaterial);
+    float3 samplePos = sampler.Texture2DGetSamplePos(textureSize.x, textureSize.y, mipLevels, uv);
+    mipLevel = int(samplePos.z);
+
+    const int2 mipSize = NtcGetTextureDimensions(g_NtcMaterial, mipLevel);
+
+    bool border;
+    samplePos.xy = STF_ApplyAddressingMode2D(samplePos.xy, mipSize, STF_ADDRESS_MODE_WRAP, border);
+
+    texel = int2(floor(samplePos.xy * mipSize));
+}
+
+MaterialTextureSample SampleNtcMaterial(uint2 pixelPosition, float2 uv)
+{
+    HashBasedRNG rng = HashBasedRNG::Create2D(pixelPosition, 1025);
+	int2 texel;
+	int mipLevel;
+	GetSamplePositionWithSTF(rng, uv, texel, mipLevel);
     // The NtcSampleTextureSet... functions can convert all channels to linear color based on metadata stored
     // in the constant buffer. But that can be relatively slow if not optimized away by the driver.
     // Since we know the color spaces for all channels in advance, linearize explicitly below.
@@ -61,17 +55,12 @@ MaterialTextureSample SampleNtcMaterial(float2 uv)
 
     // Decompress the texel and get all the channels.
     float channels[NtcNetworkParams<NTC_NETWORK_LARGE>::OUTPUT_CHANNELS];
-// #ifdef USE_COOPVEC
-// #if USE_FP8
     NtcSampleTextureSet<NTC_NETWORK_LARGE>(g_NtcMaterial, t_InputFile, 0,
         t_WeightBuffer, 0, texel, mipLevel, linearizeColorsOnSample, channels);
 
     // Initialize the 'textures' object with default values, just in case we miss something below.
     // MaterialTextureSample textures = DefaultMaterialTextures();
 	MaterialTextureSample textures;
-    // float mipColor = float(mipLevel) / 10.0;
-    // textures.baseOrDiffuse.rgb = float3(mipColor, mipColor, mipColor);
-    // return textures;
     // Distribute the NTC channels into the MaterialTextureSample's fields using a fixed mapping.
     // The mapping is enforced by the loader, see NtcMaterialLoader.cpp
     // If some texture channels are not present in the NTC material file, they are replaced with constant values
@@ -113,14 +102,14 @@ MaterialTextureSample SampleNtcMaterial(float2 uv)
 
 #define VK_LOCATION_INDEX(loc, idx) [[vk::location(loc)]] [[vk::index(idx)]]
 void main(
-	// in float4 i_position : SV_Position, // the pixel position in screen space.
+	in float4 i_position : SV_Position, // the pixel position in screen space.
 	in float2 i_uv : TEXCOORD, // the interpolated vertex data for this pixel.
 	// in bool i_isFrontFace : SV_IsFrontFace, // whether the primitive is front-facing or back-facing.
 	VK_LOCATION_INDEX(0, 0) out float4 o_color : SV_Target0 // the output color of this pixel.
 )
 {
-    MaterialTextureSample textures = SampleNtcMaterial(i_uv);
-	o_color = float4(textures.baseOrDiffuse.rgb, 1.0);
+    MaterialTextureSample textures = SampleNtcMaterial(uint2(i_position.xy), i_uv);
+	o_color = float4(textures.baseOrDiffuse.rgb, textures.opacity.r);
     // uint first_weight = t_WeightBuffer.Load<uint>(0);
     // float color = float(first_weight & 0xFF) / 255.0;
     // o_color = float4(color.xxx, 1.0);

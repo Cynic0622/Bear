@@ -27,14 +27,14 @@ namespace Bear
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/Sponza/glTF/Sponza.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/terrain_gridlines.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/FlightHelmet/glTF/FlightHelmet.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/DamagedHelmet/glTF/DamagedHelmet.gltf");
+		auto modelDesc = AssetLoader::ImportModel("assets/models/DamagedHelmet/glTF/DamagedHelmet.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/Box/glTF/Box.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/Box with Spaces/glTF/Box with Spaces.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/ClearCoatTest/glTF/ClearCoatTest.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/Duck/glTF/Duck.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/Suzanne/glTF/Suzanne.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/TransmissionOrderTest/glTF/TransmissionOrderTest.gltf");
-		auto modelDesc = AssetLoader::ImportModel("assets/models/CesiumMan/CesiumMan.gltf");
+		// auto modelDesc = AssetLoader::ImportModel("assets/models/CesiumMan/CesiumMan.gltf");
 		// 2. resource system create descriptor infos, cpu --> gpu
 		auto& app = Application::Get();
 		auto& renderer = app.GetRenderer()->GetResource();

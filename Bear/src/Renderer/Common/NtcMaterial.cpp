@@ -96,11 +96,11 @@ namespace Bear
 		}
 		uint32_t width = maxWidth, height = maxHeight;
 		ntc::TextureSetDesc textureSetDesc;
-		textureSetDesc.channels = numChannels * 2;
+		textureSetDesc.channels = numChannels;
 		textureSetDesc.width = width;
 		textureSetDesc.height = height;
 		textureSetDesc.mips = std::min(width, height) > 1 ? static_cast<int>(std::floor(std::log2(std::min(width, height)))) + 1 : 1;
-
+	
 		ntc::TextureSetFeatures features;
 		ntcStatus = m_NtcContext->CreateTextureSet(textureSetDesc, features, m_TextureSet.ptr());
 		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok,
@@ -124,7 +124,7 @@ namespace Bear
 			numChannels = texture->GetChannels();
 			ntc::ColorSpace colorSpaces[4] = { ntc::ColorSpace::sRGB, ntc::ColorSpace::sRGB, ntc::ColorSpace::sRGB, ntc::ColorSpace::Linear };
 			ntc::ITextureMetadata* textureMetadata = m_TextureSet->AddTexture();
-			textureMetadata->SetName(desc.name.c_str());
+			textureMetadata->SetName(texture->GetName().c_str());
 			textureMetadata->SetChannels(firstChannel, numChannels);
 			textureMetadata->SetRgbColorSpace(ntc::ColorSpace::sRGB);
 			textureMetadata->SetAlphaColorSpace(ntc::ColorSpace::Linear);
@@ -134,12 +134,13 @@ namespace Bear
 			writeParams.mipLevel = 0;
 			writeParams.firstChannel = firstChannel;
 			writeParams.numChannels = numChannels;
-			writeParams.pData = static_cast<unsigned char const*>(texture->GetImageData());
+			writeParams.pData = texture->GetImageData().data();
 			writeParams.addressSpace = ntc::AddressSpace::Host;
 			writeParams.width = width;
 			writeParams.height = height;
-			writeParams.pixelStride = static_cast<size_t>(numChannels);
-			writeParams.rowPitch = static_cast<size_t>(width * numChannels);
+			// writeParams.pixelStride = static_cast<size_t>(numChannels);
+			writeParams.pixelStride = 4; // align to 4 bytes
+			writeParams.rowPitch = static_cast<size_t>(width * 4);
 			writeParams.channelFormat = ntc::ChannelFormat::UNORM8;
 			writeParams.srcColorSpaces = colorSpaces;
 			writeParams.dstColorSpaces = colorSpaces;
