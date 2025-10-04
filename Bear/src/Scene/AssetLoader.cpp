@@ -14,7 +14,7 @@ namespace Bear {
         tinygltf::Model model;
         tinygltf::TinyGLTF loader;
         std::string err, warn;
-
+        loader.SetPreserveImageChannels(true);
         std::string directory = filepath.substr(0, filepath.find_last_of('/'));
 
         bool res = loader.LoadASCIIFromFile(&model, &err, &warn, filepath);

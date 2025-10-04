@@ -220,6 +220,8 @@ target_include_directories(Bear
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/entt/include
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/tinygltf
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/rtxntc/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/extern/rtxtf
+        ${CMAKE_CURRENT_SOURCE_DIR}/extern/rtxntc/src
 )
 
 # DLL导出设置

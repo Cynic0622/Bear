@@ -26,7 +26,8 @@ struct VertexToPixel
 VertexToPixel main(VertexInput input)
 {
     VertexToPixel output;
-    matrix mvp = mul(mul(pushConstants.model, viewMatrix), projMatrix);
+    // matrix mvp = mul(mul(pushConstants.model, viewMatrix), projMatrix);
+	matrix mvp = mul(projMatrix, mul(viewMatrix, pushConstants.model));
     output.position = mul(mvp, float4(input.position, 1.0));
     output.texCoord = input.texCoord;
 
