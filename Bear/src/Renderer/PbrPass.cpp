@@ -139,7 +139,7 @@ namespace Bear
 		pipelineConfig.fragmentShaderPath = "Bear/src/Shaders/preZfrag.spv";
 		pipelineConfig.colorBlendAttachmentState.colorWriteMask = ColorWriteMask::None;
 		pipelineConfig.depthStencilState.depthTestEnable = true;
-		pipelineConfig.depthStencilState.depthWriteEnable = true;
+		pipelineConfig.depthStencilState.depthWriteEnable = false;
 		pipelineConfig.depthStencilState.depthCompareOp = CompareOp::Less;
 		pipelineConfig.subpassIndex = 0;
 		m_PreZPipeline = m_Context->device->CreatePipeline(pipelineConfig, *m_RenderPass);
@@ -159,7 +159,7 @@ namespace Bear
 			pipelineConfig.fragmentShaderPath = "Bear/src/Shaders/ntcPS.spv";
 		}
 		pipelineConfig.colorBlendAttachmentState.colorWriteMask = ColorWriteMask::All;
-		pipelineConfig.depthStencilState.depthWriteEnable = false;
+		pipelineConfig.depthStencilState.depthWriteEnable = true;
 		pipelineConfig.depthStencilState.depthCompareOp = CompareOp::LessOrEqual;
 		pipelineConfig.subpassIndex = 1;
 		m_PbrPipeline = m_Context->device->CreatePipeline(pipelineConfig, *m_RenderPass);

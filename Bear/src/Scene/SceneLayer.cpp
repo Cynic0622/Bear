@@ -26,8 +26,8 @@ namespace Bear
 		// 1. load gltf scene, file --> cpu
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/Sponza/glTF/Sponza.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/terrain_gridlines.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/FlightHelmet/glTF/FlightHelmet.gltf");
-		auto modelDesc = AssetLoader::ImportModel("assets/models/DamagedHelmet/glTF/DamagedHelmet.gltf");
+		auto modelDesc = AssetLoader::ImportModel("assets/models/FlightHelmet/FlightHelmet.gltf");
+		// auto modelDesc = AssetLoader::ImportModel("assets/models/DamagedHelmet/glTF/DamagedHelmet.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/Box/glTF/Box.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/Box with Spaces/glTF/Box with Spaces.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/ClearCoatTest/glTF/ClearCoatTest.gltf");

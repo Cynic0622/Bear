@@ -15,8 +15,8 @@ if not exist "%GLSLC_PATH%" (
 
 echo Compiling shaders...
 
-"%GLSLC_PATH%" tri.vert -o pbrVert.spv
-"%GLSLC_PATH%" tri.frag -o pbrFrag.spv
+"%GLSLC_PATH%" pbr.vert -o pbrVert.spv
+"%GLSLC_PATH%" pbr.frag -o pbrFrag.spv
 "%GLSLC_PATH%" preZ.frag -o preZfrag.spv
 "%GLSLC_PATH%" oitBlend.vert -o oitBlendVert.spv
 "%GLSLC_PATH%" oitBlend.frag -o oitBlendFrag.spv

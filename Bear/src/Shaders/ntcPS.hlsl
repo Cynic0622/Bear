@@ -5,6 +5,25 @@
 #include "STFSamplerState.hlsli"
 #include "shaders/HashBasedRNG.hlsli"
 
+struct PointLight
+{
+	float4 color; // w = intensity
+    float4 position;
+};
+struct DirectionalLight
+{
+    float4 color;
+    float3 direction;
+};
+struct GlobalParams
+{
+    matrix viewMat;
+	matrix projMat;
+    float4 cameraPosition;
+    PointLight PointLight[1];
+	DirectionalLight DirLight;
+	int numLights;
+};
 struct MaterialTextureSample
 {
     float4 baseOrDiffuse;
@@ -15,6 +34,7 @@ struct MaterialTextureSample
     float4 transmission;
     float opacity;
 };
+[[vk::binding(0, 0)]] ConstantBuffer<GlobalParams> g_GlobalParams;
 
 [[vk::binding(0, 1)]] ByteAddressBuffer t_InputFile; // the latent data.
 
@@ -104,14 +124,85 @@ MaterialTextureSample SampleNtcMaterial(uint2 pixelPosition, float2 uv)
 void main(
 	in float4 i_position : SV_Position, // the pixel position in screen space.
 	in float2 i_uv : TEXCOORD, // the interpolated vertex data for this pixel.
+	in float4 i_worldPos : TEXCOORD1, // world position of the pixel
+	in float3x3 i_tbn : TEXCOORD2, // tangent, bitangent, normal matrix for the pixel
 	// in bool i_isFrontFace : SV_IsFrontFace, // whether the primitive is front-facing or back-facing.
 	VK_LOCATION_INDEX(0, 0) out float4 o_color : SV_Target0 // the output color of this pixel.
 )
 {
+    o_color = float4(0, 0, 0, 1);
     MaterialTextureSample textures = SampleNtcMaterial(uint2(i_position.xy), i_uv);
-	o_color = float4(textures.baseOrDiffuse.rgb, textures.opacity.r);
-    // uint first_weight = t_WeightBuffer.Load<uint>(0);
-    // float color = float(first_weight & 0xFF) / 255.0;
-    // o_color = float4(color.xxx, 1.0);
-	// o_color = float4(i_uv.x, i_uv.y, 0.0, 1.0); // debug output
+	// pbr shading here.
+	float3 N = normalize(textures.normal.rgb * 2.0 - 1.0);
+	N = normalize(mul(N, i_tbn));
+	float3 V = normalize(g_GlobalParams.cameraPosition.xyz - i_worldPos.xyz);
+	// point lights
+    for (int i = 0; i < g_GlobalParams.numLights; i++)
+    {
+        PointLight light = g_GlobalParams.PointLight[i];
+        float3 L = normalize(light.position.xyz - i_worldPos.xyz);
+        float3 H = normalize(L + V);
+        float NdotL = max(dot(N, L), 0.0);
+        float NdotV = max(dot(N, V), 0.0);
+        float NdotH = max(dot(N, H), 0.0);
+        float VdotH = max(dot(V, H), 0.0);
+        // Cook-Torrance BRDF
+        float roughness = textures.metalRoughOrSpecular.g;
+        float3 F0 = lerp(float3(0.04, 0.04, 0.04), textures.baseOrDiffuse.rgb, textures.metalRoughOrSpecular.r);
+        float3 F = F0 + (1.0 - F0) * pow(1.0 - VdotH, 5.0);
+        float alpha = roughness * roughness;
+        float alpha2 = alpha * alpha;
+        float denomD = (NdotH * NdotH) * (alpha2 - 1.0) + 1.0;
+        float D = alpha2 / (3.14159265 * denomD * denomD + 1e-5);
+        float k = (roughness + 1.0) * (roughness + 1.0) / 8.0;
+        float G_V = NdotV / (NdotV * (1.0 - k) + k + 1e-5);
+        float G_L = NdotL / (NdotL * (1.0 - k) + k + 1e-5);
+        float G = G_V * G_L;
+        float3 specular = (D * F * G) / (4.0 * NdotV * NdotL + 1e-5);
+        // Lambertian diffuse
+        float3 kD = (1.0 - F) * (1.0 - textures.metalRoughOrSpecular.r);
+        float3 diffuse = kD * textures.baseOrDiffuse.rgb / 3.14159265;
+        // Final shading
+		float3 radiance = light.color.rgb * light.color.w;
+		float dist = length(light.position.xyz - i_worldPos.xyz);
+		radiance /= (dist * dist); // inverse square law
+        o_color.rgb += (diffuse + specular) * radiance * NdotL;
+    }
+    // directional light
+    {
+        float3 L = normalize(-g_GlobalParams.DirLight.direction);
+        float3 H = normalize(L + V);
+        float NdotL = max(dot(N, L), 0.0);
+        float NdotV = max(dot(N, V), 0.0);
+        float NdotH = max(dot(N, H), 0.0);
+        float VdotH = max(dot(V, H), 0.0);
+        // Cook-Torrance BRDF
+        float roughness = textures.metalRoughOrSpecular.g;
+        float3 F0 = lerp(float3(0.04, 0.04, 0.04), textures.baseOrDiffuse.rgb, textures.metalRoughOrSpecular.r);
+        float3 F = F0 + (1.0 - F0) * pow(1.0 - VdotH, 5.0);
+        float alpha = roughness * roughness;
+        float alpha2 = alpha * alpha;
+        float denomD = (NdotH * NdotH) * (alpha2 - 1.0) + 1.0;
+        float D = alpha2 / (3.14159265 * denomD * denomD + 1e-5);
+        float k = (roughness + 1.0) * (roughness + 1.0) / 8.0;
+        float G_V = NdotV / (NdotV * (1.0 - k) + k + 1e-5);
+        float G_L = NdotL / (NdotL * (1.0 - k) + k + 1e-5);
+        float G = G_V * G_L;
+        float3 specular = (D * F * G) / (4.0 * NdotV * NdotL + 1e-5);
+        // Lambertian diffuse
+        float3 kD = (1.0 - F) * (1.0 - textures.metalRoughOrSpecular.r);
+        float3 diffuse = kD * textures.baseOrDiffuse.rgb / 3.14159265;
+        // Final shading
+		float3 radiance = g_GlobalParams.DirLight.color.rgb * g_GlobalParams.DirLight.color.w;
+		o_color.rgb += (diffuse + specular) * radiance * NdotL;
+    }
+    // Ambient term
+	float ao = textures.occlusion.r;
+    float3 ambient = float3(0.03, 0.03, 0.03) * textures.baseOrDiffuse.rgb * ao;
+    o_color.rgb += ambient;
+    o_color.a = 1.0;
+    // Emissive term
+    // o_color.rgb += textures.emissive.rgb;
+	// Opacity
+    // o_color.rgb = textures.baseOrDiffuse.rgb;
 }

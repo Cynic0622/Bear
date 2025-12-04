@@ -56,20 +56,33 @@ namespace Bear
 		// if the file exists, skip the compression.
 		if (std::filesystem::exists(filePath) || m_TextureSet)
 		{
-			BEAR_CORE_WARN("The compressed texture file already exists, skip the compression.");
+			BEAR_CORE_INFO("The compressed texture file already exists, skip the compression.");
 			ntc::FileStreamWrapper inputFile(m_NtcContext);
 			ntcStatus = m_NtcContext->OpenFile(filePath.c_str(), false, inputFile.ptr());
 			BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok,
 				"Filed to open the compressed texture, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
+
 			m_TextureSet = ntc::TextureSetWrapper(m_NtcContext);
 			uint64_t streamSize = inputFile->Size();
 			m_CompressedData.resize(streamSize);
 			ntc::MemoryStreamWrapper memStream(m_NtcContext);
 			ntc::TextureSetMetadataWrapper  textureSetMetaData(m_NtcContext);
 			ntc::TextureSetFeatures features;
-			ntcStatus = m_NtcContext->CreateCompressedTextureSetFromFile(filePath.c_str(), features, m_TextureSet.ptr());
+			ntcStatus = m_NtcContext->CreateCompressedTextureSetFromStream(inputFile, features, m_TextureSet.ptr());
 			BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok, "Filed to create the compressed texture set from file, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
+
 			ntcStatus = m_TextureSet->SaveToMemory(m_CompressedData.data(), &streamSize);
+
+			for (int index = 0; index < m_TextureSet->GetTextureCount(); ++index)
+			{
+				ntc::ITextureMetadata* texMeta = m_TextureSet->GetTexture(index);
+				BEAR_CORE_INFO("Texture[{}] '{}': channels {}..{}, block compression {}, RGB space {}, Alpha space {}",
+					index, texMeta->GetName(),
+					texMeta->GetFirstChannel(), texMeta->GetFirstChannel() + texMeta->GetNumChannels() - 1,
+					ntc::BlockCompressedFormatToString(texMeta->GetBlockCompressedFormat()),
+					ntc::ColorSpaceToString(texMeta->GetRgbColorSpace()),
+					ntc::ColorSpaceToString(texMeta->GetAlphaColorSpace()));
+			}
 			return;
 		}
 		m_TextureSet = ntc::TextureSetWrapper(m_NtcContext);
@@ -100,7 +113,7 @@ namespace Bear
 		textureSetDesc.width = width;
 		textureSetDesc.height = height;
 		textureSetDesc.mips = std::min(width, height) > 1 ? static_cast<int>(std::floor(std::log2(std::min(width, height)))) + 1 : 1;
-	
+		textureSetDesc.mips = 1;
 		ntc::TextureSetFeatures features;
 		ntcStatus = m_NtcContext->CreateTextureSet(textureSetDesc, features, m_TextureSet.ptr());
 		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok,
@@ -255,7 +268,13 @@ namespace Bear
 		channelMap[CHANNEL_BASE_COLOR + 0] = ntc::ShuffleSource::Channel(0);
 		channelMap[CHANNEL_BASE_COLOR + 1] = ntc::ShuffleSource::Channel(1);
 		channelMap[CHANNEL_BASE_COLOR + 2] = ntc::ShuffleSource::Channel(2);
-		channelMap[CHANNEL_OPACITY] = ntc::ShuffleSource::Channel(3);
+		channelMap[CHANNEL_OCCLUSION] = ntc::ShuffleSource::Channel(3);
+		channelMap[CHANNEL_ROUGHNESS] = ntc::ShuffleSource::Channel(4);
+		channelMap[CHANNEL_METALNESS] = ntc::ShuffleSource::Channel(5);
+		channelMap[CHANNEL_NORMAL + 0] = ntc::ShuffleSource::Channel(6);
+		channelMap[CHANNEL_NORMAL + 1] = ntc::ShuffleSource::Channel(7);
+		channelMap[CHANNEL_NORMAL + 2] = ntc::ShuffleSource::Channel(8);
+		
 		return channelMap;
 	}
 }

@@ -16,16 +16,20 @@ namespace Bear
 		m_EditorCamera = std::make_unique<CameraController>(45.0f, (float)1280 / 720, 0.1f, 1000.f);
 		// add some random lights for sponza scene.
 		std::srand(static_cast<unsigned>(std::time(nullptr)));
-		for (int i = 0; i < 5; i++)
+		for (int i = 0; i < 1; i++)
 		{
 			Entity light = CreateEntity("Light" + std::to_string(i));
 			auto& transform = light.GetComponent<TransformComponent>();
 			transform.Position = glm::vec3(static_cast<float>(std::rand() % 30 - 15),
 				static_cast<float>(std::rand() % 30),
 				static_cast<float>(std::rand() % 30 - 15));
-			glm::vec3 color = glm::vec3(static_cast<float>(std::rand() % 100) / 99.0f, static_cast<float>(std::rand() % 100) / 99.0f, static_cast<float>(std::rand() % 100) / 99.0f);
-			light.AddComponent<LightComponent>(glm::vec3(color),std::rand() % 50);
+			glm::vec3 color = glm::vec3(1.0f);
+			// light.AddComponent<LightComponent>(glm::vec3(color),10);
+			light.AddComponent<LightComponent>(LightComponent::CreatePoint(glm::vec4(color, 10)));
 		}
+		Entity light = CreateEntity("Directional Light");
+		light.AddComponent<LightComponent>(LightComponent::CreateDirectional({1.f, -1.f, 1.f}, {1.f, 1.f, 1.f, 10.f}));
+
 	}
 	Scene::~Scene()
 	{
@@ -55,7 +59,7 @@ namespace Bear
 		{
 			auto& transform = m_Registry.get<TransformComponent>(entity);
 			glm::vec3 rotate = glm::rotate(glm::mat4(1.0f), glm::radians((float)glfwGetTime() / 2), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(transform.Position, 1.0f);
-			transform.Position = rotate;
+			// transform.Position = rotate;
 			transform.WorldTransform = transform.GetLocalTransform();
 		}
 		GetActiveCamera()->Update(deltaTime);
@@ -84,9 +88,19 @@ namespace Bear
 		{
 			auto& transformComponent = m_Registry.get<TransformComponent>(entity);
 			auto& lightComponent = m_Registry.get<LightComponent>(entity);
-			sceneData.lightsData[index].position = glm::vec4(transformComponent.Position, 1.0f);
-			sceneData.lightsData[index].colorIntensity = glm::vec4(lightComponent.Color, lightComponent.Intensity);
-			index++;
+
+			switch (lightComponent.Type)
+			{
+			case LightType::Point:
+				{
+					sceneData.pointLight[index].position = glm::vec4(transformComponent.Position, 1.0f);
+					sceneData.pointLight[index].color = glm::vec4(lightComponent.Color);
+					index++;
+					break;
+				}
+			default:
+				break;
+			}
 		}
 		// camera data
 		sceneData.cameraPosition = glm::vec4(GetActiveCamera()->GetPosition(), 1.f);
