@@ -35,7 +35,7 @@ namespace Bear {
 #endif // BEAR_DEBUG
 
 		VmaAllocatorCreateInfo allocatorInfo = {};
-		allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_0;
+		allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
 		allocatorInfo.physicalDevice = m_PhysicalDevice;
 		allocatorInfo.device = m_LogicalDevice;
 		allocatorInfo.instance = m_Instance->GetHandle();
@@ -608,12 +608,22 @@ namespace Bear {
 			queueCreateInfo.pQueuePriorities = &queuePriority;
 			queueCreateInfos.push_back(queueCreateInfo);
 		}
+		// Add the support to vulakn 1.2 for fp16.
+		VkPhysicalDeviceVulkan12Features deviceVulkan12Features = {};
+		deviceVulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+		deviceVulkan12Features.shaderFloat16 = VK_TRUE;
+		VkPhysicalDeviceVulkan13Features deviceVulkan13Features = {};
+		deviceVulkan13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+		deviceVulkan13Features.shaderIntegerDotProduct = VK_TRUE;
+		deviceVulkan13Features.pNext = &deviceVulkan12Features;
 		VkPhysicalDeviceFeatures deviceFeatures = {};
 		deviceFeatures.samplerAnisotropy = VK_TRUE;
 		deviceFeatures.fragmentStoresAndAtomics = VK_TRUE;
+		deviceFeatures.shaderInt16 = VK_TRUE;
 
 		VkDeviceCreateInfo createInfo = {};
 		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+		createInfo.pNext = &deviceVulkan13Features;
 		createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
 		createInfo.pQueueCreateInfos = queueCreateInfos.data();
 		createInfo.pEnabledFeatures = &deviceFeatures;

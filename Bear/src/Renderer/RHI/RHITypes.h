@@ -26,6 +26,7 @@ namespace Bear
 		RHIDescriptorSetLayout* globalDescriptorSetLayout = nullptr; // global descriptor set layout for all pass.
 		std::vector<RHIDescriptorSet*> globalDescriptorSet; // global descriptor set for all pass.
 		RHIDescriptorSetLayout* globalPbrDescriptorSetLayout = nullptr; // global descriptor set for pbr pass.
+		bool useTextureCompression = true;
 		// uint8_t currentFrameIndex = 0; // frame index for current frame
 	};
 
@@ -192,10 +193,9 @@ namespace Bear
 		R32G32B32A32_SFLOAT,
 		R16G16B16A16_FLOAT,
 		D24_UNORM_S8_UINT,
-		D32_SFLOAT_S8_UINT, // ��Ⱥ�ģ���ʽ
+		D32_SFLOAT_S8_UINT,
 		D16_UNORM,
 		D32_SFLOAT
-		// ������ʽ...
 	};
 
     enum class AttachmentSamples

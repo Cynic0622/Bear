@@ -14,7 +14,7 @@ namespace Bear {
         tinygltf::Model model;
         tinygltf::TinyGLTF loader;
         std::string err, warn;
-
+        loader.SetPreserveImageChannels(true);
         std::string directory = filepath.substr(0, filepath.find_last_of('/'));
 
         bool res = loader.LoadASCIIFromFile(&model, &err, &warn, filepath);
@@ -26,9 +26,23 @@ namespace Bear {
 
 		// --- Images ---
 		desc.images.reserve(model.images.size());
-        for (const auto& gltfImage : model.images) {
+        for (size_t i = 0; i < model.images.size(); i++) 
+        {
+			const auto& gltfImage = model.images[i];
             ImageDescription imgDesc;
-            imgDesc.name = gltfImage.name;
+            if (!gltfImage.name.empty())
+            {
+				imgDesc.name = gltfImage.name;
+            }
+            else if (!gltfImage.uri.empty())
+            {
+				size_t pos = gltfImage.uri.find_last_of("/\\");
+				imgDesc.name = (pos == std::string::npos) ? gltfImage.uri : gltfImage.uri.substr(pos + 1);
+            }
+            else
+            {
+				imgDesc.name = "image_" + std::to_string(i);
+            }
             imgDesc.filepath = directory + "/" + gltfImage.uri;
             
             if (!gltfImage.image.empty()) {
@@ -56,8 +70,11 @@ namespace Bear {
 		desc.textures.reserve(model.textures.size());
         for (const auto& gltfTexture : model.textures) {
             TextureDescription texDesc;
-            texDesc.name = gltfTexture.name;
-            if (gltfTexture.source >= 0 && static_cast<size_t>(gltfTexture.source) < model.images.size()) {
+
+			size_t pos = desc.images[gltfTexture.source].name.rfind('.');
+			std::string name = (pos == std::string::npos) ? desc.images[gltfTexture.source].name : desc.images[gltfTexture.source].name.substr(0, pos);
+			texDesc.name = gltfTexture.name.empty() ? name : gltfTexture.name; // use the image name as the texture name if the texture name is empty.
+        	if (gltfTexture.source >= 0 && static_cast<size_t>(gltfTexture.source) < model.images.size()) {
                 texDesc.imageIndex = gltfTexture.source; // index in the images array
             }
             if (gltfTexture.sampler >= 0 && static_cast<size_t>(gltfTexture.sampler) < model.samplers.size()) {

@@ -69,21 +69,6 @@ namespace Bear {
 
 		BEAR_CORE_ASSERT(vmaCreateImage(m_Device.GetAllocator(), &imageInfo, &allocInfo, &m_Image, &m_Allocation, nullptr) == VK_SUCCESS,
 			"Failed to create Vulkan image with VMA!");
-
-		// ʹ��VMA�������ڴ����
-		/*BEAR_CORE_ASSERT(vkCreateImage(m_Device.GetDevice(), &imageInfo, nullptr, &m_Image) == VK_SUCCESS, "Failed to create Vulkan image!");
-
-		VkMemoryRequirements memRequirements;
-		vkGetImageMemoryRequirements(m_Device.GetDevice(), m_Image, &memRequirements);
-		VkMemoryAllocateInfo allocInfo = {};
-		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		allocInfo.allocationSize = memRequirements.size;
-		allocInfo.memoryTypeIndex = m_Device.FindMemoryType(memRequirements.memoryTypeBits, properties);
-
-		BEAR_CORE_ASSERT(allocInfo.memoryTypeIndex != UINT32_MAX, "Failed to find suitable memory type for Vulkan image!");
-		BEAR_CORE_ASSERT(vkAllocateMemory(m_Device.GetDevice(), &allocInfo, nullptr, &m_Memory) == VK_SUCCESS, "Failed to allocate Vulkan image memory!");
-
-		vkBindImageMemory(m_Device.GetDevice(), m_Image, m_Memory, 0);*/
 	}
 
 	void Image::CreateImageView(VkFormat format)

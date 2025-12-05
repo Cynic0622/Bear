@@ -135,11 +135,11 @@ namespace Bear
 
 		RHIPipelineConfig pipelineConfig;
 		pipelineConfig.pipelineLayout = m_PreZPipelineLayout;
-		pipelineConfig.vertexShaderPath = "assets/shaders/preZvert.spv";
-		pipelineConfig.fragmentShaderPath = "assets/shaders/preZfrag.spv";
+		pipelineConfig.vertexShaderPath = "Bear/src/Shaders/preZvert.spv";
+		pipelineConfig.fragmentShaderPath = "Bear/src/Shaders/preZfrag.spv";
 		pipelineConfig.colorBlendAttachmentState.colorWriteMask = ColorWriteMask::None;
 		pipelineConfig.depthStencilState.depthTestEnable = true;
-		pipelineConfig.depthStencilState.depthWriteEnable = true;
+		pipelineConfig.depthStencilState.depthWriteEnable = false;
 		pipelineConfig.depthStencilState.depthCompareOp = CompareOp::Less;
 		pipelineConfig.subpassIndex = 0;
 		m_PreZPipeline = m_Context->device->CreatePipeline(pipelineConfig, *m_RenderPass);
@@ -148,26 +148,42 @@ namespace Bear
 			{ pushConstantRanges });
 
 		pipelineConfig.pipelineLayout = m_PbrPipelineLayout;
-		pipelineConfig.vertexShaderPath = "assets/shaders/pbrVert.spv";
-		pipelineConfig.fragmentShaderPath = "assets/shaders/pbrFrag.spv";
+		if (!m_Context->useTextureCompression)
+		{
+			pipelineConfig.vertexShaderPath = "Bear/src/Shaders/pbrVert.spv";
+			pipelineConfig.fragmentShaderPath = "Bear/src/Shaders/pbrFrag.spv";
+		}
+		else
+		{
+			pipelineConfig.vertexShaderPath = "Bear/src/Shaders/ntcVS.spv";
+			pipelineConfig.fragmentShaderPath = "Bear/src/Shaders/ntcPS.spv";
+		}
 		pipelineConfig.colorBlendAttachmentState.colorWriteMask = ColorWriteMask::All;
-		pipelineConfig.depthStencilState.depthWriteEnable = false;
-		pipelineConfig.depthStencilState.depthCompareOp = CompareOp::Equal;
+		pipelineConfig.depthStencilState.depthWriteEnable = true;
+		pipelineConfig.depthStencilState.depthCompareOp = CompareOp::LessOrEqual;
 		pipelineConfig.subpassIndex = 1;
 		m_PbrPipeline = m_Context->device->CreatePipeline(pipelineConfig, *m_RenderPass);
 	}
 	void PbrPass::CreatePbrDescriptorSetLayout()
 	{
 		std::vector<RHIDescriptorSetLayoutBinding> bindings;
-		// ubo
-		bindings.push_back({ .binding = MaterialSlot::Params, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Vertex | ShaderStage::Fragment });
-		// pbr textures
-		bindings.push_back({ .binding = MaterialSlot::BaseColor, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-		bindings.push_back({ .binding = MaterialSlot::Normal, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-		bindings.push_back({ .binding = MaterialSlot::MetallicRoughness, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-		bindings.push_back({ .binding = MaterialSlot::Occlusion, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-		bindings.push_back({ .binding = MaterialSlot::Emissive, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-
+		if (!m_Context->useTextureCompression)
+		{
+			// ubo
+			bindings.push_back({ .binding = MaterialSlot::Params, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Vertex | ShaderStage::Fragment });
+			// pbr textures
+			bindings.push_back({ .binding = MaterialSlot::BaseColor, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+			bindings.push_back({ .binding = MaterialSlot::Normal, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+			bindings.push_back({ .binding = MaterialSlot::MetallicRoughness, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+			bindings.push_back({ .binding = MaterialSlot::Occlusion, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+			bindings.push_back({ .binding = MaterialSlot::Emissive, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+		}
+		else
+		{
+			bindings.push_back({ .binding = NtcMaterialSlot::Constant, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Fragment });
+			bindings.push_back({ .binding = NtcMaterialSlot::Latent, .descriptorType = DescriptorType::StorageBuffer, .stageFlags = ShaderStage::Fragment });
+			bindings.push_back({ .binding = NtcMaterialSlot::Weight, .descriptorType = DescriptorType::StorageBuffer, .stageFlags = ShaderStage::Fragment });
+		}
 		m_DescriptorSetLayout = m_Context->device->CreateDescriptorSetLayout(bindings);
 	}
 }
