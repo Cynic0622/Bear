@@ -52,6 +52,8 @@ namespace Bear {
         int occlusionTextureIndex = -1;
         int emissiveTextureIndex = -1;
         glm::vec3 emissiveFactor{ 0.0f };
+		// PBR Specular-Glossiness Workflow
+
     };
 
     struct PrimitiveDescription {

@@ -1,0 +1,10 @@
+struct PointLight
+{
+    vec4 colorIntensity; // xyz: color, w: intensity
+    vec4 position;
+};
+struct DirectionalLight
+{
+    vec4 colorIntensity; // xyz: color, w: intensity
+    vec4 direction;      // xyz: direction
+};

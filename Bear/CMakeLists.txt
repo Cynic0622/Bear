@@ -78,9 +78,15 @@ file(GLOB RENDERER_COMMON_SOURCES
 )
 # 着色器文件
 file(GLOB BEAR_SHADERS_SOURCES
-    "src/Bear/Shaders/*.vert"
-    "src/Bear/Shaders/*.frag"
-    "src/Bear/Shaders/*.comp"
+    "src/Shaders/*.vert"
+    "src/Shaders/*.frag"
+    "src/Shaders/*.bat"
+    "src/Shaders/*.hlsl"
+    "src/Shaders/*.slang"
+)
+set_source_files_properties(${BEAR_SHADERS_SOURCES} PROPERTIES VS_TOOL_OVERRIDE "None")
+file(GLOB HLSL_SHADERS_SOURCES
+    "src/Shaders/*.hlsl"
 )
 file(GLOB RENERDER_RHI_SOURCES
     "src/Renderer/RHI/*.cpp"
@@ -156,7 +162,7 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Bear/Events" PREFIX "Bear/Eve
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Platform/Windows" PREFIX "Platform/Windows" FILES ${BEAR_PLATFORM_WIN_SOURCES})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Bear/Gui" PREFIX "Bear/Gui" FILES ${BEAR_GUI_SOURCES})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Backend/OpenGL" PREFIX "Renderer/Backend/OpenGL" FILES ${BEAR_BACKEND_OPENGL_SOURCES})
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Bear/Shaders" PREFIX "Bear/Shaders" FILES ${BEAR_SHADERS_SOURCES})
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/Shaders" PREFIX "Shaders" FILES ${BEAR_SHADERS_SOURCES})
 
 source_group(TREE "${VULKAN_DIR}/Core" PREFIX "Renderer/Backend/Vulkan/Core" FILES ${CORE_SOURCES})
 source_group(TREE "${VULKAN_DIR}/Resources" PREFIX "Renderer/Backend/Vulkan/Resources" FILES ${RESOURCES_SOURCES})
@@ -181,6 +187,7 @@ target_link_libraries(Bear PUBLIC
     VulkanMemoryAllocator
     glm
     EnTT::EnTT
+    libntc
 )
 
 # 设置包含目录
@@ -212,6 +219,9 @@ target_include_directories(Bear
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/tinyobjloader
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/entt/include
         ${CMAKE_CURRENT_SOURCE_DIR}/extern/tinygltf
+        ${CMAKE_CURRENT_SOURCE_DIR}/extern/rtxntc/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/extern/rtxtf
+        ${CMAKE_CURRENT_SOURCE_DIR}/extern/rtxntc/src
 )
 
 # DLL导出设置

@@ -1,21 +1,17 @@
 #version 450
-
+#include "common.glsli"
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec3 inTangent;
 layout(location = 3) in vec2 inTexCoord;
 
-struct LightData
-{
-    vec4 position;
-    vec4 colorIntensity; // xyz: color, w: intensity
-};
 layout(std140, set = 0, binding = 0) uniform GlobalParams {
     mat4 viewMatrix;
     mat4 projMatrix;
 
     vec4 cameraPosition;
-    LightData lightsData[50];
+    PointLight pointLight[];
+    DirectionalLight dirLight;
     int lightCount;
 } globalParamsData;
 

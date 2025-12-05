@@ -29,7 +29,9 @@ namespace Bear
 		config.format = selectFormat(texChannels);
 
 		m_Image = device.CreateTexture(config);
-
+		m_Channels = texChannels;
+		m_Width = texWidth;
+		m_Height = texHeight;
 		device.ImmediateSubmit([&](RHICommandList& cmd)
 			{
 				cmd.TransitionImageLayout(*m_Image, ImageLayout::Undefined, ImageLayout::TransferDst);
@@ -43,6 +45,7 @@ namespace Bear
 		m_Sampler = device.CreateSampler(samplerConfig);
 	}
 	Texture::Texture(RHIDevice& device, uint32_t width, uint32_t height, uint32_t channels, const void* pixels)
+		:m_Channels(channels), m_Width(width), m_Height(height)
 	{
 		size_t imageSize = width * height * channels;
 
@@ -67,14 +70,44 @@ namespace Bear
 	Texture::Texture(RHIDevice& device, const ImageDescription& imageDesc, const SamplerDescription& samplerDesc)
 	{
 		BEAR_CORE_ASSERT(!imageDesc.pixels.empty(), "Image pixels cannot be empty");
-		size_t imageSize = imageDesc.width * imageDesc.height * imageDesc.channels;
+		if (imageDesc.channels != 4)
+		{
+			// if the image channels is not 4, we need to convert it to 4 channels for GPU resource.
+			size_t pixelCount = imageDesc.width * imageDesc.height;
+			m_ImageData.resize(pixelCount * 4);
+
+			for (size_t i = 0; i < pixelCount; ++i)
+			{
+				for (uint8_t c = 0; c < 4; ++c)
+				{
+					if (c < imageDesc.channels)
+					{
+						m_ImageData[i * 4 + c] = imageDesc.pixels[i * imageDesc.channels + c];
+					}
+					else
+					{
+						m_ImageData[i * 4 + c] = 255; // set alpha to 255 if not present
+					}
+				}
+			}
+		}
+		else
+		{
+			m_ImageData = imageDesc.pixels;
+		}
+		size_t imageSize = m_ImageData.size();
 		auto stagingBuffer = device.CreateBuffer(imageSize, BufferUsage::StagingBuffer, true);
-		stagingBuffer->UploadData(imageDesc.pixels.data(), imageSize);
+		stagingBuffer->UploadData(m_ImageData.data(), imageSize);
 		RHITextureConfig config;
 		config.width = imageDesc.width;
 		config.height = imageDesc.height;
-		config.format = selectFormat(imageDesc.channels);
+		// config.format = selectFormat(imageDesc.channels);
+		config.format = PixelFormat::R8G8B8A8_SRGB; // always use 4 channels for GPU resource.
 		m_Image = device.CreateTexture(config);
+		m_Channels = imageDesc.channels;
+		m_Height = imageDesc.height;
+		m_Width = imageDesc.width;
+		m_Name = imageDesc.name;
 		device.ImmediateSubmit([&](RHICommandList& cmd)
 			{
 				cmd.TransitionImageLayout(*m_Image, ImageLayout::Undefined, ImageLayout::TransferDst);

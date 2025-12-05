@@ -100,13 +100,39 @@ namespace Bear
 		std::vector<entt::entity> Children;
 	};
 
+	enum LightType : uint8_t
+	{
+		Directional = 0,
+		Point = 1,
+		// TODO: implement spotlight and area light.
+		Spot = 2,
+		Area = 3
+	};
 	struct LightComponent
 	{
-		glm::vec3 Color = glm::vec3(1.0f);
-		float Intensity = 1.0f; // Light intensity
+		LightType Type = LightType::Point;
+		glm::vec4 Color = glm::vec4(1.f); // w for intensity.
+
+		// directional light.
+		glm::vec3 Direction = glm::vec3(0.f, -1.f, 0.f);
+
 		LightComponent() = default;
 		LightComponent(const glm::vec3& color, float intensity)
-			: Color(color), Intensity(intensity) {
+		{
+			Color = glm::vec4(color, intensity);
+		}
+		LightComponent(LightType type, const glm::vec4& color)
+			: Type(type), Color(color) {}
+
+		static LightComponent CreateDirectional(const glm::vec3& direction, const glm::vec4& color)
+		{
+			LightComponent light(LightType::Directional, color);
+			light.Direction = direction;
+			return light;
+		}
+		static LightComponent CreatePoint(glm::vec4 color)
+		{
+			return { LightType::Point, color };
 		}
 	};
 }

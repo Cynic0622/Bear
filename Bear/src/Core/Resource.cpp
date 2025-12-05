@@ -2,16 +2,20 @@
 #include "Resource.h"
 #include "AssetLoader.h"
 #include "Material.h"
-#include "RHI/RHIDevice.h"
 #include "Texture.h"
 #include "Mesh.h"
+#include "NtcMaterial.h"
 #include "PbrMaterial.h"
-
 namespace Bear
 {
 	Resource::Resource(RHIDevice& device)
 		:m_Device(device)
 	{
+	}
+	Resource::Resource(RenderContext* context)
+		:m_Device(*context->device)
+	{
+		m_RenderContext = context;
 	}
 	std::shared_ptr<Texture> Resource::CreateTexture(const ImageDescription& imageDesc, const SamplerDescription& samplerDesc)
 	{
@@ -21,33 +25,16 @@ namespace Bear
 	{
 		return std::make_shared<Mesh>(m_Device, desc.vertices, desc.indices);
 	}
-	std::shared_ptr<Material> Resource::CreateMaterial(const MaterialDescription& desc, const std::vector<std::shared_ptr<Texture>>& images)
+	std::shared_ptr<Material> Resource::CreateMaterial(const MaterialDescription& desc, std::unordered_map<int, std::shared_ptr<Texture>> textures)
 	{
-		auto material = std::make_shared<PbrMaterial>(m_Device);
-		auto bindTex = [&](int slot, int imageIndex)
+		if (m_RenderContext->useTextureCompression)
 		{
-			if (imageIndex >= 0 && static_cast<size_t>(imageIndex) < images.size() && images[imageIndex]) {
-				material->SetTexture(slot, images[imageIndex]); // bind the texture to the material
-			}
-			else
-			{
-				material->SetTexture(slot, GetDefaultTexture(slot)); // bind default texture if not available
-			}
-		};
-		bindTex(MaterialSlot::BaseColor, desc.baseColorTextureIndex);
-		bindTex(MaterialSlot::MetallicRoughness, desc.metallicRoughnessTextureIndex);
-		bindTex(MaterialSlot::Normal, desc.normalTextureIndex);
-		bindTex(MaterialSlot::Occlusion, desc.occlusionTextureIndex);
-		bindTex(MaterialSlot::Emissive, desc.emissiveTextureIndex);
-
-		material->SetParam("baseColorFactor", desc.baseColorFactor);
-		material->SetParam("metallicFactor", desc.metallicFactor);
-		material->SetParam("roughnessFactor", desc.roughnessFactor);
-		material->SetParam("emissiveFactor", desc.emissiveFactor);
-		material->SetParam("normalScale", 1.0f); // default normal scale
-		material->SetParam("occlusionStrength", 1.0f); // default occlusion strength
-		material->SetTransparent(desc.isTransparent);
-		return material;
+			return CreateNtcMaterial(desc, textures);
+		}
+		else
+		{
+			return CreatePbrMaterial(desc, textures);
+		}
 	}
 	Resources Resource::CreateResources(const ModelDescription& desc)
 	{
@@ -55,23 +42,51 @@ namespace Bear
 		res.Materials.resize(desc.materials.size());
 		// be careful when using smart pointers pointing temp objects, they will be destroyed after this function returns.
 		std::vector<std::shared_ptr<Texture>> textures(desc.textures.size());
-		for (size_t i = 0; i < desc.textures.size(); ++i)
+		if (desc.samplers.empty())
 		{
-			if (desc.samplers.size())
+			for (size_t i = 0; i < desc.textures.size(); ++i)
 			{
-				textures[i] = CreateTexture(desc.images[desc.textures[i].imageIndex], desc.samplers[desc.textures[i].samplerIndex == -1 ? 0 : desc.textures[i].samplerIndex]);
-			}
-			else
-			{
-				textures[i] = CreateTexture(desc.images[desc.textures[i].imageIndex], SamplerDescription{}); // use default sampler if not specified
+				textures[i] = CreateTexture(desc.images[desc.textures[i].imageIndex], SamplerDescription{});
+				// use default sampler if not specified
 			}
 		}
-
+		else
+		{
+			for (size_t i = 0; i < desc.textures.size(); ++i)
+			{
+				textures[i] = CreateTexture(desc.images[desc.textures[i].imageIndex],
+				                            desc.samplers[desc.textures[i].samplerIndex == -1
+					                                          ? 0
+					                                          : desc.textures[i].samplerIndex]);
+			}
+		}
 		for (size_t i = 0; i < desc.materials.size(); ++i)
 		{
-			res.Materials[i] = CreateMaterial(desc.materials[i], textures);
-		}
+			std::unordered_map<int, std::shared_ptr<Texture>> textureMap;
+			if (desc.materials[i].baseColorTextureIndex != -1)
+			{
+				textureMap[desc.materials[i].baseColorTextureIndex] = textures[desc.materials[i].baseColorTextureIndex];
+			}
+			if (desc.materials[i].metallicRoughnessTextureIndex != -1)
+			{
+				textureMap[desc.materials[i].metallicRoughnessTextureIndex] = textures[desc.materials[i].metallicRoughnessTextureIndex];
+			}
+			if (desc.materials[i].normalTextureIndex != -1)
+			{
+				textureMap[desc.materials[i].normalTextureIndex] = textures[desc.materials[i].normalTextureIndex];
+			}
+			if (desc.materials[i].occlusionTextureIndex != -1)
+			{
+				textureMap[desc.materials[i].occlusionTextureIndex] = textures[desc.materials[i].occlusionTextureIndex];
+			}
+			if (desc.materials[i].emissiveTextureIndex != -1)
+			{
+				textureMap[desc.materials[i].emissiveTextureIndex] = textures[desc.materials[i].emissiveTextureIndex];
+			}
 
+			res.Materials[i] = CreateMaterial(desc.materials[i], textureMap);
+		}
+		
 		res.Meshes.resize(desc.primitives.size());
 		for (size_t i = 0; i < desc.primitives.size(); ++i)
 		{
@@ -120,5 +135,39 @@ namespace Bear
 		if (bindingSlot >= 0 && bindingSlot < (int)m_DefaultTextures.size())
 			m_DefaultTextures[bindingSlot] = tex;
 		return tex;
+	}
+
+	std::shared_ptr<Material> Resource::CreateNtcMaterial(const MaterialDescription& desc, const std::unordered_map<int, std::shared_ptr<Texture>>& textures) const
+	{
+		return std::make_shared<NtcMaterial>(*m_RenderContext->device, desc, textures);
+	}
+	std::shared_ptr<Material> Resource::CreatePbrMaterial(const MaterialDescription& desc, const std::unordered_map<int, std::shared_ptr<Texture>>& textures)
+	{
+		auto material = std::make_shared<PbrMaterial>(m_Device);
+		auto bindTex = [&](int slot, int textureIndex)
+			{
+				if (textureIndex >= 0 && textures.contains(textureIndex)) 
+				{
+					material->SetTexture(slot, textures.at(textureIndex)); // bind the texture to the material
+				}
+				else
+				{
+					material->SetTexture(slot, GetDefaultTexture(slot)); // bind default texture if not available
+				}
+			};
+		bindTex(MaterialSlot::BaseColor, desc.baseColorTextureIndex);
+		bindTex(MaterialSlot::MetallicRoughness, desc.metallicRoughnessTextureIndex);
+		bindTex(MaterialSlot::Normal, desc.normalTextureIndex);
+		bindTex(MaterialSlot::Occlusion, desc.occlusionTextureIndex);
+		bindTex(MaterialSlot::Emissive, desc.emissiveTextureIndex);
+
+		material->SetParam("baseColorFactor", desc.baseColorFactor);
+		material->SetParam("metallicFactor", desc.metallicFactor);
+		material->SetParam("roughnessFactor", desc.roughnessFactor);
+		material->SetParam("emissiveFactor", desc.emissiveFactor);
+		material->SetParam("normalScale", 1.0f); // default normal scale
+		material->SetParam("occlusionStrength", 1.0f); // default occlusion strength
+		material->SetTransparent(desc.isTransparent);
+		return material;
 	}
 }
