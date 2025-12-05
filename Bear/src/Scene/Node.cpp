@@ -3,31 +3,31 @@
 
 namespace Bear
 {
-	Node::Node(std::string name)
+	OitNode::OitNode(std::string name)
 		:m_Name(std::move(name))
 	{
 	}
-	void Node::SetPosition(const glm::vec3& position)
+	void OitNode::SetPosition(const glm::vec3& position)
 	{
 		m_Position = position;
 		SetDirty();
 	}
-	void Node::SetRotation(const glm::quat& rotation)
+	void OitNode::SetRotation(const glm::quat& rotation)
 	{
 		m_Rotation = rotation;
 		SetDirty();
 	}
-	void Node::SetScale(const glm::vec3& scale)
+	void OitNode::SetScale(const glm::vec3& scale)
 	{
 		m_Scale = scale;
 		SetDirty();
 	}
-	void Node::AddChild(std::unique_ptr<Node> child)
+	void OitNode::AddChild(std::unique_ptr<OitNode> child)
 	{
 		child->m_Parent = this;
 		m_Children.push_back(std::move(child));
 	}
-	void Node::Update(bool forceUpdate)
+	void OitNode::Update(bool forceUpdate)
 	{
 		if (forceUpdate || m_IsDirty)
 		{
@@ -40,7 +40,7 @@ namespace Bear
 			child->Update(forceUpdate);
 		}
 	}
-	void Node::UpdateWorldTransform()
+	void OitNode::UpdateWorldTransform()
 	{
 		glm::mat4 localTransform = glm::translate(glm::mat4(1.0f), m_Position) *
 			glm::mat4_cast(m_Rotation) *
@@ -54,7 +54,7 @@ namespace Bear
 			m_WorldTransform = localTransform;
 		}
 	}
-	void Node::SetDirty()
+	void OitNode::SetDirty()
 	{
 		if (!m_IsDirty)
 		{

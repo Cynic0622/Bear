@@ -13,9 +13,9 @@ namespace Bear
 		:m_Device(device)
 	{
 	}
-	std::shared_ptr<Texture> Resource::CreateTexture(const ImageDescription& desc)
+	std::shared_ptr<Texture> Resource::CreateTexture(const ImageDescription& imageDesc, const SamplerDescription& samplerDesc)
 	{
-		return std::make_shared<Texture>(m_Device, desc.width, desc.height, desc.channels, desc.pixels.data());
+		return std::make_shared<Texture>(m_Device, imageDesc, samplerDesc);
 	}
 	std::shared_ptr<Mesh> Resource::CreateMesh(const PrimitiveDescription& desc)
 	{
@@ -46,6 +46,7 @@ namespace Bear
 		material->SetParam("emissiveFactor", desc.emissiveFactor);
 		material->SetParam("normalScale", 1.0f); // default normal scale
 		material->SetParam("occlusionStrength", 1.0f); // default occlusion strength
+		material->SetTransparent(desc.isTransparent);
 		return material;
 	}
 	Resources Resource::CreateResources(const ModelDescription& desc)
@@ -53,15 +54,22 @@ namespace Bear
 		Resources res{};
 		res.Materials.resize(desc.materials.size());
 		// be careful when using smart pointers pointing temp objects, they will be destroyed after this function returns.
-		std::vector<std::shared_ptr<Texture>> images(desc.images.size());
-		for (size_t i = 0; i < desc.images.size(); ++i)
+		std::vector<std::shared_ptr<Texture>> textures(desc.textures.size());
+		for (size_t i = 0; i < desc.textures.size(); ++i)
 		{
-			images[i] = CreateTexture(desc.images[i]);
+			if (desc.samplers.size())
+			{
+				textures[i] = CreateTexture(desc.images[desc.textures[i].imageIndex], desc.samplers[desc.textures[i].samplerIndex == -1 ? 0 : desc.textures[i].samplerIndex]);
+			}
+			else
+			{
+				textures[i] = CreateTexture(desc.images[desc.textures[i].imageIndex], SamplerDescription{}); // use default sampler if not specified
+			}
 		}
 
 		for (size_t i = 0; i < desc.materials.size(); ++i)
 		{
-			res.Materials[i] = CreateMaterial(desc.materials[i], images);
+			res.Materials[i] = CreateMaterial(desc.materials[i], textures);
 		}
 
 		res.Meshes.resize(desc.primitives.size());

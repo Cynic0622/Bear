@@ -6,7 +6,7 @@
 #include "RHI/RHISwapchain.h"
 #include "RHI/RHIFramebuffer.h"
 #include "Pipeline/Framebuffer.h"
-
+#include "Resources/Image.h"
 namespace Bear {
 
 	class Device;
@@ -43,8 +43,10 @@ namespace Bear {
 		VkFormat GetImageFormat() const { return m_ImageFormat; }
 		void GetExtent(uint32_t& width, uint32_t& height) const override;
 		const std::vector<VkImageView>& GetImageViews() const { return m_ImageViews; }
+		void* GetDepthView() const override { return m_DepthImage->GetView(); } // rhi
+		void* GetColorView(uint8_t index) const override { return m_ImageViews[index]; } // rhi
 		uint32_t GetImageCount() const override { return static_cast<uint32_t>(m_Images.size()); } //rhi
-
+		// const VkImageView& GetImage(uint32_t index) const { return m_ImageViews[index]; }
 	private:
 		void Init();
 		void Cleanup();

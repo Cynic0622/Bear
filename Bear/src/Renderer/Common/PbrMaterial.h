@@ -24,16 +24,16 @@ namespace Bear
 		void SetParam(const std::string& name, float value) override;
 		void SetParam(const std::string& name, const glm::vec3& value) override;
 		void SetParam(const std::string& name, const glm::vec4& value) override;
-
+		void SetTransparent(bool isTransparent) override { m_IsTransparent = isTransparent; }
 		// getters
 		RHIDescriptorSetLayout* GetDescriptorSetLayout() override;
 		RHIDescriptorSet* GetDescriptorSet() override;
-
+		bool IsTransparent() const override { return m_IsTransparent; }
 	private:
 		RHIDevice& m_Device;
 		PbrMaterialParams m_Params;
 		bool m_ParamsDirty = true;
-
+		bool m_IsTransparent = false;
 		std::unique_ptr<RHIDescriptorSet> m_DescriptorSets;
 		std::shared_ptr<RHIDescriptorSetLayout> m_DescriptorSetLayout;
 		std::shared_ptr<RHIBuffer> m_ParamsBuffer;

@@ -11,38 +11,44 @@ namespace Bear {
 	class Device;
 	class Mesh;
 	class Material;
-	/*struct TransformComponent
-	{
-		glm::vec3 translation{ 0.0f, 0.0f, 0.0f };
-		glm::vec3 rotation{ 0.0f, 0.0f, 0.0f };
-		glm::vec3 scale{ 1.0f, 1.0f, 1.0f };
-		glm::mat4 transform{ 1.0f };
 
-		glm::mat4 GetTransform() const
-		{
-			return transform;
-		}
-		void SetTransform(const glm::mat4& trans)
-		{
-			transform = trans;
-		}
-	};*/
-
-	class RenderObject
+	struct RenderObject
 	{
-	public:
 		// use shared_ptr to allow multiple RenderObjects to share the same Mesh and Material, reducing memory usage
 		std::shared_ptr<Mesh> mesh;
 		std::shared_ptr<Material> material;
-		glm::mat4 transform = glm::mat4(1.0f); // Default to identity matrix
-		//TransformComponent transformComponent;
-		static std::unique_ptr<RenderObject> Create(const std::shared_ptr<Mesh>& mesh, const std::shared_ptr<Material>& material, glm::mat4 transform)
+		glm::mat4 transform {1.0f};
+		mutable AABB m_CachedAABB; // cache the world AABB for this object
+		mutable bool m_AABBDirty = true;
+		RenderObject() = default;
+
+		const AABB& GetAABB () const
 		{
-			auto obj = std::make_unique<RenderObject>();
-			obj->mesh = mesh;
-			obj->material = material;
-			obj->transform = transform;
-			return obj;
+			if (m_AABBDirty && mesh)
+			{
+				m_CachedAABB = TransformAABB(mesh->GetAABB(), transform);
+				m_AABBDirty = false;
+			}
+			return m_CachedAABB;
 		}
+	private:
+		static AABB TransformAABB(const AABB& localAABB, const glm::mat4& transform)
+        {
+            if (localAABB.min == localAABB.max)
+                return localAABB;
+
+            glm::vec3 center = localAABB.GetCenter();
+            glm::vec3 worldCenter = glm::vec3(transform * glm::vec4(center, 1.0f));
+            
+			glm::mat3 mat = glm::mat3(transform);
+			glm::mat3 absTransform;
+			absTransform[0] = glm::abs(mat[0]);
+			absTransform[1] = glm::abs(mat[1]);
+			absTransform[2] = glm::abs(mat[2]);
+            glm::vec3 halfSize = localAABB.GetHalfSize();
+            glm::vec3 newHalfSize = absTransform * halfSize;
+            
+            return AABB(worldCenter - newHalfSize, worldCenter + newHalfSize);
+        }
 	};
 }

@@ -40,6 +40,8 @@ namespace Bear {
 		virtual void SetParam(const std::string& name, float value) = 0;
 		virtual void SetParam(const std::string& name, const glm::vec3& value) = 0;
 		virtual void SetParam(const std::string& name, const glm::vec4& value) = 0;
+		virtual void SetTransparent(bool isTransparent) = 0;
+		virtual bool IsTransparent() const = 0;
 
 		// getters
 		virtual RHIDescriptorSetLayout* GetDescriptorSetLayout() = 0;

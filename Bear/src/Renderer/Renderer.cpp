@@ -1,8 +1,12 @@
 #include "bearpch.h"
 #include "Renderer.h"
 
+#include "CommandBuffer.h"
 #include "DescriptorSet.h"
 #include "Shader.h"
+#include "UIPass.h"
+#include "PbrPass.h"
+#include "OitPass.h"
 #include "RHI/RHIDevice.h"
 #include "RHI/RHI.h"
 #include "RHI/RHISwapchain.h"
@@ -15,6 +19,7 @@ namespace Bear {
 	Renderer::Renderer(GLFWwindow* window, GraphicsAPI api)
 		:m_Window(window)
 	{
+		m_RenderContext = new RenderContext();
 		Init(api);
 	}
 	Renderer::~Renderer()
@@ -22,6 +27,10 @@ namespace Bear {
 		if (m_Device) {
 			m_Device->WaitIdle();
 		}
+		m_UIPass.reset();
+		m_PbrPass.reset();
+		m_OitPass.reset();
+		m_RenderPass.reset();
 	}
 	uint32_t Renderer::GetSwapchainImageCount() const
 	{
@@ -34,59 +43,27 @@ namespace Bear {
 		if (m_CurrentImageIndex == UINT32_MAX) {
 			return; // error acquiring image
 		}
-		std::vector<RHIClearValue> clearValues = { {{0.1f, 0.1f, 0.1f}, {}, false}, {{}, {}, true} };
-		m_CurrentCommandBuffer->BeginRenderPass(*m_RenderPass, *m_Swapchain->GetFramebuffer(m_CurrentImageIndex), m_Swapchain->GetWidth(), m_Swapchain->GetHeight(), clearValues);
-		uint32_t width, height;
-		m_Swapchain->GetExtent(width, height);
-		m_CurrentCommandBuffer->SetViewport(0, 0, static_cast<float>(width), static_cast<float>(height));
-		m_CurrentCommandBuffer->SetScissor(0, 0, width, height);
+
+		ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 	}
 
 	void Renderer::Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData)
 	{
 		auto frameIndex = m_Device->GetCurrentFrameIndex();
-		m_GlobalParams.viewMatrix = sceneData.viewMatrix;
-		m_GlobalParams.projectionMatrix = sceneData.projectionMatrix;
-		m_GlobalUniformBuffer[frameIndex]->UploadData(&sceneData, sizeof(globalParams)); // set 0.
-		m_GlobalDescriptorSet[frameIndex]->UpdateBuffer(0, *m_GlobalUniformBuffer[frameIndex]);
-
-		for (const auto& obj : renderObjects) {
-			
-			BEAR_CORE_ASSERT(obj.material, "RenderObject has no material!");
-			// set pipelineLayout
-			if (!m_Pipeline)
-			{
-				std::vector<RHIDescriptorSetLayout*> descriptorSetLayouts = { m_GlobalDescriptorSetLayout[frameIndex].get(), obj.material->GetDescriptorSetLayout()};
-				std::vector<RHIPushConstantRange> pushConstantRanges = { {ShaderStage::Vertex, sizeof(PerObjectPushConstants), 0} };
-				m_PipelineLayout = m_Device->CreatePipelineLayout(descriptorSetLayouts, pushConstantRanges);
-
-				RHIPipelineConfig pipelineConfig;
-				pipelineConfig.pipelineLayout = m_PipelineLayout;
-				pipelineConfig.vertexShaderPath = "assets/shaders/vert.spv";
-				pipelineConfig.fragmentShaderPath = "assets/shaders/frag.spv";
-				m_Pipeline = m_Device->CreatePipeline(pipelineConfig, *m_RenderPass);
-			}
-			m_CurrentCommandBuffer->BindPipeline(*m_Pipeline);
-			// Bind descriptor sets
-			// auto descriptorSet = obj.material->GetDescriptorSet();
-			// auto vkDescriptorSet = dynamic_cast<DescriptorSet*>(descriptorSet);
-			// BEAR_CORE_INFO("Binding DescriptorSet: {:#x}", (uint64_t)vkDescriptorSet->GetHandle());
-			obj.material->UpdateParams();
-			m_CurrentCommandBuffer->BindDescriptorSet(*m_PipelineLayout, *m_GlobalDescriptorSet[frameIndex], 0);
-			m_CurrentCommandBuffer->BindDescriptorSet(*m_PipelineLayout, *obj.material->GetDescriptorSet(), 1);
-			// push constants
-			PerObjectPushConstants pushConstants{ .model = obj.transform };
-			m_CurrentCommandBuffer->PushConstants(*m_PipelineLayout, ShaderStage::Vertex, &pushConstants, sizeof(PerObjectPushConstants), 0);
-			//obj.material->Bind(*m_CurrentCommandBuffer, frameIndex);
-			obj.mesh->Bind(*m_CurrentCommandBuffer);
-			//PerObjectPushConstants pushConstants{ .model = obj.transform };
-			//m_CurrentCommandBuffer->PushConstants(*obj.material->GetPipelineLayout(), ShaderStage::Vertex, &pushConstants, sizeof(PerObjectPushConstants), 0);
-			obj.mesh->Draw(*m_CurrentCommandBuffer);
+		m_GlobalUniformBuffer[frameIndex]->UploadData(&sceneData, sizeof(sceneData)); // set 0.
+		m_PbrPass->Execute(m_CurrentCommandBuffer, renderObjects);
+		if (OitEnabled)
+		{
+			m_OitPass->Execute(m_CurrentCommandBuffer, renderObjects);
 		}
 	}
+	
 	void Renderer::EndFrame() const
 	{
-		m_CurrentCommandBuffer->EndRenderPass();
+		ImGui::Render();
+		m_UIPass->Execute(m_CurrentCommandBuffer);
 		m_Device->EndFrame(*m_Swapchain, m_CurrentImageIndex);
 	}
 	void Renderer::Init(GraphicsAPI api)
@@ -96,21 +73,22 @@ namespace Bear {
 
 		m_Device = CreateDevice(api, platformData);
 
-		RHIAttachmentDescription colorAttachment{};
+		AttachmentDescription colorAttachment{};
 		colorAttachment.format = PixelFormat::B8G8R8A8_SRGB;
 		colorAttachment.loadOp = AttachmentLoadOp::Clear;
 		colorAttachment.storeOp = AttachmentStoreOp::Store;
 		colorAttachment.initialLayout = ImageLayout::Undefined;
-		colorAttachment.finalLayout = ImageLayout::PresentSrc;
+		colorAttachment.finalLayout = ImageLayout::ColorAttachment;
 
-		RHIAttachmentDescription depthAttachment{};
+		AttachmentDescription depthAttachment{};
 		depthAttachment.format = PixelFormat::D32_SFLOAT;
 		depthAttachment.loadOp = AttachmentLoadOp::Clear;
-		depthAttachment.storeOp = AttachmentStoreOp::DontCare;
+		depthAttachment.storeOp = AttachmentStoreOp::Store;
 		depthAttachment.initialLayout = ImageLayout::Undefined;
 		depthAttachment.finalLayout = ImageLayout::DepthStencilAttachment;
 		m_RenderPass = m_Device->CreateRenderPass({ colorAttachment, depthAttachment });
-
+		// m_UIRenderPass = m_Device->CreateUIRenderPass();
+		
 		m_Swapchain = m_Device->CreateSwapchain(*m_RenderPass);
 
 		m_TextureManager = std::make_unique<TextureManager>();
@@ -119,25 +97,78 @@ namespace Bear {
 
 		m_GlobalUniformBuffer.resize(MAX_FRAMES_IN_FLIGHT);
 		m_GlobalDescriptorSet.resize(MAX_FRAMES_IN_FLIGHT);
-		m_GlobalDescriptorSetLayout.resize(MAX_FRAMES_IN_FLIGHT);
+
+		m_GlobalDescriptorSetLayout = m_Device->CreateDescriptorSetLayout({
+			{0, DescriptorType::UniformBuffer, 1, ShaderStage::Vertex | ShaderStage::Fragment}
+			});
+		std::vector<RHIDescriptorSetLayoutBinding> bindings;
+		// ubo
+		bindings.push_back({ .binding = MaterialSlot::Params, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Vertex | ShaderStage::Fragment });
+		// pbr textures
+		bindings.push_back({ .binding = MaterialSlot::BaseColor, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+		bindings.push_back({ .binding = MaterialSlot::Normal, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+		bindings.push_back({ .binding = MaterialSlot::MetallicRoughness, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+		bindings.push_back({ .binding = MaterialSlot::Occlusion, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+		bindings.push_back({ .binding = MaterialSlot::Emissive, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+		m_PbrDescriptorSetLayout = m_Device->CreateDescriptorSetLayout(bindings);
 		for (uint8_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 		{
-			m_GlobalDescriptorSetLayout[i] = m_Device->CreateDescriptorSetLayout({{0, DescriptorType::UniformBuffer, 1, ShaderStage::Vertex | ShaderStage::Fragment}});
-			m_GlobalDescriptorSet[i] = m_Device->CreateDescriptorSet(m_GlobalDescriptorSetLayout[i]);
-			m_GlobalUniformBuffer[i] = m_Device->CreateBuffer(sizeof(globalParams), BufferUsage::UniformBuffer, true);
+			m_GlobalDescriptorSet[i] = m_Device->CreateDescriptorSet(m_GlobalDescriptorSetLayout);
+			m_GlobalUniformBuffer[i] = m_Device->CreateBuffer(sizeof(SceneData), BufferUsage::UniformBuffer, true);
+			m_GlobalDescriptorSet[i]->UpdateBuffer(0, *m_GlobalUniformBuffer[i]);
+			m_RenderContext->globalDescriptorSet.push_back(m_GlobalDescriptorSet[i].get());
 		}
-		
-		LoadResources();
-	}
-	void Renderer::LoadResources()
-	{
 
+		m_RenderContext->device = m_Device.get();
+		m_RenderContext->swapchain = m_Swapchain.get();
+		m_RenderContext->window = m_Window;
+		m_RenderContext->MAX_FRAMES_IN_FLIGHT = MAX_FRAMES_IN_FLIGHT;
+		m_RenderContext->globalDescriptorSetLayout = m_GlobalDescriptorSetLayout.get();
+		m_RenderContext->globalPbrDescriptorSetLayout = m_PbrDescriptorSetLayout.get();
+		
+		m_UIPass = std::make_unique<UIPass>();
+		m_UIPass->Setup(m_RenderContext);
+		m_PbrPass = std::make_unique<PbrPass>();
+		m_PbrPass->Setup(m_RenderContext);
+		m_OitPass = std::make_unique<OitPass>();
+		m_OitPass->Setup(m_RenderContext);
 	}
 	
-	void Renderer::OnWindowResized() const
+	
+	bool Renderer::OnWindowResize() const
 	{
 		if (m_Swapchain) {
 			m_Swapchain->Resize();
 		}
+		if (m_UIPass)
+		{
+			m_UIPass->Resize();
+		}
+		if (m_PbrPass)
+		{
+			m_PbrPass->Resize();
+		}
+		if (m_OitPass)
+		{
+			m_OitPass->Resize();
+		}
+		return false; // Returning false to propagate the event further
+	}
+	bool Renderer::OnKeyPress()
+	{
+		if (Input::IsKeyPressed(Key::X))
+		{
+			OitEnabled = !OitEnabled;
+			BEAR_CORE_INFO("OIT: {}", OitEnabled ? "ON" : "OFF");
+			return true;
+			// std::cout << "OIT: " << (OitEnabled ? "ON" : "OFF") << std::endl;
+		}
+		return false;
+	}
+	void Renderer::OnEvent(Event& event)
+	{
+		EventDispatcher dispatcher(event);
+		dispatcher.Dispatch<WindowResizeEvent>([this](WindowResizeEvent& e) { return this->OnWindowResize(); });
+		dispatcher.Dispatch<KeyPressedEvent>([this](KeyPressedEvent& e) { return this->OnKeyPress(); });
 	}
 }

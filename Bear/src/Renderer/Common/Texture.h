@@ -13,6 +13,7 @@ namespace Bear
     public:
         Texture(RHIDevice& device, const std::string& path);
         Texture(RHIDevice& device, uint32_t width, uint32_t height, uint32_t channels, const void* pixels);
+		Texture(RHIDevice& device, const ImageDescription& imageDesc, const SamplerDescription& samplerDesc);
         ~Texture() = default;
 
         Texture(const Texture&) = delete;

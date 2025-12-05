@@ -1,58 +1,51 @@
 #include "bearpch.h"
 #include "GuiLayer.h"
 #include "Bear/Application.h"
-#include "Backend/OpenGL/GuiOpenGLRenderer.h"
-#include "imgui_impl_glfw.h"
-namespace Bear
-{
-	GuiLayer::GuiLayer()
-		: Layer("GuiLayer")
-	{
-	}
 
-	GuiLayer::~GuiLayer()
-	{
-	}
+namespace Bear {
+    
+    GuiLayer::GuiLayer() : Layer("GuiLayer") {}
 
-	void GuiLayer::OnAttach()
-	{
-		ImGui::CreateContext();
-		ImGui::StyleColorsDark();
+    
+    void GuiLayer::OnAttach() {
 
-		ImGuiIO& io = ImGui::GetIO();
-		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
-		io.ConfigFlags |= ImGuiBackendFlags_HasMouseCursors; // Enable Mouse Cursors
-		io.ConfigFlags |= ImGuiBackendFlags_HasSetMousePos; // Enable SetMousePos backend function
+    }
+    
+    void GuiLayer::OnDetach() {
+    }
 
-		auto& app = Application::Get();
-		GLFWwindow* window =  static_cast<GLFWwindow*>(app.GetWindow().GetNativeWindow());
-		ImGui_ImplGlfw_InitForOpenGL(window, true);
-		io.DisplaySize = ImVec2(static_cast<float>(app.GetWindow().GetWidth()),
-			static_cast<float>(app.GetWindow().GetHeight()));
+    bool GuiLayer::OnMouseButtonPress(MouseButtonPressedEvent& event)
+    {
+        ImGuiIO& io = ImGui::GetIO();
+		return io.WantCaptureMouse; // if ImGui wants to capture the mouse input, return true
+    }
 
-		ImGui_ImplOpenGL3_Init("#version 410");
-	}
+    bool GuiLayer::OnWindowResize(WindowResizeEvent& event)
+    {
+        return false;
+    }
 
-	void GuiLayer::OnDetach()
-	{
-	}
+    void GuiLayer::OnUpdate(float deltaTime) {
+        
+        ImGui::Begin("Renderer Info");
+        ImGui::Text("Graphics api: Vulkan");
+        ImGui::Text("Frame time: %.3f ms", deltaTime * 1000.0f);
+        ImGui::Text("FPS: %.1f", 1.0f / deltaTime);
+        ImGui::End();
+        
+    }
+    
+    void GuiLayer::OnEvent(Event& event) {
 
-	void GuiLayer::OnUpdate(float deltaTime)
-	{
+		EventDispatcher dispatcher(event);
+        dispatcher.Dispatch<MouseButtonPressedEvent>([this](MouseButtonPressedEvent& e)
+            {
+				return this->OnMouseButtonPress(e);
+            });
+    }
 
-		ImGui_ImplOpenGL3_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-		// Render your GUI here
-		/*ImGui::Begin("Hello, World!");
-		ImGui::Text("This is a simple GUI layer.");
-		ImGui::End();*/
-		ImGui::ShowDemoWindow();
-		ImGui::Render();
-		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-	}
+    void GuiLayer::OnRender() const
+    {
+    }
 
-	void GuiLayer::OnEvent(Event& event)
-	{
-	}
 }

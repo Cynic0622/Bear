@@ -27,7 +27,7 @@ namespace Bear {
 		virtual void BindVertexBuffer(const RHIBuffer& buffer, uint32_t binding = 0, size_t offset = 0) = 0;
 		virtual void BindIndexBuffer(const RHIBuffer& buffer, size_t offset = 0) = 0;
 
-		// йс©з╪Т╡ц
+		// О©╫с©з╪О©╫О©╫О©╫
 		virtual void SetViewport(float x, float y, float width, float height, float minDepth = 0.0f, float maxDepth = 1.0f) = 0;
 		virtual void SetScissor(int32_t x, int32_t y, uint32_t width, uint32_t height) = 0;
 
@@ -37,7 +37,23 @@ namespace Bear {
 		virtual void TransitionImageLayout(RHIImage& texture, ImageLayout oldLayout, ImageLayout newLayout) = 0;
 		virtual void CopyBufferToTexture(const RHIBuffer& srcBuffer, RHIImage& dstTexture) = 0;
 
+		// pipeline barrrier
+		virtual void PipelineBarrier(const MemoryBarrier& memoryBarrier) = 0;
+
+		// copy buffer
+		virtual void CopyBuffer(const RHIBuffer& srcBuffer, const RHIBuffer& dstBuffer, size_t size, size_t srcOffset = 0, size_t dstOffset = 0) = 0;
+		// fill buffer
+		virtual void FillBuffer(const RHIBuffer& buffer, const void* data, size_t size, size_t offset = 0) = 0;
+		// clear image color
+		virtual void ClearImage(const RHIImage& image, const ClearColor& clearColor) = 0;
+
 		// push constants
 		virtual void PushConstants(const RHIPipelineLayout& pipelineLayout, ShaderStage stage, const void* data, size_t size, uint32_t offset) = 0;
+
+		// next subpass
+		virtual void NextSubpass() = 0;
+
+		// get original handle
+		virtual void* GetNativeHandle() const = 0;
 	};
 }

@@ -13,6 +13,7 @@ namespace Bear
 		RecalculateProjectionMatrix();
 		RecalculateViewMatrix();
 		CalculateForwardDirection();
+		m_Frustum = Frustum::CreateFromMatrix(m_ProjectionMatrix * m_ViewMatrix);
 	}
 	void Camera::SetPerspective(float fov, float aspectRatio, float nearPlane, float farPlane)
 	{
@@ -22,6 +23,7 @@ namespace Bear
 		m_PerspectiveFar = farPlane;
 		RecalculateProjectionMatrix();
 		RecalculateViewMatrix();
+		m_Frustum = Frustum::CreateFromMatrix(m_ProjectionMatrix * m_ViewMatrix);
 	}
 	void Camera::SetOrthographic(float left, float right, float bottom, float top, float nearPlane, float farPlane)
 	{
@@ -49,6 +51,7 @@ namespace Bear
 	{
 		CalculateForwardDirection();
 		m_ViewMatrix = glm::lookAt(m_Position, GetForwardDirection() + m_Position, GetUpDirection());
+		m_Frustum = Frustum::CreateFromMatrix(m_ProjectionMatrix * m_ViewMatrix);
 	}
 	void Camera::RecalculateProjectionMatrix()
 	{
@@ -58,21 +61,12 @@ namespace Bear
 		}
 
 		m_ProjectionMatrix[1][1] *= -1.0f; // Invert Y-axis for Vulkan compatibility
+		m_Frustum = Frustum::CreateFromMatrix(m_ProjectionMatrix * m_ViewMatrix);
 	}
 	void Camera::CalculateForwardDirection()
 	{
-		m_ForwardDirection =  glm::normalize(glm::vec3(cos(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch)),
+		m_ForwardDirection =  glm::normalize(glm::vec3(sin(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch)),
 			sin(glm::radians(m_Pitch)),
-			sin(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch))));
+			-cos(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch))));
 	}
-	/*void Camera::SetOrthographic(float left, float right, float bottom, float top, float nearPlane, float farPlane)
-	{
-		m_OrthographicLeft = left;
-		m_OrthographicRight = right;
-		m_OrthographicBottom = bottom;
-		m_OrthographicTop = top;
-		m_OrthographicNear = nearPlane;
-		m_OrthographicFar = farPlane;
-		RecalculateProjectionMatrix();
-	}*/
 }

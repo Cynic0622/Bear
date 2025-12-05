@@ -7,31 +7,31 @@
 
 namespace Bear
 {
-	class Resource;
-	struct SceneData;
-	class Scene;
-	class LayerStack;
-	class Material;
-}
-
-namespace Bear
-{
-	class RHIPipelineLayout;
+	class OitPass;
+	class PbrPass;
 }
 
 struct GLFWwindow;
 namespace Bear {
+	class UIPass;
 
 	enum class GraphicsAPI;
 	class RHIDevice;
 	class RHISwapchain;
 	class RHIRenderPass;
-	class RenderObject;
+	struct RenderObject;
+	struct SceneData;
+	class Resource;
 
 	struct globalParams
 	{
 		glm::mat4 viewMatrix;
 		glm::mat4 projectionMatrix;
+
+		glm::vec4 cameraPosition; // Camera position in world space.
+		glm::vec4 lightPositions[10]; // Positions of lights.
+		glm::vec4 lightColors[10]; // Colors of lights.
+		int lightCount = 10; // Number of lights in the scene.
 	};
 
 	class Renderer {
@@ -43,7 +43,9 @@ namespace Bear {
 		Renderer& operator=(const Renderer&) = delete;
 		Renderer&& operator=(Renderer&&) = delete;
 
-		void OnWindowResized() const;
+		bool OnWindowResize() const;
+		bool OnKeyPress();
+		void OnEvent(Event& event);
 
 		// getter
 		RHIDevice* GetDevice() const { return m_Device.get(); }
@@ -61,7 +63,6 @@ namespace Bear {
 
 	private:
 		void Init(GraphicsAPI api);
-		void LoadResources();
 
 	private:
 		GLFWwindow* m_Window;
@@ -69,8 +70,12 @@ namespace Bear {
 		std::unique_ptr<RHIDevice> m_Device;
 		std::unique_ptr<RHISwapchain> m_Swapchain;
 		std::shared_ptr<RHIRenderPass> m_RenderPass;
+		std::shared_ptr<RHIRenderPass> m_PreZRenderPass; // for pre-z rendering
+		std::shared_ptr<RHIRenderPass> m_UIRenderPass; // for UI rendering
 		std::shared_ptr<RHIPipelineLayout> m_PipelineLayout; // for pipelines
-		std::shared_ptr<RHIPipeline> m_Pipeline; // for rendering
+		std::shared_ptr<RHIPipelineLayout> m_PreZPipelineLayout;
+		std::shared_ptr<RHIPipeline> m_PbrPipeline; // for pbr rendering
+		std::shared_ptr<RHIPipeline> m_PreZPipeline;
 
 		std::unique_ptr<TextureManager> m_TextureManager;
 		std::unique_ptr<MeshManager> m_MeshManager;
@@ -79,9 +84,17 @@ namespace Bear {
 		uint32_t m_CurrentImageIndex;
 		std::unique_ptr<Resource> m_Resource;
 
-		std::vector<std::shared_ptr<RHIDescriptorSetLayout>> m_GlobalDescriptorSetLayout; // for view matrices, lights, etc.
+		std::shared_ptr<RHIDescriptorSetLayout> m_GlobalDescriptorSetLayout; // for view matrices, lights, etc.
+		std::shared_ptr<RHIDescriptorSetLayout> m_PbrDescriptorSetLayout; // for pbr descriptor set layout
 		std::vector<std::shared_ptr<RHIDescriptorSet>> m_GlobalDescriptorSet;
 		std::vector<std::shared_ptr<RHIBuffer>> m_GlobalUniformBuffer;
 		globalParams m_GlobalParams;
+
+		RenderContext* m_RenderContext; // Context for rendering operations
+		std::unique_ptr<UIPass> m_UIPass; // UI rendering pass
+		std::unique_ptr<PbrPass> m_PbrPass; // PBR rendering pass
+		std::unique_ptr<OitPass> m_OitPass; // Order Independent Transparency pass
+
+		bool OitEnabled = false; // Toggle for Order Independent Transparency
 	};
 }

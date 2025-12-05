@@ -10,6 +10,7 @@ namespace Bear {
 	{
 		glm::vec3 position{ 0.0f };
 		glm::vec3 normal{ 0.0f };
+        glm::vec3 tangent{ 0.f };
 		glm::vec2 texCoord{ 0.0f };
 	};
 
@@ -21,9 +22,24 @@ namespace Bear {
         uint32_t channels = 0;
 		std::vector<unsigned char> pixels; // raw pixel data
     };
+
+    struct SamplerDescription
+    {
+        int minFilter = 9987;
+		int magFilter = 9727;
+		int wrapS = 33071; // REPEAT, CLAMP_TO_EDGE, etc.
+		int wrapT = 33071; // REPEAT, CLAMP_TO_EDGE, etc.
+    };
+
+    struct TextureDescription
+    {
+		int imageIndex = -1; // index in the images array
+		int samplerIndex = -1; // index in the samplers array
+		std::string name; // texture name, can be used as a key
+    };
     struct MaterialDescription {
         std::string name;
-
+		bool isTransparent = false;
         // PBR Metallic-Roughness Workflow
         glm::vec4 baseColorFactor{ 1.0f };
         int baseColorTextureIndex = -1;
@@ -71,7 +87,9 @@ namespace Bear {
 	// the model description, contains all the primitives, materials and nodes.
     struct ModelDescription {
         std::vector<PrimitiveDescription> primitives;
-		std::vector<ImageDescription> images; // textures
+		std::vector<ImageDescription> images; // images, used for textures
+		std::vector<TextureDescription> textures; // textures
+		std::vector<SamplerDescription> samplers; // texture samplers
         std::vector<MaterialDescription> materials;
         std::vector<NodeDescription> nodes;
         std::vector<MeshDescription> meshes;

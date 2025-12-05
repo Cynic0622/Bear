@@ -11,6 +11,7 @@ namespace Bear {
 	public:
 		Framebuffer(const Device& device, const RenderPass& renderPass, const std::vector<VkImageView>& attachments,
 			uint32_t width, uint32_t height, uint32_t layers = 1);
+		Framebuffer(const Device& device, VkFramebufferCreateInfo& createInfo);
 		~Framebuffer() override;
 		
 		Framebuffer(const Framebuffer&) = delete;
@@ -22,7 +23,7 @@ namespace Bear {
 
 	private:
 		const Device& m_Device;
-		const RenderPass& m_RenderPass;
+		// const RenderPass& m_RenderPass;
 		VkFramebuffer m_Framebuffer = VK_NULL_HANDLE;
 
 	};

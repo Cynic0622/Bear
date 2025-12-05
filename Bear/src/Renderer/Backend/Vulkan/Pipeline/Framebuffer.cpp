@@ -5,7 +5,7 @@
 namespace Bear {
 	Framebuffer::Framebuffer(const Device& device, const RenderPass& renderPass, 
 		const std::vector<VkImageView>& attachments, uint32_t width, uint32_t height, uint32_t layers)
-		:m_Device(device), m_RenderPass(renderPass)
+		:m_Device(device)
 	{
 		VkFramebufferCreateInfo framebufferInfo = {};
 		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -18,6 +18,13 @@ namespace Bear {
 		
 		BEAR_CORE_ASSERT(vkCreateFramebuffer(device.GetDevice(), &framebufferInfo, nullptr, &m_Framebuffer) == VK_SUCCESS, "Failed to create framebuffer!");
 	}
+
+	Framebuffer::Framebuffer(const Device& device, VkFramebufferCreateInfo& createInfo)
+		:m_Device(device)
+	{
+		BEAR_CORE_ASSERT(vkCreateFramebuffer(device.GetDevice(), &createInfo, nullptr, &m_Framebuffer) == VK_SUCCESS, "Failed to create framebuffer!");
+	}
+
 	Framebuffer::~Framebuffer()
 	{
 		if (m_Framebuffer != VK_NULL_HANDLE) {

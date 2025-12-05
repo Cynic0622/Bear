@@ -23,7 +23,14 @@ namespace Bear {
 		// --- DescriptorSet factory ---
 		virtual std::unique_ptr<RHIDescriptorSet> CreateDescriptorSet(std::shared_ptr<RHIDescriptorSetLayout> layout) = 0;
 		// --- RenderPass factory ---
-		virtual std::shared_ptr<RHIRenderPass> CreateRenderPass(const std::vector <RHIAttachmentDescription>& attachments) = 0;
+		virtual std::shared_ptr<RHIRenderPass> CreateRenderPass(const std::vector <AttachmentDescription>& attachments) = 0;
+		virtual std::shared_ptr<RHIRenderPass> CreateRenderPass(const RenderPassDescription& desc) = 0;
+
+		// --- Framebuffer factory ---
+		virtual std::shared_ptr<RHIFramebuffer> CreateFramebuffer(RHIRenderPass& renderPass, const std::vector<void*>& attachments, uint32_t width, uint32_t height) = 0;
+		// --- UI method factory ---
+		virtual std::shared_ptr<RHIRenderPass> CreateUIRenderPass() = 0;
+		virtual std::vector<std::shared_ptr<RHIFramebuffer>> CreateUIFramebuffer(RHIRenderPass& renderPass, RHISwapchain& swapchain) = 0;
 		// --- Swapchain factory ---
 		virtual std::unique_ptr<RHISwapchain> CreateSwapchain(RHIRenderPass& renderPass) = 0;
 		// --- Texture factory ---
@@ -42,6 +49,7 @@ namespace Bear {
 		virtual uint32_t GetCurrentFrameIndex() const = 0;
 
 		virtual uint32_t AcquireNextImage(RHISwapchain& swapchain) = 0;
+		virtual uint32_t GetCurrentImageIndex() const = 0;
 
 		virtual void WaitIdle() = 0;
 		

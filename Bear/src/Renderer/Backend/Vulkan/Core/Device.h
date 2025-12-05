@@ -9,7 +9,7 @@ namespace Bear {
 	class Instance;
 	class Surface;
 	class DescriptorPool;
-	struct RHIAttachmentDescription;
+	struct AttachmentDescription;
 	class CommandPool;
 	class CommandBuffer;
 	class Semaphore;
@@ -43,16 +43,21 @@ namespace Bear {
 		std::shared_ptr<RHIPipelineLayout> CreatePipelineLayout(const std::vector<RHIDescriptorSetLayout*>& descriptorSetLayouts, const std::vector<RHIPushConstantRange>& pushConstantRanges) override;
         std::shared_ptr<RHIPipeline> CreatePipeline(const RHIPipelineConfig& config, const RHIRenderPass& renderPass) override;
         std::unique_ptr<RHIDescriptorSet> CreateDescriptorSet(std::shared_ptr<RHIDescriptorSetLayout> layout) override;
-        std::shared_ptr<RHIRenderPass> CreateRenderPass(const std::vector <RHIAttachmentDescription>& attachments) override;
+        std::shared_ptr<RHIRenderPass> CreateRenderPass(const std::vector <AttachmentDescription>& attachments) override;
+        std::shared_ptr<RHIRenderPass> CreateRenderPass(const RenderPassDescription& desc) override;
         std::unique_ptr<RHISwapchain> CreateSwapchain(RHIRenderPass& renderPass) override;
 		std::unique_ptr<RHIImage> CreateTexture(const RHITextureConfig& config) override;
 		std::shared_ptr<RHISampler> CreateSampler(const RHISamplerConfig& config) override;
+        std::shared_ptr<RHIRenderPass> CreateUIRenderPass() override;
+        std::vector<std::shared_ptr<RHIFramebuffer>> CreateUIFramebuffer(RHIRenderPass& renderPass, RHISwapchain& swapchain) override;
+        std::shared_ptr<RHIFramebuffer> CreateFramebuffer(RHIRenderPass& renderPass, const std::vector<void*>& attachments, uint32_t width, uint32_t height) override;
 
         void ImmediateSubmit(std::function<void(RHICommandList&)>&& function) override;
     	
 		RHICommandList* BeginFrame() override;
 		void EndFrame(RHISwapchain& swapchain, uint32_t imageIndex) override;
 		uint32_t GetCurrentFrameIndex() const override { return m_CurrentFrame; }
+		uint32_t GetCurrentImageIndex() const override { return m_CurrentImageIndex; }
 		uint32_t AcquireNextImage(RHISwapchain& swapchain) override;
 		
     	void WaitIdle() override { vkDeviceWaitIdle(m_LogicalDevice); }

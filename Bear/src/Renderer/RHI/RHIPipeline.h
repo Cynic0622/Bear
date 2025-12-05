@@ -19,6 +19,24 @@ namespace Bear {
 	struct RHIPipelineConfigInfo {
 		std::shared_ptr<RHIDescriptorSetLayout> descriptorSetLayout; // use rhi interface instead of concrete class
 	};
+	struct RHIDepthStencilState {
+		bool depthTestEnable = true;
+		bool depthWriteEnable = true;
+		CompareOp depthCompareOp = CompareOp::Less;
+	};
+
+	struct RHIColorBlendAttachmentState {
+		bool blendEnable = false;
+		BlendFactor srcColorBlendFactor = BlendFactor::One;
+		BlendFactor dstColorBlendFactor = BlendFactor::Zero;
+		BlendOp colorBlendOp = BlendOp::Add;
+		BlendFactor srcAlphaBlendFactor = BlendFactor::One;
+		BlendFactor dstAlphaBlendFactor = BlendFactor::Zero;
+		BlendOp alphaBlendOp = BlendOp::Add;
+		ColorWriteMask colorWriteMask = ColorWriteMask::All;
+	};
+
+	
 	// 新增：API 无关的管线配置结构体
 	struct RHIPipelineConfig {
 		std::shared_ptr<RHIPipelineLayout> pipelineLayout;
@@ -32,6 +50,12 @@ namespace Bear {
 		PolygonMode polygonMode = PolygonMode::Fill;
 		CullMode cullMode = CullMode::Back;
 		FrontFace frontFace = FrontFace::CounterClockwise;
+
+		RHIColorBlendAttachmentState colorBlendAttachmentState;
+		RHIDepthStencilState depthStencilState;
+		uint16_t subpassIndex = 0;
+
+		bool vertexInput = true;
 
 		// ... 未来可以添加 BlendState, DepthState 等
 	};

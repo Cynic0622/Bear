@@ -9,11 +9,11 @@
 #include "Bear/Layer.h"
 
 #include "Bear/Gui/GuiLayer.h"
-#include "Bear/Gui/VulkanGuiLayer.h"
+#include "Bear/Gui/GuiLayer.h"
 
 #include "SceneLayer.h"
 #include "Scene/Scene.h"
 
 #include "Node.h"
 #include "Scene/Camera.h"
-#include "Scene/EditorCamera.h"
+#include "Scene/CameraController.h"

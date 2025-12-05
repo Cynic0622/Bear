@@ -64,6 +64,79 @@ namespace Bear
 
 		m_Sampler = device.CreateSampler(RHISamplerConfig::GetDefault());
 	}
+	Texture::Texture(RHIDevice& device, const ImageDescription& imageDesc, const SamplerDescription& samplerDesc)
+	{
+		BEAR_CORE_ASSERT(!imageDesc.pixels.empty(), "Image pixels cannot be empty");
+		size_t imageSize = imageDesc.width * imageDesc.height * imageDesc.channels;
+		auto stagingBuffer = device.CreateBuffer(imageSize, BufferUsage::StagingBuffer, true);
+		stagingBuffer->UploadData(imageDesc.pixels.data(), imageSize);
+		RHITextureConfig config;
+		config.width = imageDesc.width;
+		config.height = imageDesc.height;
+		config.format = selectFormat(imageDesc.channels);
+		m_Image = device.CreateTexture(config);
+		device.ImmediateSubmit([&](RHICommandList& cmd)
+			{
+				cmd.TransitionImageLayout(*m_Image, ImageLayout::Undefined, ImageLayout::TransferDst);
+				cmd.CopyBufferToTexture(*stagingBuffer, *m_Image);
+				cmd.TransitionImageLayout(*m_Image, ImageLayout::TransferDst, ImageLayout::ShaderReadOnly);
+			});
+		RHISamplerConfig samplerConfig;
+		samplerConfig.magFilter = samplerDesc.magFilter == 9729 ? Filter::Linear : Filter::Nearest;
+		switch (samplerDesc.minFilter)
+		{
+		case 9728: // NEAREST
+			samplerConfig.minFilter = Filter::Nearest;
+			samplerConfig.mipmapMode = MipmapMode::None;
+			break;
+		case 9729: // LINEAR
+			samplerConfig.minFilter = Filter::Linear;
+			samplerConfig.mipmapMode = MipmapMode::None;
+			break;
+
+		case 9984: // NEAREST_MIPMAP_NEAREST
+			samplerConfig.minFilter = Filter::Nearest;
+			samplerConfig.mipmapMode = MipmapMode::Nearest;
+			break;
+		case 9985: // LINEAR_MIPMAP_NEAREST
+			samplerConfig.minFilter = Filter::Linear;
+			samplerConfig.mipmapMode = MipmapMode::Nearest;
+			break;
+		case 9986: // NEAREST_MIPMAP_LINEAR
+			samplerConfig.minFilter = Filter::Nearest;
+			samplerConfig.mipmapMode = MipmapMode::Linear;
+			break;
+		case 9987: // LINEAR_MIPMAP_LINEAR
+			samplerConfig.minFilter = Filter::Linear;
+			samplerConfig.mipmapMode = MipmapMode::Linear;
+			break;
+		default:
+			BEAR_CORE_WARN("Unsupported minFilter value: {}", samplerDesc.minFilter);
+			samplerConfig.minFilter = Filter::Linear; // default to linear if unsupported
+			samplerConfig.mipmapMode = MipmapMode::Linear; // default to linear mipmap mode
+			break;
+		}
+
+		auto mapWarp = [](int wrapMode) -> SamplerAddressMode
+		{
+			switch (wrapMode)
+			{
+			case 10497: // REPEAT
+				return SamplerAddressMode::Repeat;
+			case 33071: // CLAMP_TO_EDGE
+				return SamplerAddressMode::ClampToEdge;
+			case 33648: // MIRRORED_REPEAT
+				return SamplerAddressMode::MirroredRepeat;
+			default:
+				BEAR_CORE_WARN("Unsupported wrap mode: {}", wrapMode);
+				return SamplerAddressMode::Repeat; // default to repeat if unsupported
+			}
+		};
+		samplerConfig.addressModeU = mapWarp(samplerDesc.wrapS);
+		samplerConfig.addressModeV = mapWarp(samplerDesc.wrapT);
+		m_Sampler = device.CreateSampler(samplerConfig);
+		// m_Sampler = device.CreateSampler(RHISamplerConfig::GetDefault());
+	}
 	PixelFormat Texture::selectFormat(uint32_t channels)
 	{
 		switch (channels)

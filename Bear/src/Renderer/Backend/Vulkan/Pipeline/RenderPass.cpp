@@ -21,11 +21,11 @@ namespace Bear {
 		:m_Device(device)
 	{
 		// 暂时写死交换链中的附件描述
-		std::vector<RHIAttachmentDescription> attachments = {
-			{ PixelFormat::B8G8R8A8_SRGB, AttachmentLoadOp::Load, AttachmentStoreOp::Store, ImageLayout::ColorAttachment, ImageLayout::PresentSrc },
-			{ PixelFormat::D32_SFLOAT, AttachmentLoadOp::Clear, AttachmentStoreOp::Store, ImageLayout::DepthStencilAttachment, ImageLayout::DepthStencilAttachment }
-		};
-		CreateRenderPass(attachments);
+		// std::vector<AttachmentDescription> attachments = {
+		// 	{ PixelFormat::B8G8R8A8_SRGB, AttachmentLoadOp::Load, AttachmentSamples::Count1, AttachmentStoreOp::Store, AttachmentStoreOp::DontCare, AttachmentLoadOp::DontCare, ImageLayout::ColorAttachment, ImageLayout::PresentSrc },
+		// 	{ PixelFormat::D32_SFLOAT, AttachmentLoadOp::Clear, AttachmentStoreOp::Store, ImageLayout::DepthStencilAttachment, ImageLayout::DepthStencilAttachment }
+		// };
+		// CreateRenderPass(attachments);
 		BEAR_CORE_INFO("Vulkan RenderPass created successfully with swapchain.");
 	}
 
@@ -39,7 +39,7 @@ namespace Bear {
 #endif // BEAR_DEBUG
 		}
 	}
-	void RenderPass::CreateRenderPass(const std::vector<RHIAttachmentDescription>& attachments)
+	void RenderPass::CreateRenderPass(const std::vector<AttachmentDescription>& attachments)
 	{
 		std::vector<VkAttachmentDescription> vkAttachments;
 		vkAttachments.reserve(attachments.size());

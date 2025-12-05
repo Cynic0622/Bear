@@ -4,6 +4,8 @@
 #include <glm/gtx/quaternion.hpp>
 
 #include "Entity.h"
+#include "Material.h"
+
 namespace Bear
 {
 	using UID = uint32_t;
@@ -27,7 +29,7 @@ namespace Bear
 		glm::vec3 Position = glm::vec3(0.0f);
 		glm::vec3 Scale = glm::vec3(1.0f);
 		glm::vec3 Rotation = glm::vec3( 0.0f, 0.0f, 0.0f);
-		glm::mat4 Transform = glm::mat4(1.0f);
+		glm::mat4 WorldTransform = glm::mat4(1.0f);
 		TransformComponent() = default;
 		TransformComponent(const TransformComponent&) = default;
 		TransformComponent(const glm::vec3& position)
@@ -40,9 +42,13 @@ namespace Bear
 			:Position(position), Scale(scale), Rotation(glm::eulerAngles(rotation))
 		{
 		}
-		glm::mat4 GetTransform() const
+		glm::mat4 GetLocalTransform() const
 		{
 			return glm::translate(glm::mat4(1.0f), Position) * glm::toMat4(glm::quat(Rotation)) * glm::scale(glm::mat4(1.0f), Scale);
+		}
+		glm::mat4 GetWorldTransform() const
+		{
+			return WorldTransform;
 		}
 		//void SetTransform(const glm::vec3& position, const glm::vec3& scale, const glm::quat& rotation)
 		//	:Position(position), Scale(scale), Rotation(glm::eulerAngles(rotation))
@@ -54,7 +60,7 @@ namespace Bear
 		//	Position = position;
 		//	Scale = scale;
 		//	Rotation = rotation;
-		//	Transform = GetTransform();
+		//	WorldTransform = GetLocalTransform();
 		//}
 	};
 
@@ -92,5 +98,15 @@ namespace Bear
 		entt::entity Parent = entt::null;
 		//std::vector<Entity> Children;
 		std::vector<entt::entity> Children;
+	};
+
+	struct LightComponent
+	{
+		glm::vec3 Color = glm::vec3(1.0f);
+		float Intensity = 1.0f; // Light intensity
+		LightComponent() = default;
+		LightComponent(const glm::vec3& color, float intensity)
+			: Color(color), Intensity(intensity) {
+		}
 	};
 }

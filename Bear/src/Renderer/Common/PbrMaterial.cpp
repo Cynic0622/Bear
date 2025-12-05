@@ -23,6 +23,7 @@ namespace Bear
 		m_DescriptorSetLayout = m_Device.CreateDescriptorSetLayout(bindings);
 
 		m_DescriptorSets = device.CreateDescriptorSet(m_DescriptorSetLayout);
+		m_DescriptorSets->UpdateBuffer(MaterialSlot::Params, *m_ParamsBuffer);
 	}
 	PbrMaterial::~PbrMaterial()
 	{
@@ -30,10 +31,9 @@ namespace Bear
 	}
 	void PbrMaterial::UpdateParams()
 	{
-		if (!m_ParamsDirty) return;
+		// if (!m_ParamsDirty) return;
 		m_ParamsBuffer->UploadData(&m_Params, sizeof(PbrMaterialParams));
-		m_DescriptorSets->UpdateBuffer(MaterialSlot::Params, *m_ParamsBuffer);
-		m_ParamsDirty = false;
+
 	}
 	void PbrMaterial::SetTexture(uint32_t binding, std::shared_ptr<Texture> texture)
 	{
@@ -64,6 +64,7 @@ namespace Bear
 			BEAR_CORE_ERROR("Failed to set material param: " + name);
 		}
 		m_ParamsDirty = true; // need to update the uniform buffer
+		UpdateParams();
 	}
 	void PbrMaterial::SetParam(const std::string& name, const glm::vec3& value)
 	{
@@ -73,6 +74,7 @@ namespace Bear
 			BEAR_CORE_ERROR("Failed to set material param: " + name);
 		}
 		m_ParamsDirty = true;
+		UpdateParams();
 	}
 	void PbrMaterial::SetParam(const std::string& name, const glm::vec4& value)
 	{
@@ -82,6 +84,7 @@ namespace Bear
 			BEAR_CORE_ERROR("Failed to set material param: " + name);
 		}
 		m_ParamsDirty = true;
+		UpdateParams();
 	}
 	RHIDescriptorSetLayout* PbrMaterial::GetDescriptorSetLayout()
 	{

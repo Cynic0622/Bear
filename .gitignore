@@ -9,7 +9,7 @@ build/
 .vscode/
 .idea/
 models/
-assets/
+assets/models/
 
 
 # User-specific files

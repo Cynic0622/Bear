@@ -3,9 +3,6 @@
 #include "Mesh.h"
 #include "ModelLoader.h"
 #include "Command/CommandBuffer.h"
-#include "Resources/Buffer.h" 
-#include "Core/Device.h"
-
 
 namespace Bear {
 	Mesh::Mesh(RHIDevice& device, const std::string& path)
@@ -31,6 +28,14 @@ namespace Bear {
 		m_VertexBuffer->UploadData(vertices.data(), vertexBufferSize);
 		m_IndexBuffer = device.CreateBuffer(indexBufferSize, BufferUsage::IndexBuffer, true);
 		m_IndexBuffer->UploadData(indices.data(), indexBufferSize);
+
+		glm::vec3 minValue = vertices.front().position;
+		glm::vec3 maxValue = minValue;
+		for (const auto& vert : vertices) {
+			minValue = glm::min(minValue, vert.position);
+			maxValue = glm::max(maxValue, vert.position);
+		}
+		m_AABB = AABB(minValue, maxValue);
 	}
 	Mesh::~Mesh()
 	{

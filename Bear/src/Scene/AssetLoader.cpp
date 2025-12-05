@@ -41,12 +41,37 @@ namespace Bear {
             }
             desc.images.push_back(std::move(imgDesc));
 		}
+		// --- Samplers ---
+		desc.samplers.reserve(model.samplers.size());
+        for (const auto& gltfSampler : model.samplers) {
+            SamplerDescription sampler;
+            sampler.minFilter = gltfSampler.minFilter;
+            sampler.magFilter = gltfSampler.magFilter;
+            sampler.wrapS = gltfSampler.wrapS;
+            sampler.wrapT = gltfSampler.wrapT;
+            desc.samplers.push_back(sampler);
+		}
+
+		// --- Textures ---
+		desc.textures.reserve(model.textures.size());
+        for (const auto& gltfTexture : model.textures) {
+            TextureDescription texDesc;
+            texDesc.name = gltfTexture.name;
+            if (gltfTexture.source >= 0 && static_cast<size_t>(gltfTexture.source) < model.images.size()) {
+                texDesc.imageIndex = gltfTexture.source; // index in the images array
+            }
+            if (gltfTexture.sampler >= 0 && static_cast<size_t>(gltfTexture.sampler) < model.samplers.size()) {
+                texDesc.samplerIndex = gltfTexture.sampler; // index in the samplers array
+            }
+            desc.textures.push_back(texDesc);
+		}
+
         // --- Materials ---
         desc.materials.reserve(model.materials.size());
         for (const auto& gltfMaterial : model.materials) {
             MaterialDescription matDesc;
             matDesc.name = gltfMaterial.name;
-
+            matDesc.isTransparent = gltfMaterial.alphaMode == "BLEND";
             const auto& pbr = gltfMaterial.pbrMetallicRoughness;
             matDesc.baseColorFactor = glm::make_vec4(pbr.baseColorFactor.data());
             matDesc.metallicFactor = static_cast<float>(pbr.metallicFactor);
@@ -54,24 +79,29 @@ namespace Bear {
 			matDesc.emissiveFactor = glm::make_vec3(gltfMaterial.emissiveFactor.data());
 
             if (pbr.baseColorTexture.index >= 0) {
-                const auto& tex = model.textures[pbr.baseColorTexture.index];
-                matDesc.baseColorTextureIndex = tex.source;
+                // const auto& tex = model.textures[pbr.baseColorTexture.index];
+                // matDesc.baseColorTextureIndex = tex.source;
+				matDesc.baseColorTextureIndex = pbr.baseColorTexture.index; // index in the textures array
             }
             if (pbr.metallicRoughnessTexture.index >= 0) {
-                const auto& tex = model.textures[pbr.metallicRoughnessTexture.index];
-                matDesc.metallicRoughnessTextureIndex = tex.source;
+                // const auto& tex = model.textures[pbr.metallicRoughnessTexture.index];
+                // matDesc.metallicRoughnessTextureIndex = tex.source;
+				matDesc.metallicRoughnessTextureIndex = pbr.metallicRoughnessTexture.index;
 			}
             if (gltfMaterial.normalTexture.index >= 0) {
-                const auto& tex = model.textures[gltfMaterial.normalTexture.index];
-                matDesc.normalTextureIndex = tex.source;
+                // const auto& tex = model.textures[gltfMaterial.normalTexture.index];
+                // matDesc.normalTextureIndex = tex.source;
+				matDesc.normalTextureIndex = gltfMaterial.normalTexture.index;
 			}
             if (gltfMaterial.occlusionTexture.index >= 0) {
-                const auto& tex = model.textures[gltfMaterial.occlusionTexture.index];
-                matDesc.occlusionTextureIndex = tex.source;
+                // const auto& tex = model.textures[gltfMaterial.occlusionTexture.index];
+                // matDesc.occlusionTextureIndex = tex.source;
+				matDesc.occlusionTextureIndex = gltfMaterial.occlusionTexture.index;
             }
             if (gltfMaterial.emissiveTexture.index >= 0) {
-                const auto& tex = model.textures[gltfMaterial.emissiveTexture.index];
-                matDesc.emissiveTextureIndex = tex.source;
+                // const auto& tex = model.textures[gltfMaterial.emissiveTexture.index];
+                // matDesc.emissiveTextureIndex = tex.source;
+				matDesc.emissiveTextureIndex = gltfMaterial.emissiveTexture.index;
 			}
 
             desc.materials.push_back(std::move(matDesc));
@@ -81,7 +111,7 @@ namespace Bear {
 		desc.primitives.reserve(model.meshes.size()); // estimate size.
         uint32_t lastPrimitiveIndex = 0;
         for (const auto& gltfMesh : model.meshes) {
-            MeshDescription meshDesc{ .firstPrimitiveIndex = lastPrimitiveIndex ? lastPrimitiveIndex + 1 : lastPrimitiveIndex, .primitiveCount = gltfMesh.primitives.size() };
+            MeshDescription meshDesc{ .firstPrimitiveIndex = lastPrimitiveIndex, .primitiveCount = gltfMesh.primitives.size() };
             for (const auto& primitive : gltfMesh.primitives) {
                 PrimitiveDescription submeshDesc;
                 submeshDesc.materialIndex = primitive.material;
@@ -89,6 +119,7 @@ namespace Bear {
                 // --- Vertex ---
                 const float* positions = nullptr;
                 const float* normals = nullptr;
+                const float* tangents = nullptr;
                 const float* texCoords = nullptr;
                 size_t vertexCount = 0;
 
@@ -109,6 +140,14 @@ namespace Bear {
                     normals = reinterpret_cast<const float*>(&(model.buffers[normBufferView.buffer].data[normBufferView.byteOffset + normAccessor.byteOffset]));
                 }
 
+                // tangent
+                if (primitive.attributes.contains("TANGENT"))
+                {
+                    const auto& tangentAccessor = model.accessors[primitive.attributes.at("TANGENT")];
+                    const auto& tangentBufferView = model.bufferViews[tangentAccessor.bufferView];
+                    tangents = reinterpret_cast<const float*>(&(model.buffers[tangentBufferView.buffer].data[tangentBufferView.byteOffset + tangentAccessor.byteOffset]));
+                }
+
 				// texCoords
                 if (primitive.attributes.contains("TEXCOORD_0"))
                 {
@@ -123,6 +162,7 @@ namespace Bear {
                     submeshDesc.vertices[i].position = glm::make_vec3(positions + i * 3);
                     if (normals) submeshDesc.vertices[i].normal = glm::make_vec3(normals + i * 3);
                     if (texCoords) submeshDesc.vertices[i].texCoord = glm::make_vec2(texCoords + i * 2);
+                    if (tangents) submeshDesc.vertices[i].tangent = glm::make_vec3(tangents + i * 3);
                 }
 
                 // --- Index ---
@@ -163,7 +203,7 @@ namespace Bear {
                 desc.primitives.push_back(std::move(submeshDesc));
             }
             desc.meshes.push_back(meshDesc);
-            lastPrimitiveIndex = gltfMesh.primitives.size();
+            lastPrimitiveIndex += gltfMesh.primitives.size();
         }
 
         // --- (Nodes) ---
