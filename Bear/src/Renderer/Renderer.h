@@ -4,11 +4,13 @@
 
 #include "Mesh.h"
 #include "Texture.h"
+#include "BaseData.h"
 
 namespace Bear
 {
 	class OitPass;
 	class PbrPass;
+	class SkyboxPass;
 }
 
 struct GLFWwindow;
@@ -20,19 +22,7 @@ namespace Bear {
 	class RHISwapchain;
 	class RHIRenderPass;
 	struct RenderObject;
-	struct SceneData;
 	class Resource;
-
-	struct globalParams
-	{
-		glm::mat4 viewMatrix;
-		glm::mat4 projectionMatrix;
-
-		glm::vec4 cameraPosition; // Camera position in world space.
-		glm::vec4 lightPositions[10]; // Positions of lights.
-		glm::vec4 lightColors[10]; // Colors of lights.
-		int lightCount = 10; // Number of lights in the scene.
-	};
 
 	class Renderer {
 	public:
@@ -57,7 +47,7 @@ namespace Bear {
 		Resource& GetResource() { return *m_Resource; }
 
 		void BeginFrame();
-		void Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData);
+		void Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData, const BaseData& baseData);
 		void EndFrame() const;
 
 
@@ -84,14 +74,17 @@ namespace Bear {
 		uint32_t m_CurrentImageIndex;
 		std::unique_ptr<Resource> m_Resource;
 
-		std::shared_ptr<RHIDescriptorSetLayout> m_GlobalDescriptorSetLayout; // for view matrices, lights, etc.
+		std::shared_ptr<RHIDescriptorSetLayout> m_BaseDataDescriptorSetLayout; // for view matrices, etc.
+		std::shared_ptr<RHIDescriptorSetLayout> m_SceneDataDescriptorSetLayout; // for scene data descriptor set layout
 		std::shared_ptr<RHIDescriptorSetLayout> m_PbrDescriptorSetLayout; // for pbr descriptor set layout
-		std::vector<std::shared_ptr<RHIDescriptorSet>> m_GlobalDescriptorSet;
-		std::vector<std::shared_ptr<RHIBuffer>> m_GlobalUniformBuffer;
-		globalParams m_GlobalParams;
+		std::vector<std::shared_ptr<RHIDescriptorSet>> m_BaseDataDescriptorSet;
+		std::vector<std::shared_ptr<RHIDescriptorSet>> m_SceneDataDescriptorSet;
+		std::vector<std::shared_ptr<RHIBuffer>> m_BaseDataUniformBuffer;
+		std::vector<std::shared_ptr<RHIBuffer>> m_SceneDataUniformBuffer;
 
 		RenderContext* m_RenderContext; // Context for rendering operations
 		std::unique_ptr<UIPass> m_UIPass; // UI rendering pass
+		std::unique_ptr<SkyboxPass> m_SkyboxPass; // Skybox rendering pass
 		std::unique_ptr<PbrPass> m_PbrPass; // PBR rendering pass
 		std::unique_ptr<OitPass> m_OitPass; // Order Independent Transparency pass
 

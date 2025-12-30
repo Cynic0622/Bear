@@ -6,20 +6,13 @@
 
 namespace Bear
 {
+	std::vector<RHIDescriptorSetLayoutBinding> PbrMaterial::s_DescriptorSetLayoutBinding;
 	PbrMaterial::PbrMaterial(RHIDevice& device)
 		:m_Device(device)
 	{
 		m_ParamsBuffer = m_Device.CreateBuffer(sizeof(PbrMaterialParams), BufferUsage::UniformBuffer, true);
-		std::vector<RHIDescriptorSetLayoutBinding> bindings;
-		// ubo
-		bindings.push_back({ .binding = MaterialSlot::Params, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Vertex | ShaderStage::Fragment });
-		// pbr textures
-		bindings.push_back({ .binding = MaterialSlot::BaseColor, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-		bindings.push_back({ .binding = MaterialSlot::Normal, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-		bindings.push_back({ .binding = MaterialSlot::MetallicRoughness, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-		bindings.push_back({ .binding = MaterialSlot::Occlusion, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-		bindings.push_back({ .binding = MaterialSlot::Emissive, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-
+		
+		std::vector<RHIDescriptorSetLayoutBinding> bindings = GetDescriptorSetLayoutBinding();
 		m_DescriptorSetLayout = m_Device.CreateDescriptorSetLayout(bindings);
 
 		m_DescriptorSets = device.CreateDescriptorSet(m_DescriptorSetLayout);
@@ -93,5 +86,20 @@ namespace Bear
 	RHIDescriptorSet* PbrMaterial::GetDescriptorSet()
 	{
 		return m_DescriptorSets.get();
+	}
+	std::vector<RHIDescriptorSetLayoutBinding> PbrMaterial::GetDescriptorSetLayoutBinding()
+	{
+		if (s_DescriptorSetLayoutBinding.empty())
+		{
+			// ubo
+			s_DescriptorSetLayoutBinding.push_back({ .binding = MaterialSlot::Params, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Vertex | ShaderStage::Fragment });
+			// pbr textures
+			s_DescriptorSetLayoutBinding.push_back({ .binding = MaterialSlot::BaseColor, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+			s_DescriptorSetLayoutBinding.push_back({ .binding = MaterialSlot::Normal, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+			s_DescriptorSetLayoutBinding.push_back({ .binding = MaterialSlot::MetallicRoughness, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+			s_DescriptorSetLayoutBinding.push_back({ .binding = MaterialSlot::Occlusion, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+			s_DescriptorSetLayoutBinding.push_back({ .binding = MaterialSlot::Emissive, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+		}
+		return s_DescriptorSetLayoutBinding;
 	}
 }

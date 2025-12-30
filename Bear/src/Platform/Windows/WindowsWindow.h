@@ -30,18 +30,9 @@ namespace Bear {
 		virtual void Init(const WindowProps& props);
 		virtual void Shutdown();
 	private:
-		// m 表示member，表示这是一个成员变量
+		
 		GLFWwindow* m_Window;
 		
-		struct WindowData
-		{
-			std::string Title;
-			unsigned int Width, Height;
-			bool VSync;
-
-			EventCallbackFn EventCallback;
-		};
-
 		WindowData m_Data;
 
 		static void WindowSizeCallback(GLFWwindow* window, int width, int height);

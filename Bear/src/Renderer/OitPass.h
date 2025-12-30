@@ -44,6 +44,7 @@ namespace Bear
 		std::shared_ptr<RHIPipelineLayout> m_OitPipelineLayout = nullptr;
 		std::shared_ptr<RHIPipelineLayout> m_BlendPipelineLayout = nullptr;
 		std::shared_ptr<RHIDescriptorSetLayout> m_OitDescriptorSetLayout = nullptr;
+		std::shared_ptr<RHIDescriptorSetLayout> m_PbrDescriptorSetLayout = nullptr;
 		std::shared_ptr<RHIDescriptorSetLayout> m_BlendDescriptorSetLayout = nullptr;
 		std::shared_ptr<RHIBuffer> m_OitNodeBuffer = nullptr;
 		std::shared_ptr<RHIBuffer> m_AtomicCounterBuffer = nullptr;

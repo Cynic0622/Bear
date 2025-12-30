@@ -2,28 +2,10 @@
 #include "libntc/shaders/InferenceConstants.h"
 #include "libntc/shaders/Inference.hlsli"
 #include "NtcChannelMapping.h"
+#include "BaseData.h"
 #include "STFSamplerState.hlsli"
 #include "shaders/HashBasedRNG.hlsli"
 
-struct PointLight
-{
-	float4 color; // w = intensity
-    float4 position;
-};
-struct DirectionalLight
-{
-    float4 color;
-    float3 direction;
-};
-struct GlobalParams
-{
-    matrix viewMat;
-	matrix projMat;
-    float4 cameraPosition;
-    PointLight PointLight[1];
-	DirectionalLight DirLight;
-	int numLights;
-};
 struct MaterialTextureSample
 {
     float4 baseOrDiffuse;
@@ -34,13 +16,17 @@ struct MaterialTextureSample
     float4 transmission;
     float opacity;
 };
-[[vk::binding(0, 0)]] ConstantBuffer<GlobalParams> g_GlobalParams;
 
-[[vk::binding(0, 1)]] ByteAddressBuffer t_InputFile; // the latent data.
+// base data
+[[vk::binding(0, 0)]] ConstantBuffer<BaseData> g_BaseData;
 
-[[vk::binding(1, 1)]] ByteAddressBuffer t_WeightBuffer;// the neural network weights.
+[[vk::binding(0, 1)]] ConstantBuffer<SceneData> g_SceneData;
 
-[[vk::binding(2, 1)]] ConstantBuffer<NtcTextureSetConstants> g_NtcMaterial;
+[[vk::binding(0, 2)]] ByteAddressBuffer t_InputFile; // the latent data.
+
+[[vk::binding(1, 2)]] ByteAddressBuffer t_WeightBuffer;// the neural network weights.
+
+[[vk::binding(2, 2)]] ConstantBuffer<NtcTextureSetConstants> g_NtcMaterial;
 
 void GetSamplePositionWithSTF(inout HashBasedRNG rng, float2 uv, out int2 texel, out int mipLevel)
 {
@@ -64,7 +50,7 @@ void GetSamplePositionWithSTF(inout HashBasedRNG rng, float2 uv, out int2 texel,
 
 MaterialTextureSample SampleNtcMaterial(uint2 pixelPosition, float2 uv)
 {
-    HashBasedRNG rng = HashBasedRNG::Create2D(pixelPosition, 1025);
+    HashBasedRNG rng = HashBasedRNG::Create2D(pixelPosition, g_BaseData.frameIndex);
 	int2 texel;
 	int mipLevel;
 	GetSamplePositionWithSTF(rng, uv, texel, mipLevel);
@@ -135,11 +121,11 @@ void main(
 	// pbr shading here.
 	float3 N = normalize(textures.normal.rgb * 2.0 - 1.0);
 	N = normalize(mul(N, i_tbn));
-	float3 V = normalize(g_GlobalParams.cameraPosition.xyz - i_worldPos.xyz);
+	float3 V = normalize(g_BaseData.cameraPosition.xyz - i_worldPos.xyz);
 	// point lights
-    for (int i = 0; i < g_GlobalParams.numLights; i++)
+    for (int i = 0; i < g_SceneData.numLights; i++)
     {
-        PointLight light = g_GlobalParams.PointLight[i];
+        PointLight light = g_SceneData.pointLights[i];
         float3 L = normalize(light.position.xyz - i_worldPos.xyz);
         float3 H = normalize(L + V);
         float NdotL = max(dot(N, L), 0.0);
@@ -170,7 +156,7 @@ void main(
     }
     // directional light
     {
-        float3 L = normalize(-g_GlobalParams.DirLight.direction);
+        float3 L = normalize(-g_SceneData.dirLight.direction.xyz);
         float3 H = normalize(L + V);
         float NdotL = max(dot(N, L), 0.0);
         float NdotV = max(dot(N, V), 0.0);
@@ -193,7 +179,7 @@ void main(
         float3 kD = (1.0 - F) * (1.0 - textures.metalRoughOrSpecular.r);
         float3 diffuse = kD * textures.baseOrDiffuse.rgb / 3.14159265;
         // Final shading
-		float3 radiance = g_GlobalParams.DirLight.color.rgb * g_GlobalParams.DirLight.color.w;
+		float3 radiance = g_SceneData.dirLight.color.rgb * g_SceneData.dirLight.color.w;
 		o_color.rgb += (diffuse + specular) * radiance * NdotL;
     }
     // Ambient term

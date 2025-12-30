@@ -1,8 +1,5 @@
-cbuffer GlobalParams : register(b0, space0)
-{
-	matrix viewMatrix;
-	matrix projMatrix;
-};
+#include "BaseData.h"
+[[vk::binding(0, 0)]] ConstantBuffer<BaseData> g_BaseData;
 
 struct PerObjectPushConstants
 {
@@ -27,7 +24,7 @@ VertexToPixel main(VertexInput input)
 {
     VertexToPixel output;
     // matrix mvp = mul(mul(pushConstants.model, viewMatrix), projMatrix);
-	matrix mvp = mul(projMatrix, mul(viewMatrix, pushConstants.model));
+	matrix mvp = mul(g_BaseData.projMat, mul(g_BaseData.viewMat, pushConstants.model));
     output.position = mul(mvp, float4(input.position, 1.0));
     output.texCoord = input.texCoord;
 

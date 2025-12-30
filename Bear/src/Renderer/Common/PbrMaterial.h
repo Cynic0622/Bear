@@ -29,6 +29,7 @@ namespace Bear
 		RHIDescriptorSetLayout* GetDescriptorSetLayout() override;
 		RHIDescriptorSet* GetDescriptorSet() override;
 		bool IsTransparent() const override { return m_IsTransparent; }
+		static std::vector<RHIDescriptorSetLayoutBinding> GetDescriptorSetLayoutBinding();
 	private:
 		RHIDevice& m_Device;
 		PbrMaterialParams m_Params;
@@ -38,5 +39,6 @@ namespace Bear
 		std::shared_ptr<RHIDescriptorSetLayout> m_DescriptorSetLayout;
 		std::shared_ptr<RHIBuffer> m_ParamsBuffer;
 		std::array<std::shared_ptr<Texture>, MaterialSlot::Count> m_Textures;
+		static std::vector<RHIDescriptorSetLayoutBinding> s_DescriptorSetLayoutBinding;
 	};
 }

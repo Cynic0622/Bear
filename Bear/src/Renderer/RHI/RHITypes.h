@@ -3,18 +3,10 @@
 
 namespace Bear
 {
-	class RHIDescriptorSet;
-}
-
-namespace Bear
-{
-	class RHIDescriptorSetLayout;
-}
-
-namespace Bear
-{
 	class RHIDevice;
 	class RHISwapchain;
+	class RHIDescriptorSetLayout;
+	class RHIDescriptorSet;
 
 	// render context
 	struct RenderContext
@@ -23,32 +15,29 @@ namespace Bear
 		RHISwapchain* swapchain = nullptr;
 		uint8_t MAX_FRAMES_IN_FLIGHT;
 		GLFWwindow* window = nullptr;
-		RHIDescriptorSetLayout* globalDescriptorSetLayout = nullptr; // global descriptor set layout for all pass.
-		std::vector<RHIDescriptorSet*> globalDescriptorSet; // global descriptor set for all pass.
-		RHIDescriptorSetLayout* globalPbrDescriptorSetLayout = nullptr; // global descriptor set for pbr pass.
+		RHIDescriptorSetLayout* baseDataDescriptorSetLayout = nullptr; // global descriptor set layout for all pass.
+		std::vector<RHIDescriptorSet*> baseDataDescriptorSet; // global descriptor set for all pass.
+		RHIDescriptorSetLayout* sceneDataDescriptorSetLayout = nullptr;
+		std::vector<RHIDescriptorSet*> sceneDataDescriptorSet;
 		bool useTextureCompression = true;
-		// uint8_t currentFrameIndex = 0; // frame index for current frame
 	};
 
-	// ����һ����ɫ�ṹ��
 	struct ClearVaule
 	{
 		float r = 0.0f, g = 0.0f, b = 0.0f, a = 1.0f;
 	};
 
-	// ����һ�����/ģ��ṹ��
+	
 	struct ClearDepthStencil
 	{
 		float depth = 1.0f;
 		uint32_t stencil = 0;
 	};
 
-	// RHI ��������ֵ�ṹ��
 	struct RHIClearValue
 	{
 		ClearVaule color;
 		ClearDepthStencil depthStencil;
-		// ��־������������ֵ��������ɫ�������
 		bool isDepth = false;
 	};
 

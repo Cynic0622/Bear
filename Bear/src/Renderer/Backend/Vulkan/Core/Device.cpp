@@ -142,13 +142,10 @@ namespace Bear {
 			vkBinding.descriptorType = ToVulkanDescriptorType(binding.descriptorType);
 			vkBinding.descriptorCount = binding.descriptorCount;
 			vkBinding.stageFlags = ToVulkanShaderStage(binding.stageFlags);
-			vkBinding.pImmutableSamplers = nullptr; // ���ɱ������
+			vkBinding.pImmutableSamplers = nullptr;
 			vkBindings.push_back(vkBinding);
 		}
-		/*
-		* make_shared ����һ�� std::shared_ptr<DescriptorSetLayout>��
-        * �����Զ�ת��Ϊ std::shared_ptr<RHIDescriptorSetLayout> �����ء�
-		*/
+		
 		return std::make_shared<DescriptorSetLayout>(*this, vkBindings);
 	}
 	std::shared_ptr<RHIPipelineLayout> Device::CreatePipelineLayout(const std::vector<RHIDescriptorSetLayout*>& descriptorSetLayouts, const std::vector<RHIPushConstantRange>& pushConstantRanges)
@@ -561,22 +558,22 @@ namespace Bear {
 	}
 	RHICommandList* Device::BeginFrame()
 	{
-		m_InFlightFences[m_CurrentFrame]->Wait(); // �ȴ���һ��֡���������
+		m_InFlightFences[m_CurrentFrame]->Wait();
 
-		m_InFlightFences[m_CurrentFrame]->Reset(); // ���õ�ǰ֡���ź���
+		m_InFlightFences[m_CurrentFrame]->Reset();
 		RHICommandList* cmd = m_CommandBuffers[m_CurrentFrame].get();
-		cmd->Reset(); // �����������
-		cmd->Begin(); // ��ʼ���������¼��
+		cmd->Reset();
+		cmd->Begin();
 		return cmd;
 	}
 	void Device::EndFrame(RHISwapchain& swapchain, uint32_t imageIndex)
 	{
 		RHICommandList& cmd = *m_CommandBuffers[m_CurrentFrame];
-		cmd.End(); // �������������¼��
+		cmd.End();
 
-		SubmitCommands(cmd); // �ύ���������ͼ�ζ���
+		SubmitCommands(cmd);
 
-		Present(swapchain, imageIndex); // �ύ�������ĳ�������
+		Present(swapchain, imageIndex);
 	}
 	uint32_t Device::AcquireNextImage(RHISwapchain& swapchain)
 	{

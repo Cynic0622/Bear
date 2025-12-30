@@ -18,7 +18,7 @@ namespace Bear {
 
 	void WindowsWindow::WindowSizeCallback(GLFWwindow* window, int width, int height)
 	{
-		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+		WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 		data.Width = width; // 更新宽度
 		data.Height = height; // 更新高度
 		//BEAR_CLIENT_INFO("Window resized to {0}, {1}", width, height);
@@ -30,7 +30,7 @@ namespace Bear {
 
 	void WindowsWindow::WindowCloseCallback(GLFWwindow* window)
 	{
-		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+		WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 		//BEAR_CLIENT_INFO("Window closed: {0}", data.Title);
 		
 		// 触发窗口关闭事件
@@ -43,7 +43,7 @@ namespace Bear {
 
 	void WindowsWindow::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 	{
-		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+		WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 
 		// 处理按键事件，创建KeyEvent对象并调用回调函数
 		switch (action) {
@@ -73,7 +73,7 @@ namespace Bear {
 
 	void WindowsWindow::MouseMoveCallback(GLFWwindow* window, double xpos, double ypos)
 	{
-		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+		WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 		//BEAR_CLIENT_INFO("Mouse moved to ({0}, {1})", xpos, ypos);
 		
 		// 触发鼠标移动事件
@@ -83,7 +83,7 @@ namespace Bear {
 
 	void WindowsWindow::MouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 	{
-		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+		WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 		//BEAR_CLIENT_INFO("Mouse scrolled by ({0}, {1})", xoffset, yoffset);
 		
 		// 触发鼠标滚轮事件
@@ -93,7 +93,7 @@ namespace Bear {
 
 	void WindowsWindow::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 	{
-		WindowsWindow::WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+		WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
 		switch (action) {
 		case GLFW_PRESS: {
 			//BEAR_CLIENT_INFO("Mouse button pressed: {0}", button);
