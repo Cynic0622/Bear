@@ -14,22 +14,35 @@ namespace Bear
 {
 	Texture::Texture(RHIDevice& device, const std::string& path)
 	{
-		int32_t texWidth, texHeight, texChannels;
-		unsigned char* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, 4);
-		BEAR_CORE_ASSERT(pixels != nullptr, "Failed to load texture image: " + path);
-
-		size_t imageSize = texWidth * texHeight * texChannels;
-		std::unique_ptr<RHIBuffer> stagingBuffer = device.CreateBuffer(imageSize, BufferUsage::StagingBuffer, true);
-		stagingBuffer->UploadData(pixels, imageSize);
-		stbi_image_free(pixels);
-
 		RHITextureConfig config;
+		int32_t texWidth, texHeight, texChannels;
+		std::unique_ptr<RHIBuffer> stagingBuffer;
+		if (path.ends_with(".hdr"))
+		{
+			float* pixels = stbi_loadf(path.c_str(), &texWidth, &texHeight, &texChannels, 4);
+			BEAR_CORE_ASSERT(pixels != nullptr, "Failed to load texture image: " + path);
+			config.format = PixelFormat::R32G32B32A32_SFLOAT;
+			size_t imageSize = texWidth * texHeight * 4 * sizeof(float);
+			stagingBuffer = device.CreateBuffer(imageSize, BufferUsage::StagingBuffer, true);
+			stagingBuffer->UploadData(pixels, imageSize);
+			stbi_image_free(pixels);
+		}
+		else
+		{
+			unsigned char*  pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, 4);
+			BEAR_CORE_ASSERT(pixels != nullptr, "Failed to load texture image: " + path);
+			config.format = selectFormat(4);
+			size_t imageSize = texWidth * texHeight * 4 * sizeof(*pixels);
+			stagingBuffer = device.CreateBuffer(imageSize, BufferUsage::StagingBuffer, true);
+			stagingBuffer->UploadData(pixels, imageSize);
+			stbi_image_free(pixels);
+		}
+
 		config.width = texWidth;
 		config.height = texHeight;
-		config.format = selectFormat(texChannels);
 
 		m_Image = device.CreateTexture(config);
-		m_Channels = texChannels;
+		m_Channels = 4;
 		m_Width = texWidth;
 		m_Height = texHeight;
 		device.ImmediateSubmit([&](RHICommandList& cmd)

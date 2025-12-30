@@ -3,13 +3,10 @@
 #include "SceneLayer.h"
 #include "Application.h"
 #include "AssetLoader.h"
-#include "Component.h"
-#include "Node.h"
 #include "Scene.h"
 #include "RenderObject.h"
-#include "Scene/CameraController.h"
-#include "Entity.h"
 #include "Core/Resource.h"
+#include "BaseData.h"
 namespace Bear
 {
 	SceneLayer::SceneLayer(std::unique_ptr<Scene> scene)
@@ -35,6 +32,7 @@ namespace Bear
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/Suzanne/glTF/Suzanne.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/TransmissionOrderTest/glTF/TransmissionOrderTest.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/CesiumMan/CesiumMan.gltf");
+		// auto modelDesc = AssetLoader::ImportModel("assets/models/saint/scene.gltf");
 		// 2. resource system create descriptor infos, cpu --> gpu
 		auto& app = Application::Get();
 		auto& renderer = app.GetRenderer()->GetResource();
@@ -58,11 +56,12 @@ namespace Bear
 		// 1. collect render objects from scene graph
 		std::vector<RenderObject> renderObjects;
 		SceneData sceneData;
-		m_Scene->CollectRenderObjects(renderObjects, sceneData);
+		BaseData baseData;
+		m_Scene->CollectRenderData(renderObjects, sceneData, baseData);
 		// 2. submit render objects
 		auto& app = Application::Get();
 		auto renderer = app.GetRenderer();
-		renderer->Submit(renderObjects, sceneData);
+		renderer->Submit(renderObjects, sceneData, baseData);
 	}
 	void SceneLayer::OnEvent(Event& event)
 	{

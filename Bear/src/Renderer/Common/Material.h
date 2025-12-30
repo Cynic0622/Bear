@@ -31,8 +31,7 @@ namespace Bear {
 	enum NtcMaterialSlot : uint8_t {
 		Latent = 0,
 		Weight = 1,
-		Constant = 2,
-		NtcCount = 3
+		Constants = 2,
 	};
 
 	class Material {

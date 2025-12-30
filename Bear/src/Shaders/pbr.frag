@@ -1,16 +1,11 @@
 #version 450
-#include "common.glsli"
-layout(std140, set = 0, binding = 0) uniform GlobalParams {
-    mat4 viewMatrix;
-    mat4 projMatrix;
 
-    vec4 cameraPosition;
-    PointLight pointLight[1];
-    DirectionalLight dirLight;
-    int lightCount;
-} globalParamsData;
+#include "..\Renderer\BaseData.h"
 
-layout(set = 1, binding = 0) uniform Material {
+layout(set = 1, binding = 0) uniform sceneDataBlock {
+    SceneData g_SceneData;
+};
+layout(set =2, binding = 0) uniform Material {
     vec4 baseColorFactor;
     float metallicFactor;
     float roughnessFactor;
@@ -19,11 +14,11 @@ layout(set = 1, binding = 0) uniform Material {
     vec3 emissiveFactor;
 } materialData;
 
-layout(set = 1, binding = 1) uniform sampler2D baseColorSampler;
-layout(set = 1, binding = 2) uniform sampler2D normalSampler;
-layout(set = 1, binding = 3) uniform sampler2D metallicRoughnessSampler;
-layout(set = 1, binding = 4) uniform sampler2D occlusionSampler;
-layout(set = 1, binding = 5) uniform sampler2D emissiveSampler;
+layout(set = 2, binding = 1) uniform sampler2D baseColorSampler;
+layout(set = 2, binding = 2) uniform sampler2D normalSampler;
+layout(set = 2, binding = 3) uniform sampler2D metallicRoughnessSampler;
+layout(set = 2, binding = 4) uniform sampler2D occlusionSampler;
+layout(set = 2, binding = 5) uniform sampler2D emissiveSampler;
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) in vec3 fragPos;
 layout(location = 2) in vec3 viewDir;
@@ -87,15 +82,15 @@ void main() {
 
     // pbr render cook-torrance
     // point light
-    for (int i = 0; i < globalParamsData.lightCount; ++i)
+    for (int i = 0; i < g_SceneData.numLights; ++i)
     {
-        vec3 lightPos = globalParamsData.pointLight[i].position.xyz;
+        vec3 lightPos = g_SceneData.pointLights[i].position.xyz;
         vec3 L = normalize(lightPos - fragPos);
         vec3 H = normalize(V + L);
         float distance = length(lightPos - fragPos);
         float attenuation = 1.0 / (distance * distance); // simple quadratic attenuation
         // attenuation = 1.0 / distance; // linear attenuation
-        vec3 radiance = globalParamsData.pointLight[i].colorIntensity.rgb * globalParamsData.pointLight[i].colorIntensity.a * attenuation;
+        vec3 radiance = g_SceneData.pointLights[i].color.rgb * g_SceneData.pointLights[i].color.a * attenuation;
 
         // cook-torrance BRDF
         float NDF = DistributionGGX(N, H, roughness);
@@ -119,9 +114,9 @@ void main() {
     }
     // directional light
     {
-        vec3 L = normalize(-globalParamsData.dirLight.direction.xyz);
+        vec3 L = normalize(-g_SceneData.dirLight.direction.xyz);
         vec3 H = normalize(V + L);
-        vec3 radiance = globalParamsData.dirLight.colorIntensity.rgb * globalParamsData.dirLight.colorIntensity.a;
+        vec3 radiance = g_SceneData.dirLight.color.rgb * g_SceneData.dirLight.color.a;
         // cook-torrance BRDF
         float NDF = DistributionGGX(N, H, roughness);
         float G = GeometrySmith(N, V, L, (roughness+1.0)*(roughness+1.0)/8.0);
@@ -141,8 +136,6 @@ void main() {
     // ambient = vec3(0.2, 0.2, 0.2) * albedo * ao;
     vec3 color = ambient + Lo + emissive;
 
-    color = color / (color + vec3(1.0));
-    // color = pow(color, vec3(1.0 / 2.2));
     // Combine the textures and material properties
     outColor = vec4(color, alpha);
     // outColor = vec4(albedo, 1.0);

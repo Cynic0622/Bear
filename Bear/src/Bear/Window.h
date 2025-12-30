@@ -6,7 +6,8 @@
 
 namespace Bear {
 
-	struct WindowProps {
+	struct WindowProps 
+	{
 		std::string Title;
 		unsigned int Width;
 		unsigned int Height;
@@ -15,16 +16,26 @@ namespace Bear {
 			: Title(title), Width(width), Height(height) {}
 	};
 
-	class BEAR_API Window {
-	public:
-		//Window(const WindowProps& props = WindowProps());
+	//Window(const WindowProps& props = WindowProps());
 		// 类型别名 using 新类型名 = 原类型定义;
 		/*
 		@param EventCallbackFn: 定义一个新的类型别名，表示一个接受Event引用参数并返回void的可调用对象类型。
 		@param Event: 事件类，表示各种事件的基类。
 		@param std::function: C++标准库中的函数对象包装器，可以存储任何可调用对象（函数、lambda表达式、函数指针等）。
 		*/
-		using EventCallbackFn = std::function<void(Event&)>;
+	using EventCallbackFn = std::function<void(Event&)>;
+
+	struct WindowData
+	{
+		std::string Title;
+		unsigned int Width, Height;
+		bool VSync;
+
+		EventCallbackFn EventCallback;
+	};
+
+	class BEAR_API Window {
+	public:
 
 		virtual ~Window() {}
 		virtual void OnUpdate() = 0;

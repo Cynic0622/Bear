@@ -16,7 +16,6 @@ namespace Bear {
 		Instance(const std::string& appName, const std::string& engineName, bool enableValidation);
 		~Instance();
 
-		// 禁止拷贝和移动，保证实例的唯一性
 		Instance(const Instance&) = delete;
 		Instance& operator=(const Instance&) = delete;
 		Instance(Instance&&) = delete;

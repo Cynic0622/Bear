@@ -1,6 +1,5 @@
 #include "bearpch.h"
 #include "Scene.h"
-#include "SceneLayer.h"
 #include "Application.h"
 #include "AssetLoader.h"
 #include "Component.h"
@@ -8,6 +7,7 @@
 #include "Entity.h"
 #include "Resource.h"
 #include "CameraController.h"
+#include "BaseData.h"
 namespace Bear
 {
 	Scene::Scene()
@@ -16,7 +16,7 @@ namespace Bear
 		m_EditorCamera = std::make_unique<CameraController>(45.0f, (float)1280 / 720, 0.1f, 1000.f);
 		// add some random lights for sponza scene.
 		std::srand(static_cast<unsigned>(std::time(nullptr)));
-		for (int i = 0; i < 1; i++)
+		for (int i = 0; i < m_LightNumber; i++)
 		{
 			Entity light = CreateEntity("Light" + std::to_string(i));
 			auto& transform = light.GetComponent<TransformComponent>();
@@ -28,7 +28,7 @@ namespace Bear
 			light.AddComponent<LightComponent>(LightComponent::CreatePoint(glm::vec4(color, 10)));
 		}
 		Entity light = CreateEntity("Directional Light");
-		light.AddComponent<LightComponent>(LightComponent::CreateDirectional({1.f, -1.f, 1.f}, {1.f, 1.f, 1.f, 10.f}));
+		light.AddComponent<LightComponent>(LightComponent::CreateDirectional({1.f, -1.f, 1.f}, {1.f, 1.f, 0.f, 5.f}));
 
 	}
 	Scene::~Scene()
@@ -64,7 +64,7 @@ namespace Bear
 		}
 		GetActiveCamera()->Update(deltaTime);
 	}
-	void Scene::CollectRenderObjects(std::vector<RenderObject>& ObjectsList, SceneData& sceneData)
+	void Scene::CollectRenderData(std::vector<RenderObject>& ObjectsList, SceneData& sceneData, BaseData& baseData)
 	{
 		auto view = m_Registry.view<MeshComponent, TransformComponent, MaterialComponent>();
 		for (auto entity : view)
@@ -80,7 +80,6 @@ namespace Bear
 				continue;
 			ObjectsList.push_back(renderObject);
 		}
-		// BEAR_CORE_INFO("FrustumCull state: {}, RenderObject size: {}", m_FrustumCull, ObjectsList.size());
 		// collect scene data
 		auto lightView = m_Registry.view<TransformComponent, LightComponent>();
 		uint8_t index = 0;
@@ -93,19 +92,29 @@ namespace Bear
 			{
 			case LightType::Point:
 				{
-					sceneData.pointLight[index].position = glm::vec4(transformComponent.Position, 1.0f);
-					sceneData.pointLight[index].color = glm::vec4(lightComponent.Color);
+					if (index >= MAX_POINT_LIGHTS)
+						break;
+					sceneData.pointLights[index].color = lightComponent.Color;
+					sceneData.pointLights[index].position = glm::vec4(transformComponent.Position, 1.0f);
 					index++;
+					break;
+				}
+				case LightType::Directional:
+				{
+					sceneData.dirLight.color = lightComponent.Color;
+					sceneData.dirLight.direction = glm::vec4(lightComponent.Direction, 0.0f);
 					break;
 				}
 			default:
 				break;
 			}
+			sceneData.numLights = index;
 		}
 		// camera data
-		sceneData.cameraPosition = glm::vec4(GetActiveCamera()->GetPosition(), 1.f);
-		sceneData.viewMatrix = GetActiveCamera()->GetViewMatrix();
-		sceneData.projectionMatrix = GetActiveCamera()->GetProjectionMatrix();
+		baseData.cameraPosition = glm::vec4(GetActiveCamera()->GetPosition(), 1.f);
+		baseData.viewMat = GetActiveCamera()->GetViewMatrix();
+		baseData.projMat = GetActiveCamera()->GetProjectionMatrix();
+		baseData.frameIndex = (m_FrameNum++) % UINT32_MAX;
 	}
 	Entity Scene::CreateEntity(const std::string& name)
 	{
@@ -120,6 +129,15 @@ namespace Bear
 	{
 		m_Registry.destroy(entity);
 	}
+
+	void Scene::AddLight(const PointLight& light)
+	{
+		Entity pointLight = CreateEntity("Point Light");
+		auto& transform = pointLight.GetComponent<TransformComponent>();
+		transform.Position = glm::vec3(light.position);
+		pointLight.AddComponent<LightComponent>(LightComponent::CreatePoint(light.color));
+	}
+
 	void Scene::CreateSceneGraph(const ModelDescription& desc, const Resources& resources)
 	{
 		// create scene graph from scene roots, bind the node description to the entity, such as name, transform, mesh, material, etc.
