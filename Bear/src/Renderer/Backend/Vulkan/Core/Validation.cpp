@@ -26,7 +26,7 @@ namespace Bear {
 		BEAR_CORE_ASSERT(CreateDebugUtilsMessengerEXT(m_Instance, &createInfo, nullptr, &m_DebugMessenger) == VK_SUCCESS,
 			"Failed to set up debug messenger!");
 #ifdef BEAR_DEBUG
-		BEAR_CORE_INFO("BEAR::Validation : Vulkan Debug Messenger created.");
+		BEAR_CORE_INFO("Vulkan Debug Messenger created.");
 #endif // BEAR_DEBUG
 
 	}

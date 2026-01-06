@@ -88,12 +88,14 @@ namespace Bear
 			for (int index = 0; index < m_TextureSet->GetTextureCount(); ++index)
 			{
 				ntc::ITextureMetadata* texMeta = m_TextureSet->GetTexture(index);
+#ifdef BEAR_DEBUG
 				BEAR_CORE_INFO("Texture[{}] '{}': channels {}..{}, block compression {}, RGB space {}, Alpha space {}",
 					index, texMeta->GetName(),
 					texMeta->GetFirstChannel(), texMeta->GetFirstChannel() + texMeta->GetNumChannels() - 1,
 					ntc::BlockCompressedFormatToString(texMeta->GetBlockCompressedFormat()),
 					ntc::ColorSpaceToString(texMeta->GetRgbColorSpace()),
 					ntc::ColorSpaceToString(texMeta->GetAlphaColorSpace()));
+#endif
 			}
 			return;
 		}
@@ -103,7 +105,9 @@ namespace Bear
 		{
 			numChannels += texture->GetChannels();
 		}
+#ifdef BEAR_DEBUG
 		BEAR_CORE_INFO("texture set has {} channels.", numChannels);
+#endif
 		BEAR_CORE_ASSERT(numChannels <= 16, "The number of the texture channels must be less than 16!");
 		// keep the same size for all textures.
 		uint32_t maxWidth = 0, maxHeight = 0;
@@ -190,11 +194,6 @@ namespace Bear
 			ntcStatus = m_TextureSet->RunCompressionSteps(&stats);
 			if (ntcStatus == ntc::Status::Ok || ntcStatus == ntc::Status::Incomplete)
 			{
-				// printf("\rCompression step %d/%d (%.2f ms/step), loss = %.6f (PSNR %.2f dB), LR: net %.6f, grid %.6f",
-				// 	stats.currentStep, compSettings.trainingSteps,
-				// 	stats.millisecondsPerStep,
-				// 	stats.loss, ntc::LossToPSNR(stats.loss),
-				// 	stats.learningRate, stats.learningRate * (compSettings.gridLearningRate / compSettings.networkLearningRate));
 				BEAR_CORE_INFO(
 					"Compression step {}/{} ({:.2f} ms/step), loss = {:.6f} (PSNR {:.2f} dB), LR: net {:.6f}, grid {:.6f}",
 					stats.currentStep,
@@ -205,7 +204,6 @@ namespace Bear
 					stats.learningRate,
 					stats.learningRate* (compSettings.gridLearningRate / compSettings.networkLearningRate)
 				);
-				// fflush(stdout);
 			}
 			else
 			{
@@ -223,12 +221,14 @@ namespace Bear
 		for (int index = 0; index < m_TextureSet->GetTextureCount(); ++index)
 		{
 			ntc::ITextureMetadata* texMeta = m_TextureSet->GetTexture(index);
+#ifdef BEAR_DEBUG
 			BEAR_CORE_INFO("Texture[{}] '{}': channels {}..{}, block compression {}, RGB space {}, Alpha space {}",
 				index, texMeta->GetName(),
 				texMeta->GetFirstChannel(), texMeta->GetFirstChannel() + texMeta->GetNumChannels() - 1,
 				ntc::BlockCompressedFormatToString(texMeta->GetBlockCompressedFormat()),
 				ntc::ColorSpaceToString(texMeta->GetRgbColorSpace()),
 				ntc::ColorSpaceToString(texMeta->GetAlphaColorSpace()));
+#endif
 		}
 		ntcStatus = m_TextureSet->SaveToFile(filePath.c_str());
 		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok,
