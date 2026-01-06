@@ -5,11 +5,11 @@ namespace Bear
 {
 	struct alignas(16) PbrMaterialParams {
 		alignas(16) glm::vec4 baseColorFactor{ 1.f,1.f,1.f,1.f };
-		float metallicFactor{ 1.f };
-		float roughnessFactor{ 1.f };
+		float metallicFactor{ 0.f };
+		float roughnessFactor{ .5f };
 		float normalScale{ 1.f };
 		float occlusionStrength{ 1.f };
-		alignas(16) glm::vec3 emissiveFactor{ 0.f,0.f,0.f };
+		alignas(16) glm::vec3 emissiveFactor{ 0.f, 0.f,0.f };
 		float _pad0{ 0.f }; // std140 alignment padding
 	};
 
@@ -29,6 +29,7 @@ namespace Bear
 		RHIDescriptorSetLayout* GetDescriptorSetLayout() override;
 		RHIDescriptorSet* GetDescriptorSet() override;
 		bool IsTransparent() const override { return m_IsTransparent; }
+		static std::vector<RHIDescriptorSetLayoutBinding> GetDescriptorSetLayoutBinding();
 	private:
 		RHIDevice& m_Device;
 		PbrMaterialParams m_Params;
@@ -38,5 +39,6 @@ namespace Bear
 		std::shared_ptr<RHIDescriptorSetLayout> m_DescriptorSetLayout;
 		std::shared_ptr<RHIBuffer> m_ParamsBuffer;
 		std::array<std::shared_ptr<Texture>, MaterialSlot::Count> m_Textures;
+		static std::vector<RHIDescriptorSetLayoutBinding> s_DescriptorSetLayoutBinding;
 	};
 }

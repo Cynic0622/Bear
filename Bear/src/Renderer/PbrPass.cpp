@@ -1,5 +1,8 @@
 #include "bearpch.h"
 #include "PbrPass.h"
+#include "Texture.h"
+#include "NtcMaterial.h"
+#include "PbrMaterial.h"
 
 namespace Bear
 {
@@ -30,13 +33,16 @@ namespace Bear
 		for (const auto& obj : renderObjects)
 		{
 			if (obj.material->IsTransparent())
+			{
 				continue;
+			}
+				
 			cmd->BindPipeline(*m_PreZPipeline);
-			cmd->BindDescriptorSet(*m_PreZPipelineLayout, *m_Context->globalDescriptorSet[currentFrameIndex], 0);
-			cmd->BindDescriptorSet(*m_PreZPipelineLayout, *obj.material->GetDescriptorSet(), 1);
+			cmd->BindDescriptorSet(*m_PreZPipelineLayout, *m_Context->baseDataDescriptorSet[currentFrameIndex], 0);
+			cmd->BindDescriptorSet(*m_PreZPipelineLayout, *m_Context->sceneDataDescriptorSet[currentFrameIndex], 1);
+			cmd->BindDescriptorSet(*m_PreZPipelineLayout, *obj.material->GetDescriptorSet(), 2);
 			PerObjectPushConstants pushConstants{ .model = obj.transform };
 			cmd->PushConstants(*m_PreZPipelineLayout, ShaderStage::Vertex, &pushConstants, sizeof(PerObjectPushConstants), 0);
-			obj.mesh->Bind(*cmd);
 			obj.mesh->Draw(*cmd);
 			count++;
 		}
@@ -47,11 +53,11 @@ namespace Bear
 			if (obj.material->IsTransparent())
 				continue;
 			cmd->BindPipeline(*m_PbrPipeline);
-			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *m_Context->globalDescriptorSet[currentFrameIndex], 0);
-			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *obj.material->GetDescriptorSet(), 1);
+			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *m_Context->baseDataDescriptorSet[currentFrameIndex], 0);
+			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *m_Context->sceneDataDescriptorSet[currentFrameIndex], 1);
+			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *obj.material->GetDescriptorSet(),2);
 			PerObjectPushConstants pushConstants{ .model = obj.transform };
 			cmd->PushConstants(*m_PbrPipelineLayout, ShaderStage::Vertex, &pushConstants, sizeof(PerObjectPushConstants), 0);
-			obj.mesh->Bind(*cmd);
 			obj.mesh->Draw(*cmd);
 		}
 		cmd->EndRenderPass();
@@ -76,17 +82,17 @@ namespace Bear
 		AttachmentDescription& colorAttachment = desc.attachments[0];
 		colorAttachment.format = PixelFormat::B8G8R8A8_SRGB;
 		colorAttachment.samples = AttachmentSamples::Count1;
-		colorAttachment.loadOp = AttachmentLoadOp::Clear;
+		colorAttachment.loadOp = AttachmentLoadOp::Load;
 		colorAttachment.storeOp = AttachmentStoreOp::Store;
-		colorAttachment.initialLayout = ImageLayout::Undefined;
+		colorAttachment.initialLayout = ImageLayout::ColorAttachment;
 		colorAttachment.finalLayout = ImageLayout::ColorAttachment;
 
 		AttachmentDescription& depthAttachment = desc.attachments[1];
 		depthAttachment.format = PixelFormat::D32_SFLOAT;
 		depthAttachment.samples = AttachmentSamples::Count1;
-		depthAttachment.loadOp = AttachmentLoadOp::Clear;
+		depthAttachment.loadOp = AttachmentLoadOp::Load;
 		depthAttachment.storeOp = AttachmentStoreOp::Store;
-		depthAttachment.initialLayout = ImageLayout::Undefined;
+		depthAttachment.initialLayout = ImageLayout::DepthStencilAttachment;
 		depthAttachment.finalLayout = ImageLayout::DepthStencilAttachment;
 
 		desc.subpassCount = 2; // One for pre-Z pass, one for PBR pass
@@ -129,8 +135,9 @@ namespace Bear
 		std::vector<RHIPushConstantRange> pushConstantRanges = {
 			{ShaderStage::Vertex, sizeof(PerObjectPushConstants), 0}
 		};
-		const auto& globalDescriptorSetLayout = m_Context->globalDescriptorSetLayout;
-		m_PreZPipelineLayout = m_Context->device->CreatePipelineLayout({ globalDescriptorSetLayout, m_DescriptorSetLayout.get()},
+		const auto& baseDataDescriptorSetLayout = m_Context->baseDataDescriptorSetLayout;
+		const auto& sceneDataDescriptorSetLayout = m_Context->sceneDataDescriptorSetLayout;
+		m_PreZPipelineLayout = m_Context->device->CreatePipelineLayout({ baseDataDescriptorSetLayout, sceneDataDescriptorSetLayout, m_DescriptorSetLayout.get()},
 		                                                              { pushConstantRanges });
 
 		RHIPipelineConfig pipelineConfig;
@@ -144,7 +151,7 @@ namespace Bear
 		pipelineConfig.subpassIndex = 0;
 		m_PreZPipeline = m_Context->device->CreatePipeline(pipelineConfig, *m_RenderPass);
 
-		m_PbrPipelineLayout = m_Context->device->CreatePipelineLayout({ globalDescriptorSetLayout, m_DescriptorSetLayout.get()},
+		m_PbrPipelineLayout = m_Context->device->CreatePipelineLayout({ baseDataDescriptorSetLayout, sceneDataDescriptorSetLayout, m_DescriptorSetLayout.get()},
 			{ pushConstantRanges });
 
 		pipelineConfig.pipelineLayout = m_PbrPipelineLayout;
@@ -169,20 +176,11 @@ namespace Bear
 		std::vector<RHIDescriptorSetLayoutBinding> bindings;
 		if (!m_Context->useTextureCompression)
 		{
-			// ubo
-			bindings.push_back({ .binding = MaterialSlot::Params, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Vertex | ShaderStage::Fragment });
-			// pbr textures
-			bindings.push_back({ .binding = MaterialSlot::BaseColor, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-			bindings.push_back({ .binding = MaterialSlot::Normal, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-			bindings.push_back({ .binding = MaterialSlot::MetallicRoughness, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-			bindings.push_back({ .binding = MaterialSlot::Occlusion, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-			bindings.push_back({ .binding = MaterialSlot::Emissive, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
+			bindings = PbrMaterial::GetDescriptorSetLayoutBinding();
 		}
 		else
 		{
-			bindings.push_back({ .binding = NtcMaterialSlot::Constant, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Fragment });
-			bindings.push_back({ .binding = NtcMaterialSlot::Latent, .descriptorType = DescriptorType::StorageBuffer, .stageFlags = ShaderStage::Fragment });
-			bindings.push_back({ .binding = NtcMaterialSlot::Weight, .descriptorType = DescriptorType::StorageBuffer, .stageFlags = ShaderStage::Fragment });
+			bindings = NtcMaterial::GetDescriptorSetLayoutBinding();
 		}
 		m_DescriptorSetLayout = m_Context->device->CreateDescriptorSetLayout(bindings);
 	}

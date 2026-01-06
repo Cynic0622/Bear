@@ -1,6 +1,5 @@
 #include "bearpch.h"
 #include "Renderer.h"
-
 #include "CommandBuffer.h"
 #include "DescriptorSet.h"
 #include "Shader.h"
@@ -11,10 +10,11 @@
 #include "RHI/RHI.h"
 #include "RHI/RHISwapchain.h"
 #include "Common/RenderObject.h"
-#include  "Core/Types.h"
 #include "Scene/SceneLayer.h"
-#include "Core/Resource.h"
+#include "Core/ResourceManager.h"
 #include "Scene/Scene.h"
+#include "SkyboxPass.h"
+
 namespace Bear {
 	Renderer::Renderer(GLFWwindow* window, GraphicsAPI api)
 		:m_Window(window)
@@ -49,13 +49,20 @@ namespace Bear {
         ImGui::NewFrame();
 	}
 
-	void Renderer::Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData)
+	void Renderer::Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData, const BaseData& baseData)
 	{
 		auto frameIndex = m_Device->GetCurrentFrameIndex();
-		m_GlobalUniformBuffer[frameIndex]->UploadData(&sceneData, sizeof(sceneData)); // set 0.
+		m_BaseDataUniformBuffer[frameIndex]->UploadData(&baseData, sizeof(baseData)); // set 0.
+		m_SceneDataUniformBuffer[frameIndex]->UploadData(&sceneData, sizeof(sceneData));
+		m_SkyboxPass->Execute(m_CurrentCommandBuffer, renderObjects);
 		m_PbrPass->Execute(m_CurrentCommandBuffer, renderObjects);
 		if (OitEnabled)
 		{
+			if (!m_OitPass)
+			{
+				m_OitPass = std::make_unique<OitPass>();
+				m_OitPass->Setup(m_RenderContext);
+			}
 			m_OitPass->Execute(m_CurrentCommandBuffer, renderObjects);
 		}
 	}
@@ -87,58 +94,56 @@ namespace Bear {
 		depthAttachment.initialLayout = ImageLayout::Undefined;
 		depthAttachment.finalLayout = ImageLayout::DepthStencilAttachment;
 		m_RenderPass = m_Device->CreateRenderPass({ colorAttachment, depthAttachment });
-		// m_UIRenderPass = m_Device->CreateUIRenderPass();
 		
 		m_Swapchain = m_Device->CreateSwapchain(*m_RenderPass);
 
-		m_TextureManager = std::make_unique<TextureManager>();
-		m_MeshManager = std::make_unique<MeshManager>();
+		m_BaseDataUniformBuffer.resize(MAX_FRAMES_IN_FLIGHT);
+		m_BaseDataDescriptorSet.resize(MAX_FRAMES_IN_FLIGHT);
+		m_SceneDataUniformBuffer.resize(MAX_FRAMES_IN_FLIGHT);
+		m_SceneDataDescriptorSet.resize(MAX_FRAMES_IN_FLIGHT);
 
-		m_GlobalUniformBuffer.resize(MAX_FRAMES_IN_FLIGHT);
-		m_GlobalDescriptorSet.resize(MAX_FRAMES_IN_FLIGHT);
-
-		m_GlobalDescriptorSetLayout = m_Device->CreateDescriptorSetLayout({
+		m_BaseDataDescriptorSetLayout = m_Device->CreateDescriptorSetLayout({
 			{0, DescriptorType::UniformBuffer, 1, ShaderStage::Vertex | ShaderStage::Fragment}
 			});
-		std::vector<RHIDescriptorSetLayoutBinding> bindings;
-		// ubo
-		bindings.push_back({ .binding = MaterialSlot::Params, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Vertex | ShaderStage::Fragment });
-		// pbr textures
-		bindings.push_back({ .binding = MaterialSlot::BaseColor, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-		bindings.push_back({ .binding = MaterialSlot::Normal, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-		bindings.push_back({ .binding = MaterialSlot::MetallicRoughness, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-		bindings.push_back({ .binding = MaterialSlot::Occlusion, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-		bindings.push_back({ .binding = MaterialSlot::Emissive, .descriptorType = DescriptorType::CombinedImageSampler, .stageFlags = ShaderStage::Fragment });
-		m_PbrDescriptorSetLayout = m_Device->CreateDescriptorSetLayout(bindings);
+		m_SceneDataDescriptorSetLayout = m_Device->CreateDescriptorSetLayout({
+			{0, DescriptorType::UniformBuffer, 1, ShaderStage::Vertex | ShaderStage::Fragment},
+			{1, DescriptorType::CombinedImageSampler, 1, ShaderStage::Fragment }
+			});
+
+		std::string filePath = "assets/skybox/kloppenheim_06_puresky_4k.hdr";
+		m_IBLTexture = std::make_shared<Texture>(*m_Device, filePath);
+		m_IBLDescriptorSet = m_Device->CreateDescriptorSet(m_SceneDataDescriptorSetLayout);
+		m_IBLDescriptorSet->UpdateTexture(1, m_IBLTexture->GetImage(), m_IBLTexture->GetSampler());
+
 		for (uint8_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 		{
-			m_GlobalDescriptorSet[i] = m_Device->CreateDescriptorSet(m_GlobalDescriptorSetLayout);
-			m_GlobalUniformBuffer[i] = m_Device->CreateBuffer(sizeof(SceneData), BufferUsage::UniformBuffer, true);
-			m_GlobalDescriptorSet[i]->UpdateBuffer(0, *m_GlobalUniformBuffer[i]);
-			m_RenderContext->globalDescriptorSet.push_back(m_GlobalDescriptorSet[i].get());
+			m_BaseDataDescriptorSet[i] = m_Device->CreateDescriptorSet(m_BaseDataDescriptorSetLayout);
+			m_BaseDataUniformBuffer[i] = m_Device->CreateBuffer(sizeof(BaseData), BufferUsage::UniformBuffer, true);
+			m_BaseDataDescriptorSet[i]->UpdateBuffer(0, *m_BaseDataUniformBuffer[i]);
+			m_SceneDataDescriptorSet[i] = m_Device->CreateDescriptorSet(m_SceneDataDescriptorSetLayout);
+			m_SceneDataUniformBuffer[i] = m_Device->CreateBuffer(sizeof(SceneData), BufferUsage::UniformBuffer, true);
+			m_SceneDataDescriptorSet[i]->UpdateBuffer(0, *m_SceneDataUniformBuffer[i]);
+			m_SceneDataDescriptorSet[i]->UpdateTexture(1, m_IBLTexture->GetImage(), m_IBLTexture->GetSampler());
+			m_RenderContext->baseDataDescriptorSet.push_back(m_BaseDataDescriptorSet[i].get());
+			m_RenderContext->sceneDataDescriptorSet.push_back(m_SceneDataDescriptorSet[i].get());
 		}
 
 		m_RenderContext->device = m_Device.get();
 		m_RenderContext->swapchain = m_Swapchain.get();
 		m_RenderContext->window = m_Window;
 		m_RenderContext->MAX_FRAMES_IN_FLIGHT = MAX_FRAMES_IN_FLIGHT;
-		m_RenderContext->globalDescriptorSetLayout = m_GlobalDescriptorSetLayout.get();
-		m_RenderContext->globalPbrDescriptorSetLayout = m_PbrDescriptorSetLayout.get();
-		m_RenderContext->useTextureCompression = true;
+		m_RenderContext->baseDataDescriptorSetLayout = m_BaseDataDescriptorSetLayout.get();
+		m_RenderContext->sceneDataDescriptorSetLayout = m_SceneDataDescriptorSetLayout.get();
+		m_RenderContext->useTextureCompression = false;
 
-		m_Resource = std::make_unique<Resource>(m_RenderContext);
+		m_Resource = std::make_unique<ResourceManager>(m_RenderContext);
 
 		m_UIPass = std::make_unique<UIPass>();
 		m_UIPass->Setup(m_RenderContext);
+		m_SkyboxPass = std::make_unique<SkyboxPass>();
+		m_SkyboxPass->Setup(m_RenderContext);
 		m_PbrPass = std::make_unique<PbrPass>();
 		m_PbrPass->Setup(m_RenderContext);
-		if (OitEnabled)
-		{
-			m_OitPass = std::make_unique<OitPass>();
-			m_OitPass->Setup(m_RenderContext);
-		}
-		// m_OitPass = std::make_unique<OitPass>();
-		// m_OitPass->Setup(m_RenderContext);
 	}
 	
 	
@@ -159,6 +164,10 @@ namespace Bear {
 		{
 			m_OitPass->Resize();
 		}
+		if (m_SkyboxPass)
+		{
+			m_SkyboxPass->Resize();
+		}
 		return false; // Returning false to propagate the event further
 	}
 	bool Renderer::OnKeyPress()
@@ -168,7 +177,6 @@ namespace Bear {
 			OitEnabled = !OitEnabled;
 			BEAR_CORE_INFO("OIT: {}", OitEnabled ? "ON" : "OFF");
 			return true;
-			// std::cout << "OIT: " << (OitEnabled ? "ON" : "OFF") << std::endl;
 		}
 		return false;
 	}

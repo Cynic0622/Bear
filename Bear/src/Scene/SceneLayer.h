@@ -1,19 +1,8 @@
 #pragma once
 #include "Layer.h"
 #include "Texture.h"
-#include "Light.h"
 namespace Bear
 {
-	struct SceneData
-	{
-		glm::mat4 viewMatrix;
-		glm::mat4 projectionMatrix;
-
-		glm::vec4 cameraPosition; // Camera position in world space.
-		PointLight pointLight[1];
-		DirectionalLight directionalLight;
-		alignas(16) int lightCount = 1; // Number of lights in the scene.
-	};
 	class CameraController;
 	class Renderer;
 	class Scene;

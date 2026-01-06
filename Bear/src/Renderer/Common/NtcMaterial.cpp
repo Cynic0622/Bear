@@ -10,7 +10,7 @@ namespace Bear
 		std::vector<RHIDescriptorSetLayoutBinding> bindings;
 		bindings.push_back({ .binding = NtcMaterialSlot::Latent, .descriptorType = DescriptorType::StorageBuffer, .stageFlags = ShaderStage::Fragment });
 		bindings.push_back({ .binding = NtcMaterialSlot::Weight, .descriptorType = DescriptorType::StorageBuffer, .stageFlags = ShaderStage::Fragment });
-		bindings.push_back({ .binding = NtcMaterialSlot::Constant, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Fragment });
+		bindings.push_back({ .binding = NtcMaterialSlot::Constants, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Fragment });
 		m_DescriptorSetLayout = device.CreateDescriptorSetLayout(bindings);
 		m_DescriptorSets = device.CreateDescriptorSet(m_DescriptorSetLayout);
 
@@ -38,9 +38,9 @@ namespace Bear
 			m_DescriptorSets->UpdateBuffer(NtcMaterialSlot::Weight, *m_WeightBuffer);
 			m_WeightBuffer->UploadData(data, dataSize);
 			break;
-		case NtcMaterialSlot::Constant:
+		case NtcMaterialSlot::Constants:
 			m_ConstantBuffer = m_Device.CreateBuffer(dataSize, BufferUsage::UniformBuffer, true);
-			m_DescriptorSets->UpdateBuffer(NtcMaterialSlot::Constant, *m_ConstantBuffer);
+			m_DescriptorSets->UpdateBuffer(NtcMaterialSlot::Constants, *m_ConstantBuffer);
 			m_ConstantBuffer->UploadData(data, dataSize);
 			break;
 		default:
@@ -48,6 +48,18 @@ namespace Bear
 			break;
 		}
 	}
+	std::vector<RHIDescriptorSetLayoutBinding> NtcMaterial::s_DescriptorSetLayoutBinding;
+	std::vector<RHIDescriptorSetLayoutBinding> NtcMaterial::GetDescriptorSetLayoutBinding()
+	{
+		if (s_DescriptorSetLayoutBinding.empty())
+		{
+			s_DescriptorSetLayoutBinding.push_back({ .binding = NtcMaterialSlot::Latent, .descriptorType = DescriptorType::StorageBuffer, .stageFlags = ShaderStage::Fragment });
+			s_DescriptorSetLayoutBinding.push_back({ .binding = NtcMaterialSlot::Weight, .descriptorType = DescriptorType::StorageBuffer, .stageFlags = ShaderStage::Fragment });
+			s_DescriptorSetLayoutBinding.push_back({ .binding = NtcMaterialSlot::Constants, .descriptorType = DescriptorType::UniformBuffer, .stageFlags = ShaderStage::Fragment });
+		}
+		return s_DescriptorSetLayoutBinding;
+	}
+
 	void NtcMaterial::CompressTextures(const MaterialDescription& desc, const std::unordered_map<int, std::shared_ptr<Texture>>& textures)
 	{
 		std::string materialName = desc.name;
@@ -76,12 +88,14 @@ namespace Bear
 			for (int index = 0; index < m_TextureSet->GetTextureCount(); ++index)
 			{
 				ntc::ITextureMetadata* texMeta = m_TextureSet->GetTexture(index);
+#ifdef BEAR_DEBUG
 				BEAR_CORE_INFO("Texture[{}] '{}': channels {}..{}, block compression {}, RGB space {}, Alpha space {}",
 					index, texMeta->GetName(),
 					texMeta->GetFirstChannel(), texMeta->GetFirstChannel() + texMeta->GetNumChannels() - 1,
 					ntc::BlockCompressedFormatToString(texMeta->GetBlockCompressedFormat()),
 					ntc::ColorSpaceToString(texMeta->GetRgbColorSpace()),
 					ntc::ColorSpaceToString(texMeta->GetAlphaColorSpace()));
+#endif
 			}
 			return;
 		}
@@ -91,7 +105,9 @@ namespace Bear
 		{
 			numChannels += texture->GetChannels();
 		}
+#ifdef BEAR_DEBUG
 		BEAR_CORE_INFO("texture set has {} channels.", numChannels);
+#endif
 		BEAR_CORE_ASSERT(numChannels <= 16, "The number of the texture channels must be less than 16!");
 		// keep the same size for all textures.
 		uint32_t maxWidth = 0, maxHeight = 0;
@@ -178,12 +194,16 @@ namespace Bear
 			ntcStatus = m_TextureSet->RunCompressionSteps(&stats);
 			if (ntcStatus == ntc::Status::Ok || ntcStatus == ntc::Status::Incomplete)
 			{
-				printf("\rCompression step %d/%d (%.2f ms/step), loss = %.6f (PSNR %.2f dB), LR: net %.6f, grid %.6f",
-					stats.currentStep, compSettings.trainingSteps,
+				BEAR_CORE_INFO(
+					"Compression step {}/{} ({:.2f} ms/step), loss = {:.6f} (PSNR {:.2f} dB), LR: net {:.6f}, grid {:.6f}",
+					stats.currentStep,
+					compSettings.trainingSteps,
 					stats.millisecondsPerStep,
-					stats.loss, ntc::LossToPSNR(stats.loss),
-					stats.learningRate, stats.learningRate * (compSettings.gridLearningRate / compSettings.networkLearningRate));
-				fflush(stdout);
+					stats.loss,
+					ntc::LossToPSNR(stats.loss),
+					stats.learningRate,
+					stats.learningRate* (compSettings.gridLearningRate / compSettings.networkLearningRate)
+				);
 			}
 			else
 			{
@@ -201,12 +221,14 @@ namespace Bear
 		for (int index = 0; index < m_TextureSet->GetTextureCount(); ++index)
 		{
 			ntc::ITextureMetadata* texMeta = m_TextureSet->GetTexture(index);
+#ifdef BEAR_DEBUG
 			BEAR_CORE_INFO("Texture[{}] '{}': channels {}..{}, block compression {}, RGB space {}, Alpha space {}",
 				index, texMeta->GetName(),
 				texMeta->GetFirstChannel(), texMeta->GetFirstChannel() + texMeta->GetNumChannels() - 1,
 				ntc::BlockCompressedFormatToString(texMeta->GetBlockCompressedFormat()),
 				ntc::ColorSpaceToString(texMeta->GetRgbColorSpace()),
 				ntc::ColorSpaceToString(texMeta->GetAlphaColorSpace()));
+#endif
 		}
 		ntcStatus = m_TextureSet->SaveToFile(filePath.c_str());
 		BEAR_CORE_ASSERT(ntcStatus == ntc::Status::Ok,
@@ -248,7 +270,7 @@ namespace Bear
 			"Filed to make the inference data, code = {} : {}", ntc::StatusToString(ntcStatus), ntc::GetLastErrorMessage());
 
 		size_t dataSize = sizeof(inferenceData.constants);
-		SetBuffer(NtcMaterialSlot::Constant, dataSize, &inferenceData);
+		SetBuffer(NtcMaterialSlot::Constants, dataSize, &inferenceData);
 		dataSize = latentRange.size;
 		std::vector<uint8_t> latentData(dataSize);
 		memStream->Seek(latentRange.offset);

@@ -42,14 +42,12 @@ namespace Bear {
 		m_VertexBuffer.reset();
 		m_IndexBuffer.reset();
 	}
-	void Mesh::Bind(RHICommandList& cmd) const
-	{
-		cmd.BindVertexBuffer(*m_VertexBuffer, 0, 0);
-		cmd.BindIndexBuffer(*m_IndexBuffer, 0);
-	}
+	
 	void Mesh::Draw(RHICommandList& cmd) const
 	{
 		// cmd.Draw(m_IndexCount, 1, 0, 0);
+		cmd.BindVertexBuffer(*m_VertexBuffer, 0, 0);
+		cmd.BindIndexBuffer(*m_IndexBuffer, 0);
 		cmd.DrawIndexed(m_IndexCount, 1, 0, 0, 0);
 	}
 }

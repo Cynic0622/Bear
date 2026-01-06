@@ -36,12 +36,11 @@ namespace Bear {
 		ColorWriteMask colorWriteMask = ColorWriteMask::All;
 	};
 
-	
-	// 新增：API 无关的管线配置结构体
+
 	struct RHIPipelineConfig {
 		std::shared_ptr<RHIPipelineLayout> pipelineLayout;
 
-		// 我们需要一种方法引用着色器，暂时用路径
+		
 		std::string vertexShaderPath;
 		std::string fragmentShaderPath;
 

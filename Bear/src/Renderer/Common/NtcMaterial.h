@@ -12,6 +12,7 @@ namespace Bear
 		RHIDescriptorSet* GetDescriptorSet() override { return m_DescriptorSets.get(); }
 		RHIDescriptorSetLayout* GetDescriptorSetLayout() override { return m_DescriptorSetLayout.get(); }
 		void SetBuffer(NtcMaterialSlot slot, size_t dataSize, const void* data);
+		static std::vector<RHIDescriptorSetLayoutBinding> GetDescriptorSetLayoutBinding();
 	public:
 		std::shared_ptr<RHIBuffer> m_ConstantBuffer;
 		std::shared_ptr<RHIBuffer> m_LatentBuffer;
@@ -25,6 +26,7 @@ namespace Bear
 	private:
 		RHIDevice& m_Device;
 		std::shared_ptr<RHIDescriptorSetLayout> m_DescriptorSetLayout;
+		static std::vector<RHIDescriptorSetLayoutBinding> s_DescriptorSetLayoutBinding;
 		std::unique_ptr<RHIDescriptorSet> m_DescriptorSets;
 		std::vector<uint8_t> m_CompressedData;
 		ntc::IContext* m_NtcContext = nullptr;

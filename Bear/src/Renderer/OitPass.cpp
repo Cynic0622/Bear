@@ -62,12 +62,12 @@ namespace Bear
 		{
 			if (!obj.material->IsTransparent())
 				continue;
-			cmd->BindDescriptorSet(*m_OitPipelineLayout, *m_Context->globalDescriptorSet[currentFrameIndex], 0);
-			cmd->BindDescriptorSet(*m_OitPipelineLayout, *obj.material->GetDescriptorSet(), 1);
-			cmd->BindDescriptorSet(*m_OitPipelineLayout, *m_OitDescriptorSet, 2);
+			cmd->BindDescriptorSet(*m_OitPipelineLayout, *m_Context->baseDataDescriptorSet[currentFrameIndex], 0);
+			cmd->BindDescriptorSet(*m_OitPipelineLayout, *m_Context->sceneDataDescriptorSet[currentFrameIndex], 1);
+			cmd->BindDescriptorSet(*m_OitPipelineLayout, *obj.material->GetDescriptorSet(), 2);
+			cmd->BindDescriptorSet(*m_OitPipelineLayout, *m_OitDescriptorSet, 3);
 			PerObjectPushConstants pushConstants{ .model = obj.transform };
 			cmd->PushConstants(*m_OitPipelineLayout, ShaderStage::Vertex, &pushConstants, sizeof(PerObjectPushConstants), 0);
-			obj.mesh->Bind(*cmd);
 			obj.mesh->Draw(*cmd);
 		}
 		cmd->EndRenderPass();
@@ -166,14 +166,15 @@ namespace Bear
 		std::vector<RHIPushConstantRange> pushConstantRanges = {
 			{ShaderStage::Vertex, sizeof(PerObjectPushConstants), 0}
 		};
-		const auto& globalDescriptorSetLayout = m_Context->globalDescriptorSetLayout;
-		m_OitPipelineLayout = m_Context->device->CreatePipelineLayout({ globalDescriptorSetLayout, m_Context->globalPbrDescriptorSetLayout, m_OitDescriptorSetLayout.get() },
+		const auto& baseDataDescriptorSetLayout = m_Context->baseDataDescriptorSetLayout;
+		const auto& sceneDataDescriptorSetLayout = m_Context->sceneDataDescriptorSetLayout;
+		m_OitPipelineLayout = m_Context->device->CreatePipelineLayout({ baseDataDescriptorSetLayout, sceneDataDescriptorSetLayout, m_PbrDescriptorSetLayout.get() , m_OitDescriptorSetLayout.get() },
 			{ pushConstantRanges });
 
 		RHIPipelineConfig pipelineConfig;
 		pipelineConfig.pipelineLayout = m_OitPipelineLayout;
-		pipelineConfig.vertexShaderPath = "assets/shaders/oitVert.spv";
-		pipelineConfig.fragmentShaderPath = "assets/shaders/oitFrag.spv";
+		pipelineConfig.vertexShaderPath = "Bear/src/Shaders/oitVert.spv";
+		pipelineConfig.fragmentShaderPath = "Bear/src/Shaders/oitFrag.spv";
 		pipelineConfig.colorBlendAttachmentState.colorWriteMask = ColorWriteMask::None;
 		pipelineConfig.depthStencilState.depthTestEnable = true;
 		pipelineConfig.depthStencilState.depthWriteEnable = false;
@@ -183,8 +184,8 @@ namespace Bear
 		RHIPipelineConfig blendPipelineConfig;
 		m_BlendPipelineLayout = m_Context->device->CreatePipelineLayout({ m_BlendDescriptorSetLayout.get() }, {});
 		blendPipelineConfig.pipelineLayout = m_BlendPipelineLayout;
-		blendPipelineConfig.vertexShaderPath = "assets/shaders/oitBlendVert.spv";
-		blendPipelineConfig.fragmentShaderPath = "assets/shaders/oitBlendFrag.spv";
+		blendPipelineConfig.vertexShaderPath = "Bear/src/Shaders/oitBlendVert.spv";
+		blendPipelineConfig.fragmentShaderPath = "Bear/src/Shaders/oitBlendFrag.spv";
 		blendPipelineConfig.colorBlendAttachmentState.colorWriteMask = ColorWriteMask::All;
 		blendPipelineConfig.colorBlendAttachmentState.blendEnable = true;
 		blendPipelineConfig.colorBlendAttachmentState.srcColorBlendFactor = BlendFactor::SrcAlpha;
@@ -237,6 +238,8 @@ namespace Bear
 			{ 2, DescriptorType::StorageImage, 1, ShaderStage::Fragment}, // Accumulation Texture
 			// { 3, DescriptorType::StorageImage, 1, ShaderStage::Fragment}  // Revealage Texture
 			});
+		m_PbrDescriptorSetLayout = m_Context->device->CreateDescriptorSetLayout(PbrMaterial::GetDescriptorSetLayoutBinding());
+		
 		m_OitDescriptorSet = m_Context->device->CreateDescriptorSet(m_OitDescriptorSetLayout);
 		m_OitDescriptorSet->UpdateBuffer(0, *m_OitNodeBuffer);
 		m_OitDescriptorSet->UpdateBuffer(1, *m_AtomicCounterBuffer);

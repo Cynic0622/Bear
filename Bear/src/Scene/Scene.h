@@ -1,6 +1,6 @@
 #pragma once
 #include <entt/entt.hpp>
-
+#include "BaseData.h"
 namespace Bear
 {
 	struct Resources;
@@ -9,7 +9,6 @@ namespace Bear
 	class Entity;
 	struct ModelDescription;
 	class CameraController;
-	struct SceneData;
 
 	class BEAR_API Scene
 	{
@@ -20,12 +19,14 @@ namespace Bear
 		// update the all the transforms in the scene
 		void Update(float deltaTime);
 
-		void CollectRenderObjects(std::vector<RenderObject>& ObjectsList, SceneData& sceneData);
+		void CollectRenderData(std::vector<RenderObject>& ObjectsList, SceneData& sceneData, BaseData& baseData);
 
 		CameraController* GetCamera() const { return m_GameCamera.get(); }
 		// entity management
 		Entity CreateEntity(const std::string& name = "Entity");
 		void DestroyEntity(Entity entity);
+
+		void AddLight(const PointLight& light);
 
 		void CreateSceneGraph(const ModelDescription& desc, const Resources& resources);
 
@@ -46,6 +47,9 @@ namespace Bear
 		std::unique_ptr<CameraController> m_EditorCamera; // scene editor mode camera.
 		bool m_EditorMode = true; // true: editor mode, false: game mode
 		bool m_FrustumCull = true; // true: frustum culling enabled, false: disabled
+		int m_LightNumber = 0;
+		uint32_t m_FrameNum = 0;
+		std::atomic<uint32_t> m_NextUID{ 1 }; // for generating unique entity IDs and use in the future.
 
 	private:
 

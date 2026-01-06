@@ -1,5 +1,5 @@
 #include "bearpch.h"
-#include "Resource.h"
+#include "ResourceManager.h"
 #include "AssetLoader.h"
 #include "Material.h"
 #include "Texture.h"
@@ -8,24 +8,24 @@
 #include "PbrMaterial.h"
 namespace Bear
 {
-	Resource::Resource(RHIDevice& device)
+	ResourceManager::ResourceManager(RHIDevice& device)
 		:m_Device(device)
 	{
 	}
-	Resource::Resource(RenderContext* context)
+	ResourceManager::ResourceManager(RenderContext* context)
 		:m_Device(*context->device)
 	{
 		m_RenderContext = context;
 	}
-	std::shared_ptr<Texture> Resource::CreateTexture(const ImageDescription& imageDesc, const SamplerDescription& samplerDesc)
+	std::shared_ptr<Texture> ResourceManager::CreateTexture(const ImageDescription& imageDesc, const SamplerDescription& samplerDesc)
 	{
 		return std::make_shared<Texture>(m_Device, imageDesc, samplerDesc);
 	}
-	std::shared_ptr<Mesh> Resource::CreateMesh(const PrimitiveDescription& desc)
+	std::shared_ptr<Mesh> ResourceManager::CreateMesh(const PrimitiveDescription& desc)
 	{
 		return std::make_shared<Mesh>(m_Device, desc.vertices, desc.indices);
 	}
-	std::shared_ptr<Material> Resource::CreateMaterial(const MaterialDescription& desc, std::unordered_map<int, std::shared_ptr<Texture>> textures)
+	std::shared_ptr<Material> ResourceManager::CreateMaterial(const MaterialDescription& desc, std::unordered_map<int, std::shared_ptr<Texture>> textures)
 	{
 		if (m_RenderContext->useTextureCompression)
 		{
@@ -36,7 +36,7 @@ namespace Bear
 			return CreatePbrMaterial(desc, textures);
 		}
 	}
-	Resources Resource::CreateResources(const ModelDescription& desc)
+	Resources ResourceManager::CreateResources(const ModelDescription& desc)
 	{
 		Resources res{};
 		res.Materials.resize(desc.materials.size());
@@ -94,7 +94,7 @@ namespace Bear
 		}
 		return res;
 	}
-	std::shared_ptr<Texture> Resource::GetDefaultTexture(int bindingSlot)
+	std::shared_ptr<Texture> ResourceManager::GetDefaultTexture(int bindingSlot)
 	{
 		// cache per-slot defaults to avoid reallocating
 		
@@ -130,18 +130,17 @@ namespace Bear
 			pixel[0] = 0xFF; pixel[1] = 0xFF; pixel[2] = 0xFF; pixel[3] = 0xFF;
 			break;
 		}
-
 		auto tex = std::make_shared<Texture>(m_Device, 1, 1, 4, pixel);
 		if (bindingSlot >= 0 && bindingSlot < (int)m_DefaultTextures.size())
 			m_DefaultTextures[bindingSlot] = tex;
 		return tex;
 	}
 
-	std::shared_ptr<Material> Resource::CreateNtcMaterial(const MaterialDescription& desc, const std::unordered_map<int, std::shared_ptr<Texture>>& textures) const
+	std::shared_ptr<Material> ResourceManager::CreateNtcMaterial(const MaterialDescription& desc, const std::unordered_map<int, std::shared_ptr<Texture>>& textures) const
 	{
 		return std::make_shared<NtcMaterial>(*m_RenderContext->device, desc, textures);
 	}
-	std::shared_ptr<Material> Resource::CreatePbrMaterial(const MaterialDescription& desc, const std::unordered_map<int, std::shared_ptr<Texture>>& textures)
+	std::shared_ptr<Material> ResourceManager::CreatePbrMaterial(const MaterialDescription& desc, const std::unordered_map<int, std::shared_ptr<Texture>>& textures)
 	{
 		auto material = std::make_shared<PbrMaterial>(m_Device);
 		auto bindTex = [&](int slot, int textureIndex)

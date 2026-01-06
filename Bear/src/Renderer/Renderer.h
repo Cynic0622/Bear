@@ -4,11 +4,13 @@
 
 #include "Mesh.h"
 #include "Texture.h"
+#include "BaseData.h"
 
 namespace Bear
 {
 	class OitPass;
 	class PbrPass;
+	class SkyboxPass;
 }
 
 struct GLFWwindow;
@@ -20,19 +22,7 @@ namespace Bear {
 	class RHISwapchain;
 	class RHIRenderPass;
 	struct RenderObject;
-	struct SceneData;
-	class Resource;
-
-	struct globalParams
-	{
-		glm::mat4 viewMatrix;
-		glm::mat4 projectionMatrix;
-
-		glm::vec4 cameraPosition; // Camera position in world space.
-		glm::vec4 lightPositions[10]; // Positions of lights.
-		glm::vec4 lightColors[10]; // Colors of lights.
-		int lightCount = 10; // Number of lights in the scene.
-	};
+	class ResourceManager;
 
 	class Renderer {
 	public:
@@ -50,14 +40,12 @@ namespace Bear {
 		// getter
 		RHIDevice* GetDevice() const { return m_Device.get(); }
 		RHIRenderPass* GetRenderPass() const { return m_RenderPass.get(); }
-		TextureManager* GetTextureManager() const { return m_TextureManager.get(); }
-		MeshManager* GetMeshManager() const { return m_MeshManager.get(); }
 		RHICommandList* GetCurrentCommandList() const { return m_CurrentCommandBuffer; }
 		uint32_t GetSwapchainImageCount() const;
-		Resource& GetResource() { return *m_Resource; }
+		ResourceManager& GetResourceManager() { return *m_Resource; }
 
 		void BeginFrame();
-		void Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData);
+		void Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData, const BaseData& baseData);
 		void EndFrame() const;
 
 
@@ -77,24 +65,27 @@ namespace Bear {
 		std::shared_ptr<RHIPipeline> m_PbrPipeline; // for pbr rendering
 		std::shared_ptr<RHIPipeline> m_PreZPipeline;
 
-		std::unique_ptr<TextureManager> m_TextureManager;
-		std::unique_ptr<MeshManager> m_MeshManager;
-
 		RHICommandList* m_CurrentCommandBuffer;
 		uint32_t m_CurrentImageIndex;
-		std::unique_ptr<Resource> m_Resource;
+		std::unique_ptr<ResourceManager> m_Resource;
 
-		std::shared_ptr<RHIDescriptorSetLayout> m_GlobalDescriptorSetLayout; // for view matrices, lights, etc.
+		std::shared_ptr<RHIDescriptorSetLayout> m_BaseDataDescriptorSetLayout; // for view matrices, etc.
+		std::shared_ptr<RHIDescriptorSetLayout> m_SceneDataDescriptorSetLayout; // for scene data descriptor set layout
 		std::shared_ptr<RHIDescriptorSetLayout> m_PbrDescriptorSetLayout; // for pbr descriptor set layout
-		std::vector<std::shared_ptr<RHIDescriptorSet>> m_GlobalDescriptorSet;
-		std::vector<std::shared_ptr<RHIBuffer>> m_GlobalUniformBuffer;
-		globalParams m_GlobalParams;
+		std::vector<std::shared_ptr<RHIDescriptorSet>> m_BaseDataDescriptorSet;
+		std::vector<std::shared_ptr<RHIDescriptorSet>> m_SceneDataDescriptorSet;
+		std::vector<std::shared_ptr<RHIBuffer>> m_BaseDataUniformBuffer;
+		std::vector<std::shared_ptr<RHIBuffer>> m_SceneDataUniformBuffer;
 
 		RenderContext* m_RenderContext; // Context for rendering operations
 		std::unique_ptr<UIPass> m_UIPass; // UI rendering pass
+		std::unique_ptr<SkyboxPass> m_SkyboxPass; // Skybox rendering pass
 		std::unique_ptr<PbrPass> m_PbrPass; // PBR rendering pass
 		std::unique_ptr<OitPass> m_OitPass; // Order Independent Transparency pass
 
 		bool OitEnabled = false; // Toggle for Order Independent Transparency
+
+		std::shared_ptr<Texture> m_IBLTexture = nullptr;
+		std::shared_ptr<RHIDescriptorSet> m_IBLDescriptorSet = nullptr;
 	};
 }

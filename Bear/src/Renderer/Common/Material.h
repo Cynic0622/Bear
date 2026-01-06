@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
 
-#include "ResourceManager.h"
 
 namespace Bear {
 	class Texture;
@@ -31,8 +30,7 @@ namespace Bear {
 	enum NtcMaterialSlot : uint8_t {
 		Latent = 0,
 		Weight = 1,
-		Constant = 2,
-		NtcCount = 3
+		Constants = 2,
 	};
 
 	class Material {
@@ -58,5 +56,4 @@ namespace Bear {
 	protected:
 		const int MAX_FRAMES_IN_FLIGHT = 2;
 	};
-	using MaterialManager = ResourceManager<Material, std::string>;
 }

@@ -14,7 +14,9 @@ namespace Bear {
 		/*CreateRenderPass(attachments);*/
 		BEAR_CORE_ASSERT(vkCreateRenderPass(m_Device.GetDevice(), &renderPassInfo, nullptr, &m_RenderPass) == VK_SUCCESS,
 			"Failed to create render pass!");
+#ifdef BEAR_DEBUG
 		BEAR_CORE_INFO("Vulkan RenderPass created successfully.");
+#endif // BEAR_DEBUG
 	}
 
 	RenderPass::RenderPass(const Device& device, const Swapchain& swapchain)
@@ -26,7 +28,7 @@ namespace Bear {
 		// 	{ PixelFormat::D32_SFLOAT, AttachmentLoadOp::Clear, AttachmentStoreOp::Store, ImageLayout::DepthStencilAttachment, ImageLayout::DepthStencilAttachment }
 		// };
 		// CreateRenderPass(attachments);
-		BEAR_CORE_INFO("Vulkan RenderPass created successfully with swapchain.");
+		// BEAR_CORE_INFO("Vulkan RenderPass created successfully with swapchain.");
 	}
 
 	RenderPass::~RenderPass()
