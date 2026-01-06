@@ -204,8 +204,8 @@ namespace Bear {
 
 		VkPipelineMultisampleStateCreateInfo multisampleInfo{};
 		multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-		multisampleInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT; // Ĭ��ֵ
-		multisampleInfo.sampleShadingEnable = VK_FALSE; // Ĭ��ֵ
+		multisampleInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+		multisampleInfo.sampleShadingEnable = VK_FALSE;
 
 		VkPipelineColorBlendAttachmentState colorBlendAttachment{};
 		colorBlendAttachment.blendEnable = config.colorBlendAttachmentState.blendEnable ? VK_TRUE : VK_FALSE;

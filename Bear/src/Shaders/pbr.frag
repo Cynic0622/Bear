@@ -1,11 +1,14 @@
 #version 450
 
 #include "..\Renderer\BaseData.h"
-
+#define MAX_IBL_LOD 4.0
 layout(set = 1, binding = 0) uniform sceneDataBlock {
     SceneData g_SceneData;
 };
-layout(set =2, binding = 0) uniform Material {
+
+layout(set = 1, binding = 1) uniform sampler2D IBLSampler;
+
+layout(set = 2, binding = 0) uniform Material {
     vec4 baseColorFactor;
     float metallicFactor;
     float roughnessFactor;
@@ -22,7 +25,9 @@ layout(set = 2, binding = 5) uniform sampler2D emissiveSampler;
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) in vec3 fragPos;
 layout(location = 2) in vec3 viewDir;
-layout(location = 3) in mat3 TBN; // tangent, bitangent, normal matrix
+layout(location = 3) in vec3 inNormal;
+layout(location = 4) in vec3 inTangent;
+layout(location = 5) in vec3 inBitangent;
 layout(location = 0) out vec4 outColor;
 
 // PBR helpers
@@ -55,12 +60,22 @@ vec3 FresnelSchlick(float cosTheta, vec3 F0)
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
+vec3 ACESFilm(vec3 x)
+{
+    return clamp(
+        (x * (2.51 * x + 0.03)) /
+        (x * (2.43 * x + 0.59) + 0.14),
+        0.0, 1.0
+    );
+}
+
 void main() {
+    mat3 TBN = mat3(normalize(inTangent), normalize(inBitangent), normalize(inNormal));
     vec4 baseColor = texture(baseColorSampler, fragTexCoord);
 
     vec3 albedo = baseColor.rgb * materialData.baseColorFactor.rgb;
     float alpha = baseColor.a * materialData.baseColorFactor.a;
-    if (baseColor.a < 0.1) discard;
+    if (alpha < 0.5) discard;
 
     vec3 normal = texture(normalSampler, fragTexCoord).xyz * 2.0 - 1.0;
     normal.xy *= materialData.normalScale;
@@ -70,7 +85,7 @@ void main() {
     vec3 metallicRoughness = texture(metallicRoughnessSampler, fragTexCoord).rgb;
     float metallic = clamp(materialData.metallicFactor * metallicRoughness.b, 0.0, 1.0);
     float roughness = clamp(materialData.roughnessFactor * metallicRoughness.g, 0.04, 1.0);
-
+   
     float ao = texture(occlusionSampler, fragTexCoord).r * materialData.occlusionStrength;
     vec3 emissive = texture(emissiveSampler, fragTexCoord).rgb * materialData.emissiveFactor;
 
@@ -113,30 +128,40 @@ void main() {
         Lo += (diffuse + specular) * radiance * NdotL;
     }
     // directional light
-    {
-        vec3 L = normalize(-g_SceneData.dirLight.direction.xyz);
-        vec3 H = normalize(V + L);
-        vec3 radiance = g_SceneData.dirLight.color.rgb * g_SceneData.dirLight.color.a;
-        // cook-torrance BRDF
-        float NDF = DistributionGGX(N, H, roughness);
-        float G = GeometrySmith(N, V, L, (roughness+1.0)*(roughness+1.0)/8.0);
-        vec3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
-        vec3 numerator = NDF * G * F;
-        float denom = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001;
-        vec3 specular = numerator / denom;
-        float NdotL = max(dot(N, L), 0.0);
-        // kS is specular, kD is diffuse (energy conservation)
-        vec3 kS = F;
-        vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
-        // Lambert diffuse
-        vec3 diffuse = kD * albedo / 3.14159265;
-        Lo += (diffuse + specular) * radiance * NdotL;
-    }
+    vec3 L = normalize(-g_SceneData.dirLight.direction.xyz);
+    vec3 H = normalize(V + L);
+    vec3 radiance = g_SceneData.dirLight.color.rgb * g_SceneData.dirLight.color.a;
+    // cook-torrance BRDF
+    float NDF = DistributionGGX(N, H, roughness);
+    float G = GeometrySmith(N, V, L, (roughness+1.0)*(roughness+1.0)/8.0);
+    vec3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
+    vec3 numerator = NDF * G * F;
+    float denom = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001;
+    vec3 specular = numerator / denom;
+    float NdotL = max(dot(N, L), 0.0);
+    // kS is specular, kD is diffuse (energy conservation)
+    vec3 kS = F;
+    vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
+    // Lambert diffuse
+    vec3 diffuse = kD * albedo / 3.14159265;
+    Lo += (diffuse + specular) * radiance * NdotL;
+    // IBL
+    
+    float lod = roughness * MAX_IBL_LOD;
+    vec3 iblReflection = textureLod(IBLSampler, vec2(
+		atan(R.z, R.x) / (2.0 * 3.14159265) + 0.5,
+		asin(R.y) / 3.14159265 + 0.5), lod).rgb;
+    iblReflection = iblReflection * exp2(-2.0);
+    vec3 L1 = iblReflection * F;
+    // Lo += L1;
+
     vec3 ambient = vec3(0.15) * albedo * ao;
     // ambient = vec3(0.2, 0.2, 0.2) * albedo * ao;
     vec3 color = ambient + Lo + emissive;
-
+     color = ACESFilm(color);
     // Combine the textures and material properties
+    // outColor = vec4(normalize(TBN * (texture(normalSampler, fragTexCoord).xyz*2-1))*0.5+0.5, 1);
+    // outColor = vec4(N * 0.5 + 0.5, 1.0);
     outColor = vec4(color, alpha);
     // outColor = vec4(albedo, 1.0);
 }

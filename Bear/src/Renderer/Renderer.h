@@ -22,7 +22,7 @@ namespace Bear {
 	class RHISwapchain;
 	class RHIRenderPass;
 	struct RenderObject;
-	class Resource;
+	class ResourceManager;
 
 	class Renderer {
 	public:
@@ -40,11 +40,9 @@ namespace Bear {
 		// getter
 		RHIDevice* GetDevice() const { return m_Device.get(); }
 		RHIRenderPass* GetRenderPass() const { return m_RenderPass.get(); }
-		TextureManager* GetTextureManager() const { return m_TextureManager.get(); }
-		MeshManager* GetMeshManager() const { return m_MeshManager.get(); }
 		RHICommandList* GetCurrentCommandList() const { return m_CurrentCommandBuffer; }
 		uint32_t GetSwapchainImageCount() const;
-		Resource& GetResource() { return *m_Resource; }
+		ResourceManager& GetResourceManager() { return *m_Resource; }
 
 		void BeginFrame();
 		void Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData, const BaseData& baseData);
@@ -67,12 +65,9 @@ namespace Bear {
 		std::shared_ptr<RHIPipeline> m_PbrPipeline; // for pbr rendering
 		std::shared_ptr<RHIPipeline> m_PreZPipeline;
 
-		std::unique_ptr<TextureManager> m_TextureManager;
-		std::unique_ptr<MeshManager> m_MeshManager;
-
 		RHICommandList* m_CurrentCommandBuffer;
 		uint32_t m_CurrentImageIndex;
-		std::unique_ptr<Resource> m_Resource;
+		std::unique_ptr<ResourceManager> m_Resource;
 
 		std::shared_ptr<RHIDescriptorSetLayout> m_BaseDataDescriptorSetLayout; // for view matrices, etc.
 		std::shared_ptr<RHIDescriptorSetLayout> m_SceneDataDescriptorSetLayout; // for scene data descriptor set layout
@@ -89,5 +84,8 @@ namespace Bear {
 		std::unique_ptr<OitPass> m_OitPass; // Order Independent Transparency pass
 
 		bool OitEnabled = false; // Toggle for Order Independent Transparency
+
+		std::shared_ptr<Texture> m_IBLTexture = nullptr;
+		std::shared_ptr<RHIDescriptorSet> m_IBLDescriptorSet = nullptr;
 	};
 }

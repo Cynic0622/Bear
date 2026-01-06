@@ -49,6 +49,7 @@ namespace Bear
 		bool m_FrustumCull = true; // true: frustum culling enabled, false: disabled
 		int m_LightNumber = 0;
 		uint32_t m_FrameNum = 0;
+		std::atomic<uint32_t> m_NextUID{ 1 }; // for generating unique entity IDs and use in the future.
 
 	private:
 

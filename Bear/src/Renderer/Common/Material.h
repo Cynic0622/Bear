@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
 
-#include "ResourceManager.h"
 
 namespace Bear {
 	class Texture;
@@ -57,5 +56,4 @@ namespace Bear {
 	protected:
 		const int MAX_FRAMES_IN_FLIGHT = 2;
 	};
-	using MaterialManager = ResourceManager<Material, std::string>;
 }

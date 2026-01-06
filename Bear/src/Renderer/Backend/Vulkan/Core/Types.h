@@ -17,7 +17,7 @@ namespace Bear {
     struct Vertex {
 		glm::vec3 pos;
 		glm::vec3 normal;
-        glm::vec3 tangent;
+        glm::vec4 tangent;
 		glm::vec2 texCoord; // 添加纹理坐标属性
 
         // 绑定描述：告诉 Vulkan 如何将数据打包到内存中
@@ -48,7 +48,7 @@ namespace Bear {
             // tangent (location = 2 in shader)
             attributeDescriptions[2].binding = 0;
             attributeDescriptions[2].location = 2;
-            attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+            attributeDescriptions[2].format = VK_FORMAT_R32G32B32A32_SFLOAT;
             attributeDescriptions[2].offset = offsetof(Vertex, tangent);
 
 			// texcoord (location = 3 in shader)

@@ -68,7 +68,7 @@ namespace Bear
 		RHITextureConfig config;
 		config.width = width;
 		config.height = height;
-		config.format = selectFormat(channels);
+		config.format = PixelFormat::R8G8B8A8_UNORM;
 		m_Image = device.CreateTexture(config);
 
 		device.ImmediateSubmit([&](RHICommandList& cmd)
@@ -114,8 +114,12 @@ namespace Bear
 		RHITextureConfig config;
 		config.width = imageDesc.width;
 		config.height = imageDesc.height;
-		// config.format = selectFormat(imageDesc.channels);
-		config.format = PixelFormat::R8G8B8A8_SRGB; // always use 4 channels for GPU resource.
+		// if the name contains "normal" or "roughness", use UNORM format.
+		config.format = (imageDesc.name.find("normal") != std::string::npos || imageDesc.name.find("Normal") != std::string::npos
+			|| imageDesc.name.find("roughness") != std::string::npos || imageDesc.name.find("Roughness") != std::string::npos ||
+			imageDesc.name.find("occlusion") != std::string::npos)
+							? PixelFormat::R8G8B8A8_UNORM
+			: PixelFormat::R8G8B8A8_SRGB;
 		m_Image = device.CreateTexture(config);
 		m_Channels = imageDesc.channels;
 		m_Height = imageDesc.height;

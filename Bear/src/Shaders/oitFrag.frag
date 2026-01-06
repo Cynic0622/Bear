@@ -1,24 +1,18 @@
 #version 450
-
+#include "..\Renderer\BaseData.h"
+#define MAX_IBL_LOD 4.0
 struct Node
 {
     vec4 color;
     float depth;
     uint next;
 };
-struct LightData
-{
-    vec4 position;
-    vec4 colorIntensity; // xyz: color, w: intensity
+
+layout(set = 1, binding = 0) uniform sceneDataBlock {
+    SceneData g_SceneData;
 };
-layout(std140, set = 0, binding = 0) uniform GlobalParams {
-    mat4 viewMatrix;
-    mat4 projMatrix;
-    vec4 cameraPosition;
-    LightData lightsData[50];
-    int lightCount;
-} globalParamsData;
-layout(set = 1, binding = 0) uniform Material {
+layout(set = 1, binding = 1) uniform sampler2D IBLSampler;
+layout(set = 2, binding = 0) uniform Material {
     vec4 baseColorFactor;
     float metallicFactor;
     float roughnessFactor;
@@ -26,35 +20,48 @@ layout(set = 1, binding = 0) uniform Material {
     float occlusionStrength;
     vec3 emissiveFactor;
 } materialData;
-layout(set = 1, binding = 1) uniform sampler2D baseColorSampler;
-layout(set = 1, binding = 2) uniform sampler2D normalSampler;
-layout(set = 1, binding = 3) uniform sampler2D metallicRoughnessSampler;
-layout(set = 1, binding = 4) uniform sampler2D occlusionSampler;
-layout(set = 1, binding = 5) uniform sampler2D emissiveSampler;
+layout(set = 2, binding = 1) uniform sampler2D baseColorSampler;
+layout(set = 2, binding = 2) uniform sampler2D normalSampler;
+layout(set = 2, binding = 3) uniform sampler2D metallicRoughnessSampler;
+layout(set = 2, binding = 4) uniform sampler2D occlusionSampler;
+layout(set = 2, binding = 5) uniform sampler2D emissiveSampler;
 
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) in vec3 fragPos;
 layout(location = 2) in vec3 viewDir;
-layout(location = 3) in mat3 TBN; // tangent, bitangent, normal matrix
 
-layout (set = 2, binding = 0) buffer LinkedListSBO
+layout(location = 3) in vec3 inNormal;
+layout(location = 4) in vec3 inTangent;
+layout(location = 5) in vec3 inBitangent;
+
+layout (set = 3, binding = 0) buffer LinkedListSBO
 {
     Node nodes[];
 };
-layout (set = 2, binding = 1) buffer AtomicCounter
+layout (set = 3, binding = 1) buffer AtomicCounter
 {
     uint counter;
     uint maxNodeCount;
 };
 
-layout (set = 2, binding = 2, r32ui) uniform uimage2D headIndexImage;
+layout (set = 3, binding = 2, r32ui) uniform uimage2D headIndexImage;
 
 vec3 FresnelSchlick(float cosTheta, vec3 F0)
 {
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
+vec3 ACESFilm(vec3 x)
+{
+    return clamp(
+        (x * (2.51 * x + 0.03)) /
+        (x * (2.43 * x + 0.59) + 0.14),
+        0.0, 1.0
+    );
+}
+
 void main() {
+    mat3 TBN = mat3(normalize(inTangent), normalize(inBitangent), normalize(inNormal));
     vec4 baseColor = texture(baseColorSampler, fragTexCoord);
 
     vec3 albedo = baseColor.rgb * materialData.baseColorFactor.rgb;
@@ -80,14 +87,14 @@ void main() {
     vec3 Lo = vec3(0.0);
 
     // pbr render cook-torrance
-    for (int i = 0; i < globalParamsData.lightCount; ++i)
+    for (int i = 0; i < g_SceneData.numLights; ++i)
     {
-        vec3 lightPos = globalParamsData.lightsData[i].position.xyz;
+        vec3 lightPos = g_SceneData.pointLights[i].position.xyz;
         vec3 L = normalize(lightPos - fragPos);
         vec3 H = normalize(V + L);
         float distance = length(lightPos - fragPos);
         float attenuation = 1.0 / (distance * distance); // simple quadratic attenuation
-        vec3 radiance = globalParamsData.lightsData[i].colorIntensity.rgb * globalParamsData.lightsData[i].colorIntensity.a * attenuation;
+        vec3 radiance = g_SceneData.pointLights[i].color.rgb * g_SceneData.pointLights[i].color.a * attenuation;
 
         // blin-phong
         float shininess = clamp(2.0 / (roughness * roughness) - 2.0, 1.0, 4096.0);
@@ -103,10 +110,34 @@ void main() {
         vec3 specular = kS * spec;
         Lo += diffuse + specular;
     }
+    // directional light
+    vec3 L = normalize(-g_SceneData.dirLight.direction.xyz);
+    vec3 H = normalize(V + L);
+    vec3 radiance = g_SceneData.dirLight.color.rgb * g_SceneData.dirLight.color.a;
+        
+    float shininess = clamp(2.0 / (roughness * roughness) - 2.0, 1.0, 4096.0);
+    vec3 spec = pow(max(dot(N, H), 0.0), shininess) * radiance;
+    vec3 diff = max(dot(N, L), 0.0) * radiance;
+
+    vec3 kS = FresnelSchlick(max(dot(H, V), 0.0), F0);
+    vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
+
+    vec3 diffuse = kD * diff;
+    vec3 specular = kS * spec;
+
+    Lo += diffuse + specular;
+
+    float lod = roughness * MAX_IBL_LOD;
+    vec3 iblReflection = texture(IBLSampler, vec2(
+		atan(R.z, R.x) / (2.0 * 3.14159265) + 0.5,
+		asin(R.y) / 3.14159265 + 0.5)).rgb;
+    iblReflection = iblReflection * exp2(-2.0);
+    vec3 L1 = iblReflection * kS;
+    Lo += ACESFilm(L1);
 
     vec3 ambient = vec3(0.03) * albedo * ao;
     vec3 color = ambient + Lo + emissive;
-    color = color / (color + vec3(1.0));
+    // color = color / (color + vec3(1.0));
     // vec4 color = baseColor * materialData.baseColorFactor;
     uint nodeIdx = atomicAdd(counter, 1);
 

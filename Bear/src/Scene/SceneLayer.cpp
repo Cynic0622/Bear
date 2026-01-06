@@ -5,7 +5,7 @@
 #include "AssetLoader.h"
 #include "Scene.h"
 #include "RenderObject.h"
-#include "Core/Resource.h"
+#include "Core/ResourceManager.h"
 #include "BaseData.h"
 namespace Bear
 {
@@ -22,27 +22,18 @@ namespace Bear
 	{
 		// 1. load gltf scene, file --> cpu
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/Sponza/glTF/Sponza.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/terrain_gridlines.gltf");
-		auto modelDesc = AssetLoader::ImportModel("assets/models/FlightHelmet/FlightHelmet.gltf");
+		auto modelDesc = AssetLoader::ImportModel("assets/models/New_FlightHelmet/FlightHelmet.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/DamagedHelmet/glTF/DamagedHelmet.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/Box/glTF/Box.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/Box with Spaces/glTF/Box with Spaces.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/ClearCoatTest/glTF/ClearCoatTest.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/Duck/glTF/Duck.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/Suzanne/glTF/Suzanne.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/TransmissionOrderTest/glTF/TransmissionOrderTest.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/CesiumMan/CesiumMan.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/saint/scene.gltf");
+		// auto modelDesc = AssetLoader::ImportModel("assets/models/SciFiHelmet/glTF/SciFiHelmet.gltf");
+		// auto modelDesc = AssetLoader::ImportModel("assets/models/Suzanne/glTF/Suzanne.gltf");
 		// 2. resource system create descriptor infos, cpu --> gpu
 		auto& app = Application::Get();
-		auto& renderer = app.GetRenderer()->GetResource();
-		auto resources = renderer.CreateResources(modelDesc);
+		auto& resourceManager = app.GetRenderer()->GetResourceManager();
+		auto resources = resourceManager.CreateResources(modelDesc);
 
 		// 3. create scene graph
 		m_Scene->CreateSceneGraph(modelDesc, resources);
-
-		// resources = renderer.CreateResources(modelDesc1);
-		// m_Scene->CreateSceneGraph(modelDesc1, resources);
 	}
 	void SceneLayer::OnDetach()
 	{

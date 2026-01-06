@@ -5,7 +5,7 @@
 #include "Component.h"
 #include "RenderObject.h"
 #include "Entity.h"
-#include "Resource.h"
+#include "ResourceManager.h"
 #include "CameraController.h"
 #include "BaseData.h"
 namespace Bear
@@ -28,7 +28,7 @@ namespace Bear
 			light.AddComponent<LightComponent>(LightComponent::CreatePoint(glm::vec4(color, 10)));
 		}
 		Entity light = CreateEntity("Directional Light");
-		light.AddComponent<LightComponent>(LightComponent::CreateDirectional({1.f, -1.f, 1.f}, {1.f, 1.f, 0.f, 5.f}));
+		light.AddComponent<LightComponent>(LightComponent::CreateDirectional({ -1.0, -2.5, -1.0 }, {1.f, .98f, .9f, 4.f}));
 
 	}
 	Scene::~Scene()
@@ -119,7 +119,7 @@ namespace Bear
 	Entity Scene::CreateEntity(const std::string& name)
 	{
 		Entity entity = { m_Registry.create(), this };
-		entity.AddComponent<IDComponent>();
+		entity.AddComponent<IDComponent>(m_NextUID);
 		entity.AddComponent<TagComponent>(name);
 		entity.AddComponent<TransformComponent>();
 		entity.AddComponent<HierarchyComponent>();

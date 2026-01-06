@@ -1,8 +1,4 @@
-//
-// Created by shw on 2025/8/5.
-//
 #pragma once
-#include "Core/ResourceManager.h"
 namespace Bear
 {
     class RHIDevice;
@@ -46,6 +42,5 @@ namespace Bear
     private:
         PixelFormat selectFormat(uint32_t channels);
     };
-    using TextureManager = ResourceManager<Texture, std::string>;
 } // Bear
 

@@ -19,10 +19,16 @@ namespace Bear {
 }
 
 // Core log
+#ifdef BEAR_ENABLE_DEBUG
 #define BEAR_CORE_TRACE(...) ::Bear::Log::GetCoreLogger()->trace(__VA_ARGS__)
-#define BEAR_CORE_INFO(...)  ::Bear::Log::GetCoreLogger()->info(__VA_ARGS__)
 #define BEAR_CORE_WARN(...)  ::Bear::Log::GetCoreLogger()->warn(__VA_ARGS__)
 #define BEAR_CORE_ERROR(...) ::Bear::Log::GetCoreLogger()->error(__VA_ARGS__); __debugbreak()
+#else
+#define BEAR_CORE_TRACE(...)
+#define BEAR_CORE_WARN(...)
+#define BEAR_CORE_ERROR(...)
+#endif
+#define BEAR_CORE_INFO(...)  ::Bear::Log::GetCoreLogger()->info(__VA_ARGS__)
 
 // Client log
 #define BEAR_CLIENT_TRACE(...) ::Bear::Log::GetClientLogger()->trace(__VA_ARGS__)

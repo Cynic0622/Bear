@@ -11,9 +11,9 @@ namespace Bear
 	using UID = uint32_t;
 	struct IDComponent
 	{
-		UID ID;
-		IDComponent() : ID(0) {}
-		IDComponent(UID id) : ID(id) {}
+		UID ID = 0; // 0 is invalid ID.
+		IDComponent() = default;
+		explicit IDComponent(UID id) : ID(id) {}
 	};
 
 	struct TagComponent
@@ -93,11 +93,11 @@ namespace Bear
 
 	struct HierarchyComponent
 	{
-		//Entity Parent;
+		// Entity Parent;
 		// In components, use entt::entity to represent entities.
 		entt::entity Parent = entt::null;
-		//std::vector<Entity> Children;
-		std::vector<entt::entity> Children;
+		// std::vector<Entity> Children;
+		// std::vector<entt::entity> Children;
 	};
 
 	enum LightType : uint8_t
