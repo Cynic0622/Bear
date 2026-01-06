@@ -1,6 +1,6 @@
 #include "bearpch.h"
 #include "PbrPass.h"
-
+#include "Texture.h"
 #include "NtcMaterial.h"
 #include "PbrMaterial.h"
 
@@ -33,14 +33,16 @@ namespace Bear
 		for (const auto& obj : renderObjects)
 		{
 			if (obj.material->IsTransparent())
+			{
 				continue;
+			}
+				
 			cmd->BindPipeline(*m_PreZPipeline);
 			cmd->BindDescriptorSet(*m_PreZPipelineLayout, *m_Context->baseDataDescriptorSet[currentFrameIndex], 0);
 			cmd->BindDescriptorSet(*m_PreZPipelineLayout, *m_Context->sceneDataDescriptorSet[currentFrameIndex], 1);
 			cmd->BindDescriptorSet(*m_PreZPipelineLayout, *obj.material->GetDescriptorSet(), 2);
 			PerObjectPushConstants pushConstants{ .model = obj.transform };
 			cmd->PushConstants(*m_PreZPipelineLayout, ShaderStage::Vertex, &pushConstants, sizeof(PerObjectPushConstants), 0);
-			obj.mesh->Bind(*cmd);
 			obj.mesh->Draw(*cmd);
 			count++;
 		}
@@ -56,7 +58,6 @@ namespace Bear
 			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *obj.material->GetDescriptorSet(),2);
 			PerObjectPushConstants pushConstants{ .model = obj.transform };
 			cmd->PushConstants(*m_PbrPipelineLayout, ShaderStage::Vertex, &pushConstants, sizeof(PerObjectPushConstants), 0);
-			obj.mesh->Bind(*cmd);
 			obj.mesh->Draw(*cmd);
 		}
 		cmd->EndRenderPass();

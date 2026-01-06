@@ -5,11 +5,11 @@ namespace Bear
 {
 	struct alignas(16) PbrMaterialParams {
 		alignas(16) glm::vec4 baseColorFactor{ 1.f,1.f,1.f,1.f };
-		float metallicFactor{ 1.f };
-		float roughnessFactor{ 1.f };
+		float metallicFactor{ 0.f };
+		float roughnessFactor{ .5f };
 		float normalScale{ 1.f };
 		float occlusionStrength{ 1.f };
-		alignas(16) glm::vec3 emissiveFactor{ 0.f,0.f,0.f };
+		alignas(16) glm::vec3 emissiveFactor{ 0.f, 0.f,0.f };
 		float _pad0{ 0.f }; // std140 alignment padding
 	};
 

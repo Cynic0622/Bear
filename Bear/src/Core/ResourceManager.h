@@ -1,40 +1,43 @@
-//
-// Created by shw on 2025/8/5.
-//
-
 #pragma once
 #include <string>
-#include <unordered_map>
 #include <memory>
+#include <vector>
+#include "Material.h"
 
 namespace Bear
 {
-    template<typename TResource, typename TKey = std::string>
-    class ResourceManager
+	class Material;
+	struct ImageDescription;
+    struct PrimitiveDescription;
+    struct ModelDescription;
+    class Texture;
+    class Mesh;
+    class RHIDevice;
+	struct MaterialDescription;
+    struct Resources
     {
-    public:
-        ResourceManager() = default;
-        ~ResourceManager() = default;
-
-        ResourceManager(const ResourceManager&) = delete;
-        ResourceManager& operator=(const ResourceManager&) = delete;
-
-        template<typename... TArgs>
-        std::shared_ptr<TResource> Load(const TKey& key, TArgs&&... args)
-        {
-            auto it = m_ResourceCache.find(key);
-            if (it != m_ResourceCache.end())
-            {
-                return it->second;
-            }
-
-			// don't have the resource, create it, pass the arguments to the constructor
-            std::shared_ptr<TResource> resource = std::make_shared<TResource>(std::forward<TArgs>(args)...);
-            m_ResourceCache[key] = resource;
-
-            return resource;
-        }
-    private:
-        std::unordered_map<TKey, std::shared_ptr<TResource>> m_ResourceCache;
+        std::vector<std::shared_ptr<Material>> Materials;
+        std::vector<std::shared_ptr<Mesh>> Meshes;
     };
+	class ResourceManager
+	{
+	public:
+		explicit ResourceManager(RHIDevice& device);
+		ResourceManager(RenderContext* context);
+		~ResourceManager() = default;
+
+        std::shared_ptr<Texture> CreateTexture(const ImageDescription& imageDesc, const SamplerDescription& samplerDesc);
+        std::shared_ptr<Mesh> CreateMesh(const PrimitiveDescription& desc);
+		std::shared_ptr<Material> CreateMaterial(const MaterialDescription& desc, std::unordered_map<int, std::shared_ptr<Texture>> textures);
+        Resources CreateResources(const ModelDescription& desc);
+		std::shared_ptr<Texture> GetDefaultTexture(int bindingSlot);
+	private:
+		std::shared_ptr<Material> CreateNtcMaterial(const MaterialDescription& desc, const std::unordered_map<int, std::shared_ptr<Texture>>& textures) const;
+		std::shared_ptr<Material> CreatePbrMaterial(const MaterialDescription& desc, const std::unordered_map<int, std::shared_ptr<Texture>>& textures);
+	private:
+		std::string m_Name;
+		RHIDevice& m_Device;
+		RenderContext* m_RenderContext = nullptr;
+		std::array<std::shared_ptr<Texture>, MaterialSlot::Count> m_DefaultTextures;
+	};
 }

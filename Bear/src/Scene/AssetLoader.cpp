@@ -30,14 +30,14 @@ namespace Bear {
         {
 			const auto& gltfImage = model.images[i];
             ImageDescription imgDesc;
-            if (!gltfImage.name.empty())
-            {
-				imgDesc.name = gltfImage.name;
-            }
-            else if (!gltfImage.uri.empty())
+            if (!gltfImage.uri.empty())
             {
 				size_t pos = gltfImage.uri.find_last_of("/\\");
 				imgDesc.name = (pos == std::string::npos) ? gltfImage.uri : gltfImage.uri.substr(pos + 1);
+            }
+            else if (!gltfImage.name.empty())
+            {
+                imgDesc.name = gltfImage.name;
             }
             else
             {
@@ -94,26 +94,49 @@ namespace Bear {
             matDesc.metallicFactor = static_cast<float>(pbr.metallicFactor);
             matDesc.roughnessFactor = static_cast<float>(pbr.roughnessFactor);
 			matDesc.emissiveFactor = glm::make_vec3(gltfMaterial.emissiveFactor.data());
-
+			
             if (pbr.baseColorTexture.index >= 0) {
                 // const auto& tex = model.textures[pbr.baseColorTexture.index];
                 // matDesc.baseColorTextureIndex = tex.source;
 				matDesc.baseColorTextureIndex = pbr.baseColorTexture.index; // index in the textures array
+				// add the semantic info at the end of the texture name, like _albedo, _diffuse, etc.
+				auto pos = desc.images[desc.textures[matDesc.baseColorTextureIndex].imageIndex].name.rfind('.');
+				std::string format = desc.images[desc.textures[matDesc.baseColorTextureIndex].imageIndex].name.substr(pos);
+				std::string name = (pos == std::string::npos) ? desc.images[desc.textures[matDesc.baseColorTextureIndex].imageIndex].name : desc.images[desc.textures[matDesc.baseColorTextureIndex].imageIndex].name.substr(0, pos);
+                desc.images[desc.textures[matDesc.baseColorTextureIndex].imageIndex].name = name + "_albedo";
+                desc.images[desc.textures[matDesc.baseColorTextureIndex].imageIndex].name += format;
             }
             if (pbr.metallicRoughnessTexture.index >= 0) {
                 // const auto& tex = model.textures[pbr.metallicRoughnessTexture.index];
                 // matDesc.metallicRoughnessTextureIndex = tex.source;
 				matDesc.metallicRoughnessTextureIndex = pbr.metallicRoughnessTexture.index;
+                auto pos = desc.images[desc.textures[matDesc.metallicRoughnessTextureIndex].imageIndex].name.rfind('.');
+                std::string format = desc.images[desc.textures[matDesc.metallicRoughnessTextureIndex].imageIndex].name.substr(pos);
+                std::string name = (pos == std::string::npos) ? desc.images[desc.textures[matDesc.baseColorTextureIndex].imageIndex].name : desc.images[desc.textures[matDesc.baseColorTextureIndex].imageIndex].name.substr(0, pos);
+                desc.images[desc.textures[matDesc.metallicRoughnessTextureIndex].imageIndex].name = name + "_roughness";
+				desc.images[desc.textures[matDesc.metallicRoughnessTextureIndex].imageIndex].name += format;
 			}
             if (gltfMaterial.normalTexture.index >= 0) {
                 // const auto& tex = model.textures[gltfMaterial.normalTexture.index];
                 // matDesc.normalTextureIndex = tex.source;
 				matDesc.normalTextureIndex = gltfMaterial.normalTexture.index;
+
+                auto pos = desc.images[desc.textures[matDesc.normalTextureIndex].imageIndex].name.rfind('.');
+                std::string format = desc.images[desc.textures[matDesc.normalTextureIndex].imageIndex].name.substr(pos);
+                std::string name = (pos == std::string::npos) ? desc.images[desc.textures[matDesc.baseColorTextureIndex].imageIndex].name : desc.images[desc.textures[matDesc.baseColorTextureIndex].imageIndex].name.substr(0, pos);
+                desc.images[desc.textures[matDesc.normalTextureIndex].imageIndex].name = name + "_normal";
+                desc.images[desc.textures[matDesc.normalTextureIndex].imageIndex].name += format;
 			}
             if (gltfMaterial.occlusionTexture.index >= 0) {
                 // const auto& tex = model.textures[gltfMaterial.occlusionTexture.index];
                 // matDesc.occlusionTextureIndex = tex.source;
 				matDesc.occlusionTextureIndex = gltfMaterial.occlusionTexture.index;
+
+                auto pos = desc.images[desc.textures[matDesc.occlusionTextureIndex].imageIndex].name.rfind('.');
+                std::string format = desc.images[desc.textures[matDesc.occlusionTextureIndex].imageIndex].name.substr(pos);
+                std::string name = (pos == std::string::npos) ? desc.images[desc.textures[matDesc.baseColorTextureIndex].imageIndex].name : desc.images[desc.textures[matDesc.baseColorTextureIndex].imageIndex].name.substr(0, pos);
+                desc.images[desc.textures[matDesc.occlusionTextureIndex].imageIndex].name = name + "_occlusion";
+                desc.images[desc.textures[matDesc.occlusionTextureIndex].imageIndex].name += format;
             }
             if (gltfMaterial.emissiveTexture.index >= 0) {
                 // const auto& tex = model.textures[gltfMaterial.emissiveTexture.index];
@@ -179,7 +202,10 @@ namespace Bear {
                     submeshDesc.vertices[i].position = glm::make_vec3(positions + i * 3);
                     if (normals) submeshDesc.vertices[i].normal = glm::make_vec3(normals + i * 3);
                     if (texCoords) submeshDesc.vertices[i].texCoord = glm::make_vec2(texCoords + i * 2);
-                    if (tangents) submeshDesc.vertices[i].tangent = glm::make_vec3(tangents + i * 3);
+                    if (tangents)
+                    {
+                        submeshDesc.vertices[i].tangent = glm::make_vec4(tangents + i * 3);
+                    }
                 }
 
                 // --- Index ---
@@ -216,6 +242,48 @@ namespace Bear {
                         BEAR_CORE_ERROR("Unsupported type.");
 					}
 					}
+
+                    if (!tangents)
+                    {
+						// Calculate tangents if not present
+                        std::vector<glm::vec3> tempBitangents(submeshDesc.vertices.size(), glm::vec3(0.0f));
+                        for (uint32_t i = 0; i < submeshDesc.indices.size(); i += 3)
+                        {
+                            VertexDescription& v0 = submeshDesc.vertices[submeshDesc.indices[i]];
+                            VertexDescription& v1 = submeshDesc.vertices[submeshDesc.indices[i + 1]];
+                            VertexDescription& v2 = submeshDesc.vertices[submeshDesc.indices[i + 2]];
+                            glm::vec3 edge1 = v1.position - v0.position;
+                            glm::vec3 edge2 = v2.position - v0.position;
+                            glm::vec2 deltaUV1 = v1.texCoord - v0.texCoord;
+                            glm::vec2 deltaUV2 = v2.texCoord - v0.texCoord;
+                            float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+                            glm::vec4 tangent{0.f};
+                            glm::vec3 bitangent{ 0.f };
+                            tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+                            tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+                            tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+
+                            bitangent.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
+                            bitangent.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
+                            bitangent.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
+                            
+                            v0.tangent += tangent;
+                            v1.tangent += tangent;
+                            v2.tangent += tangent;
+							tempBitangents[submeshDesc.indices[i]] += bitangent;
+							tempBitangents[submeshDesc.indices[i + 1]] += bitangent;
+							tempBitangents[submeshDesc.indices[i + 2]] += bitangent;
+						}
+                        for (uint32_t i = 0; i < submeshDesc.vertices.size(); ++i)
+                        {
+							auto n = submeshDesc.vertices[i].normal;
+							auto t = submeshDesc.vertices[i].tangent;
+							auto b = tempBitangents[i];
+							// Gram-Schmidt orthogonalize
+							submeshDesc.vertices[i].tangent = glm::vec4(glm::normalize(glm::vec3(t) - n * glm::dot(n, glm::vec3(t))), 0.f);
+							submeshDesc.vertices[i].tangent.w = (glm::dot(glm::cross(n, glm::vec3(t)), b) < 0.0f) ? -1.0f : 1.0f;
+                        }
+                    }
                 }
                 desc.primitives.push_back(std::move(submeshDesc));
             }

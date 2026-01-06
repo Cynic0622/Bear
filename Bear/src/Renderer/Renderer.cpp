@@ -11,7 +11,7 @@
 #include "RHI/RHISwapchain.h"
 #include "Common/RenderObject.h"
 #include "Scene/SceneLayer.h"
-#include "Core/Resource.h"
+#include "Core/ResourceManager.h"
 #include "Scene/Scene.h"
 #include "SkyboxPass.h"
 
@@ -97,9 +97,6 @@ namespace Bear {
 		
 		m_Swapchain = m_Device->CreateSwapchain(*m_RenderPass);
 
-		m_TextureManager = std::make_unique<TextureManager>();
-		m_MeshManager = std::make_unique<MeshManager>();
-
 		m_BaseDataUniformBuffer.resize(MAX_FRAMES_IN_FLIGHT);
 		m_BaseDataDescriptorSet.resize(MAX_FRAMES_IN_FLIGHT);
 		m_SceneDataUniformBuffer.resize(MAX_FRAMES_IN_FLIGHT);
@@ -109,9 +106,15 @@ namespace Bear {
 			{0, DescriptorType::UniformBuffer, 1, ShaderStage::Vertex | ShaderStage::Fragment}
 			});
 		m_SceneDataDescriptorSetLayout = m_Device->CreateDescriptorSetLayout({
-			{0, DescriptorType::UniformBuffer, 1, ShaderStage::Vertex | ShaderStage::Fragment}
+			{0, DescriptorType::UniformBuffer, 1, ShaderStage::Vertex | ShaderStage::Fragment},
+			{1, DescriptorType::CombinedImageSampler, 1, ShaderStage::Fragment }
 			});
-		
+
+		std::string filePath = "assets/skybox/kloppenheim_06_puresky_4k.hdr";
+		m_IBLTexture = std::make_shared<Texture>(*m_Device, filePath);
+		m_IBLDescriptorSet = m_Device->CreateDescriptorSet(m_SceneDataDescriptorSetLayout);
+		m_IBLDescriptorSet->UpdateTexture(1, m_IBLTexture->GetImage(), m_IBLTexture->GetSampler());
+
 		for (uint8_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 		{
 			m_BaseDataDescriptorSet[i] = m_Device->CreateDescriptorSet(m_BaseDataDescriptorSetLayout);
@@ -120,6 +123,7 @@ namespace Bear {
 			m_SceneDataDescriptorSet[i] = m_Device->CreateDescriptorSet(m_SceneDataDescriptorSetLayout);
 			m_SceneDataUniformBuffer[i] = m_Device->CreateBuffer(sizeof(SceneData), BufferUsage::UniformBuffer, true);
 			m_SceneDataDescriptorSet[i]->UpdateBuffer(0, *m_SceneDataUniformBuffer[i]);
+			m_SceneDataDescriptorSet[i]->UpdateTexture(1, m_IBLTexture->GetImage(), m_IBLTexture->GetSampler());
 			m_RenderContext->baseDataDescriptorSet.push_back(m_BaseDataDescriptorSet[i].get());
 			m_RenderContext->sceneDataDescriptorSet.push_back(m_SceneDataDescriptorSet[i].get());
 		}
@@ -132,7 +136,7 @@ namespace Bear {
 		m_RenderContext->sceneDataDescriptorSetLayout = m_SceneDataDescriptorSetLayout.get();
 		m_RenderContext->useTextureCompression = false;
 
-		m_Resource = std::make_unique<Resource>(m_RenderContext);
+		m_Resource = std::make_unique<ResourceManager>(m_RenderContext);
 
 		m_UIPass = std::make_unique<UIPass>();
 		m_UIPass->Setup(m_RenderContext);
@@ -140,11 +144,6 @@ namespace Bear {
 		m_SkyboxPass->Setup(m_RenderContext);
 		m_PbrPass = std::make_unique<PbrPass>();
 		m_PbrPass->Setup(m_RenderContext);
-		// if (OitEnabled)
-		// {
-		// 	m_OitPass = std::make_unique<OitPass>();
-		// 	m_OitPass->Setup(m_RenderContext);
-		// }
 	}
 	
 	

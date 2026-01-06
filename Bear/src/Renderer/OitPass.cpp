@@ -63,11 +63,11 @@ namespace Bear
 			if (!obj.material->IsTransparent())
 				continue;
 			cmd->BindDescriptorSet(*m_OitPipelineLayout, *m_Context->baseDataDescriptorSet[currentFrameIndex], 0);
-			cmd->BindDescriptorSet(*m_OitPipelineLayout, *obj.material->GetDescriptorSet(), 1);
-			cmd->BindDescriptorSet(*m_OitPipelineLayout, *m_OitDescriptorSet, 2);
+			cmd->BindDescriptorSet(*m_OitPipelineLayout, *m_Context->sceneDataDescriptorSet[currentFrameIndex], 1);
+			cmd->BindDescriptorSet(*m_OitPipelineLayout, *obj.material->GetDescriptorSet(), 2);
+			cmd->BindDescriptorSet(*m_OitPipelineLayout, *m_OitDescriptorSet, 3);
 			PerObjectPushConstants pushConstants{ .model = obj.transform };
 			cmd->PushConstants(*m_OitPipelineLayout, ShaderStage::Vertex, &pushConstants, sizeof(PerObjectPushConstants), 0);
-			obj.mesh->Bind(*cmd);
 			obj.mesh->Draw(*cmd);
 		}
 		cmd->EndRenderPass();
@@ -167,7 +167,8 @@ namespace Bear
 			{ShaderStage::Vertex, sizeof(PerObjectPushConstants), 0}
 		};
 		const auto& baseDataDescriptorSetLayout = m_Context->baseDataDescriptorSetLayout;
-		m_OitPipelineLayout = m_Context->device->CreatePipelineLayout({ baseDataDescriptorSetLayout, m_PbrDescriptorSetLayout.get() , m_OitDescriptorSetLayout.get() },
+		const auto& sceneDataDescriptorSetLayout = m_Context->sceneDataDescriptorSetLayout;
+		m_OitPipelineLayout = m_Context->device->CreatePipelineLayout({ baseDataDescriptorSetLayout, sceneDataDescriptorSetLayout, m_PbrDescriptorSetLayout.get() , m_OitDescriptorSetLayout.get() },
 			{ pushConstantRanges });
 
 		RHIPipelineConfig pipelineConfig;

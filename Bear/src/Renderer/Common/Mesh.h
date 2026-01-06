@@ -1,6 +1,4 @@
 #pragma once
-
-#include "ResourceManager.h"
 #include "RHI/RHIResources.h"
 #include "RHI/RHIDevice.h"
 #include "Scene/Frustum.h"
@@ -18,7 +16,6 @@ namespace Bear {
 		Mesh(RHIDevice& device, const std::vector<VertexDescription>& vertices, const std::vector<uint32_t>& indices);
 		~Mesh();
 
-		void Bind(RHICommandList& cmd) const;
 		void Draw(RHICommandList& cmd) const;
 
 		// Getters
@@ -33,5 +30,4 @@ namespace Bear {
 		AABB m_AABB;
 
 	};
-	using MeshManager = ResourceManager<Mesh, std::string>;
 }

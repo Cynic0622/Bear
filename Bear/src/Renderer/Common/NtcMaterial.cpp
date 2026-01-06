@@ -190,12 +190,22 @@ namespace Bear
 			ntcStatus = m_TextureSet->RunCompressionSteps(&stats);
 			if (ntcStatus == ntc::Status::Ok || ntcStatus == ntc::Status::Incomplete)
 			{
-				printf("\rCompression step %d/%d (%.2f ms/step), loss = %.6f (PSNR %.2f dB), LR: net %.6f, grid %.6f",
-					stats.currentStep, compSettings.trainingSteps,
+				// printf("\rCompression step %d/%d (%.2f ms/step), loss = %.6f (PSNR %.2f dB), LR: net %.6f, grid %.6f",
+				// 	stats.currentStep, compSettings.trainingSteps,
+				// 	stats.millisecondsPerStep,
+				// 	stats.loss, ntc::LossToPSNR(stats.loss),
+				// 	stats.learningRate, stats.learningRate * (compSettings.gridLearningRate / compSettings.networkLearningRate));
+				BEAR_CORE_INFO(
+					"Compression step {}/{} ({:.2f} ms/step), loss = {:.6f} (PSNR {:.2f} dB), LR: net {:.6f}, grid {:.6f}",
+					stats.currentStep,
+					compSettings.trainingSteps,
 					stats.millisecondsPerStep,
-					stats.loss, ntc::LossToPSNR(stats.loss),
-					stats.learningRate, stats.learningRate * (compSettings.gridLearningRate / compSettings.networkLearningRate));
-				fflush(stdout);
+					stats.loss,
+					ntc::LossToPSNR(stats.loss),
+					stats.learningRate,
+					stats.learningRate* (compSettings.gridLearningRate / compSettings.networkLearningRate)
+				);
+				// fflush(stdout);
 			}
 			else
 			{

@@ -10,7 +10,7 @@ namespace Bear {
 	{
 		glm::vec3 position{ 0.0f };
 		glm::vec3 normal{ 0.0f };
-        glm::vec3 tangent{ 0.f };
+        glm::vec4 tangent{ 0.f };
 		glm::vec2 texCoord{ 0.0f };
 	};
 
@@ -44,8 +44,8 @@ namespace Bear {
         glm::vec4 baseColorFactor{ 1.0f };
         int baseColorTextureIndex = -1;
 
-        float metallicFactor = 1.0f;
-        float roughnessFactor = 1.0f;
+        float metallicFactor = 0.0f;
+        float roughnessFactor = 0.5f;
         int metallicRoughnessTextureIndex = -1;
 
         int normalTextureIndex = -1;
