@@ -177,7 +177,6 @@ namespace Bear {
 			OitEnabled = !OitEnabled;
 			BEAR_CORE_INFO("OIT: {}", OitEnabled ? "ON" : "OFF");
 			return true;
-			// std::cout << "OIT: " << (OitEnabled ? "ON" : "OFF") << std::endl;
 		}
 		return false;
 	}

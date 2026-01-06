@@ -227,13 +227,11 @@ target_include_directories(Bear
 # DLL导出设置
 target_compile_definitions(Bear 
     PRIVATE
-        BEAR_ENABLE_ASSERTS
-        # BEAR_BUILD_DLL
         BEAR_API_EXPORTS
         GLFW_INCLUDE_NONE  # 避免GLFW包含OpenGL头文件
     PUBLIC
-        $<$<CONFIG:Debug>:BEAR_DEBUG>
         $<$<CONFIG:Release>:BEAR_RELEASE>
+        $<$<CONFIG:Debug>:BEAR_DEBUG>
         $<$<CONFIG:Release>:NDEBUG>
 )
 
