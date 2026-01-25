@@ -1,10 +1,8 @@
 # Bear 🐻
 
-Bear 是一个基于 Vulkan API 开发的微型渲染引擎。该项目主要用于探索和学习现代 Vulkan 渲染技术以及 C++ 编程范式。
+Bear 目前是一个基于 Vulkan API 开发的微型渲染引擎。该项目主要用于探索和学习现代 Vulkan 渲染技术以及 C++ 编程范式。
 
 ## 📥 获取项目
-
-由于本项目包含子模块，请使用以下命令克隆：
 
 ```bash
 git clone --recursive https://github.com/Cynic0622/Bear.git
@@ -33,6 +31,25 @@ git clone --recursive https://github.com/Cynic0622/Bear.git
 - **渲染优化**
   - **CPU 端视锥剔除 (Frustum Culling)**: 在提交 GPU 之前剔除视野外的物体，减少无效渲染。
   - **Pre-Z Pass**: 提前深度测试通道，能有效减少 Overdraw，提升片段着色阶段的性能。
+
+## 🗓️ 待实现（TODO）
+
+### 🛠️ 工程架构 (Engineering)
+
+- [ ] **GPU剔除**: 基于 Compute shader 实现剔除。
+- [ ] **渲染依赖图 (Render Graph)**: 自动分析并管理 Render Pass 之间的依赖关系，自动插入 Pipeline Barriers 进行资源同步。
+- [ ] **资源缓存系统 (Resource Caching)**: 实现 Pipeline State Object (PSO)、Descriptor Set 及纹理等核心资源的缓存与复用机制，减少运行时开销。
+
+### 🎨 渲染特性 (Rendering)
+
+- [ ] **延迟渲染 (Deferred Rendering)**: 应对大量光源场景，解耦几何处理与光照计算。
+- [ ] **基础阴影**: Shadow Mapping 及其改进版本 (PCF)。
+- [ ] **软阴影**: PCSS (Percentage-Closer Soft Shadows)。
+- [ ] **级联阴影**: CSM (Cascaded Shadow Maps)，优化大场景视距阴影。
+- [ ] **环境光遮蔽**: SSAO (Screen Space Ambient Occlusion) / HBAO+。
+- [ ] **反射**: SSR (Screen Space Reflection)。
+- [ ] **全局光照近似**: SSDO (Screen Space Directional Occlusion)。
+- [ ] **实时光线追踪 (Real-time Ray Tracing)**: 基于硬件加速的光追管线集成。
 
 ## 🚀 构建 (Build)
 
