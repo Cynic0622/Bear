@@ -188,7 +188,7 @@ namespace Bear
 		blendPipelineConfig.fragmentShaderPath = "Bear/src/Shaders/oitBlendFrag.spv";
 		blendPipelineConfig.colorBlendAttachmentState.colorWriteMask = ColorWriteMask::All;
 		blendPipelineConfig.colorBlendAttachmentState.blendEnable = true;
-		blendPipelineConfig.colorBlendAttachmentState.srcColorBlendFactor = BlendFactor::SrcAlpha;
+		blendPipelineConfig.colorBlendAttachmentState.srcColorBlendFactor = BlendFactor::One;
 		blendPipelineConfig.colorBlendAttachmentState.dstColorBlendFactor = BlendFactor::OneMinusSrcAlpha;
 		blendPipelineConfig.colorBlendAttachmentState.colorBlendOp = BlendOp::Add;
 		blendPipelineConfig.colorBlendAttachmentState.srcAlphaBlendFactor = BlendFactor::One;
