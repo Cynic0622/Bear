@@ -47,5 +47,13 @@ namespace Bear {
         
         // ImGui专用的Vulkan资源
         VkDescriptorPool m_DescriptorPool = VK_NULL_HANDLE;
+
+        static constexpr size_t kFrameHistorySize = 120;
+        std::vector<float> m_FrameTimeHistory;
+        size_t m_HistoryIndex = 0;
+        float m_AccumulatedFrameTime = 0.0f;
+        float m_MinFrameTime = std::numeric_limits<float>::max();
+        float m_MaxFrameTime = 0.0f;
+        float m_MovingAvgFrameTime = 0.0f;
     };
 }
