@@ -1,55 +1,55 @@
 #version 450
-#define MAX_FRAGMENT_COUNT 128
+#define MAX_NODES 4
 
 struct Node
 {
     vec4 color;
     float depth;
-    uint next;
 };
 
 layout (location = 0) out vec4 outFragColor;
-layout(set = 0, binding = 0) buffer LinkedListSBO
+layout(set = 0, binding = 0) buffer NodeBuffer
 {
     Node nodes[];
 };
-layout (set = 0, binding = 1, r32ui) uniform uimage2D headIndexImage;
+layout (set = 0, binding = 1, r32ui) uniform uimage2D pixelCounter;
 
 void main()
 {
-    Node fragments[MAX_FRAGMENT_COUNT];
-    int count = 0;
+    ivec2 dim = imageSize(pixelCounter);
+    uint count = imageLoad(pixelCounter, ivec2(gl_FragCoord.xy)).r;
+    uint pixelBase = (uint(gl_FragCoord.y) * uint(dim.x) + uint(gl_FragCoord.x)) * MAX_NODES;
 
-    uint nodeIdx = imageLoad(headIndexImage, ivec2(gl_FragCoord.xy)).r;
+    Node fragments[MAX_NODES];
 
-    while (nodeIdx != 0xffffffff && count < MAX_FRAGMENT_COUNT)
+    for (uint i = 0; i < min(count, MAX_NODES); ++i)
     {
-        fragments[count] = nodes[nodeIdx];
-        nodeIdx = fragments[count].next;
-        ++count;
+        fragments[i] = nodes[pixelBase + i];
     }
-    
-    // Do the insertion sort
-    for (uint i = 1; i < count; ++i)
+
+    // insertion sort by depth (back-to-front)
+    for (uint i = 1; i < min(count, MAX_NODES); ++i)
     {
         Node insert = fragments[i];
         uint j = i;
         while (j > 0 && insert.depth > fragments[j - 1].depth)
         {
-            fragments[j] = fragments[j-1];
+            fragments[j] = fragments[j - 1];
             --j;
         }
         fragments[j] = insert;
     }
 
-    // Do blending
-    vec4 color = vec4(0.0, 0.0, 0.0, 0.0);
-    for (int i = 0; i < count; ++i)
+    // blend (premultiplied alpha over)
+    vec4 color = vec4(0.0);
+    uint n = min(count, MAX_NODES);
+    for (uint i = 0; i < n; ++i)
     {
         color.rgb = color.rgb * (1.0 - fragments[i].color.a) + fragments[i].color.rgb * fragments[i].color.a;
         color.a = color.a * (1.0 - fragments[i].color.a) + fragments[i].color.a;
     }
-    if (count > 0)
+
+    if (n > 0)
     {
         outFragColor = color;
     }

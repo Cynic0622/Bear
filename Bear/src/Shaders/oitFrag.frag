@@ -4,11 +4,12 @@ layout(early_fragment_tests) in;
 #include "..\Renderer\BaseData.h"
 #include "common.glsli"
 #define MAX_IBL_LOD 4.0
+#define MAX_NODES 4
+
 struct Node
 {
     vec4 color;
     float depth;
-    uint next;
 };
 
 layout(set = 1, binding = 0) uniform sceneDataBlock {
@@ -37,17 +38,11 @@ layout(location = 3) in vec3 inNormal;
 layout(location = 4) in vec3 inTangent;
 layout(location = 5) in vec3 inBitangent;
 
-layout (set = 3, binding = 0) buffer LinkedListSBO
+layout(set = 3, binding = 0) buffer NodeBuffer
 {
     Node nodes[];
 };
-layout (set = 3, binding = 1) buffer AtomicCounter
-{
-    uint counter;
-    uint maxNodeCount;
-};
-
-layout (set = 3, binding = 2, r32ui) uniform uimage2D headIndexImage;
+layout(set = 3, binding = 1, r32ui) uniform uimage2D pixelCounter;
 
 void main() {
     mat3 TBN = mat3(normalize(inTangent), normalize(inBitangent), normalize(inNormal));
@@ -136,13 +131,12 @@ void main() {
     vec3 color = ambient + Lo + emissive;
     color = ACESFilm(color);
 
-    uint nodeIdx = atomicAdd(counter, 1);
-
-    if (nodeIdx < maxNodeCount)
+    uint slot = imageAtomicAdd(pixelCounter, ivec2(gl_FragCoord.xy), 1u);
+    if (slot < MAX_NODES)
     {
-        uint prevHeadIdx = imageAtomicExchange(headIndexImage, ivec2(gl_FragCoord.xy), nodeIdx);
-        nodes[nodeIdx].color = vec4(color, alpha);
-        nodes[nodeIdx].next = prevHeadIdx;
-        nodes[nodeIdx].depth = gl_FragCoord.z;
+        ivec2 dim = imageSize(pixelCounter);
+        uint pixelBase = (uint(gl_FragCoord.y) * uint(dim.x) + uint(gl_FragCoord.x)) * MAX_NODES;
+        nodes[pixelBase + slot].color = vec4(color, alpha);
+        nodes[pixelBase + slot].depth = gl_FragCoord.z;
     }
 }
