@@ -5,6 +5,7 @@
 #include "Texture.h"
 
 #include <stb_image.h>
+#include <cmath>
 
 #include "RHI/RHIDevice.h"
 #include "RHI/RHIResources.h"
@@ -40,6 +41,8 @@ namespace Bear
 
 		config.width = texWidth;
 		config.height = texHeight;
+		uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+		config.mipLevels = mipLevels;
 
 		m_Image = device.CreateTexture(config);
 		m_Channels = 4;
@@ -51,7 +54,10 @@ namespace Bear
 
 				cmd.CopyBufferToTexture(*stagingBuffer, *m_Image);
 
-				cmd.TransitionImageLayout(*m_Image, ImageLayout::TransferDst, ImageLayout::ShaderReadOnly);
+				if (mipLevels > 1)
+					GenerateMips(cmd, *m_Image, mipLevels);
+				else
+					cmd.TransitionImageLayout(*m_Image, ImageLayout::TransferDst, ImageLayout::ShaderReadOnly);
 			});
 
 		RHISamplerConfig samplerConfig = RHISamplerConfig::GetDefault();
@@ -69,13 +75,18 @@ namespace Bear
 		config.width = width;
 		config.height = height;
 		config.format = PixelFormat::R8G8B8A8_UNORM;
+		uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
+		config.mipLevels = mipLevels;
 		m_Image = device.CreateTexture(config);
 
 		device.ImmediateSubmit([&](RHICommandList& cmd)
 			{
 				cmd.TransitionImageLayout(*m_Image, ImageLayout::Undefined, ImageLayout::TransferDst);
 				cmd.CopyBufferToTexture(*stagingBuffer, *m_Image);
-				cmd.TransitionImageLayout(*m_Image, ImageLayout::TransferDst, ImageLayout::ShaderReadOnly);
+				if (mipLevels > 1)
+					GenerateMips(cmd, *m_Image, mipLevels);
+				else
+					cmd.TransitionImageLayout(*m_Image, ImageLayout::TransferDst, ImageLayout::ShaderReadOnly);
 			});
 
 		m_Sampler = device.CreateSampler(RHISamplerConfig::GetDefault());
@@ -114,12 +125,14 @@ namespace Bear
 		RHITextureConfig config;
 		config.width = imageDesc.width;
 		config.height = imageDesc.height;
+		uint32_t mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(imageDesc.width, imageDesc.height)))) + 1;
 		// if the name contains "normal" or "roughness", use UNORM format.
 		config.format = (imageDesc.name.find("normal") != std::string::npos || imageDesc.name.find("Normal") != std::string::npos
 			|| imageDesc.name.find("roughness") != std::string::npos || imageDesc.name.find("Roughness") != std::string::npos ||
 			imageDesc.name.find("occlusion") != std::string::npos)
 							? PixelFormat::R8G8B8A8_UNORM
 			: PixelFormat::R8G8B8A8_SRGB;
+		config.mipLevels = mipLevels;
 		m_Image = device.CreateTexture(config);
 		m_Channels = imageDesc.channels;
 		m_Height = imageDesc.height;
@@ -129,7 +142,10 @@ namespace Bear
 			{
 				cmd.TransitionImageLayout(*m_Image, ImageLayout::Undefined, ImageLayout::TransferDst);
 				cmd.CopyBufferToTexture(*stagingBuffer, *m_Image);
-				cmd.TransitionImageLayout(*m_Image, ImageLayout::TransferDst, ImageLayout::ShaderReadOnly);
+				if (mipLevels > 1)
+					GenerateMips(cmd, *m_Image, mipLevels);
+				else
+					cmd.TransitionImageLayout(*m_Image, ImageLayout::TransferDst, ImageLayout::ShaderReadOnly);
 			});
 		RHISamplerConfig samplerConfig;
 		samplerConfig.magFilter = samplerDesc.magFilter == 9729 ? Filter::Linear : Filter::Nearest;
@@ -187,6 +203,19 @@ namespace Bear
 		m_Sampler = device.CreateSampler(samplerConfig);
 		// m_Sampler = device.CreateSampler(RHISamplerConfig::GetDefault());
 	}
+	void Texture::GenerateMips(RHICommandList& cmd, RHIImage& image, uint32_t mipLevels)
+	{
+		cmd.TransitionImageLayout(image, ImageLayout::TransferDst, ImageLayout::TransferSrc, 0, 1);
+		for (uint32_t i = 1; i < mipLevels; ++i)
+		{
+			cmd.TransitionImageLayout(image, ImageLayout::Undefined, ImageLayout::TransferDst, i, 1);
+			cmd.BlitImage(image, image, i - 1, i);
+			ImageLayout nextLayout = (i == mipLevels - 1) ? ImageLayout::ShaderReadOnly : ImageLayout::TransferSrc;
+			cmd.TransitionImageLayout(image, ImageLayout::TransferDst, nextLayout, i, 1);
+		}
+		cmd.TransitionImageLayout(image, ImageLayout::TransferSrc, ImageLayout::ShaderReadOnly, 0, mipLevels - 1);
+	}
+
 	PixelFormat Texture::selectFormat(uint32_t channels)
 	{
 		switch (channels)

@@ -206,6 +206,7 @@ namespace Bear
 		case ImageLayout::PresentSrc: return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 		case ImageLayout::ShaderReadOnly: return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		case ImageLayout::TransferDst: return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		case ImageLayout::TransferSrc: return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 		case ImageLayout::General: return VK_IMAGE_LAYOUT_GENERAL;
 		}
 		return VK_IMAGE_LAYOUT_UNDEFINED;

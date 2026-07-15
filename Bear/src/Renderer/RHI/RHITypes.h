@@ -163,6 +163,7 @@ namespace Bear
 		Undefined,
 		ColorAttachment,
 		TransferDst,
+		TransferSrc,
 		ShaderReadOnly,
 		DepthStencilAttachment,
 		PresentSrc,
@@ -345,6 +346,7 @@ namespace Bear
 		uint32_t height = 0;
 		PixelFormat format = PixelFormat::Unknown;
 		ImageUsage usage = ImageUsage::None;
+		uint32_t mipLevels = 1;
 
 	};
 

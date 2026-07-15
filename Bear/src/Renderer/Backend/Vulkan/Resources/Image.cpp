@@ -7,8 +7,8 @@
 
 namespace Bear {
 	Image::Image(const Device& device, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, 
-		VkImageUsageFlags usage, VmaMemoryUsage memoryUsage)
-		: m_Device(device), m_Format(format), m_Width(width), m_Height(height)
+		VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, uint32_t mipLevels)
+		: m_Device(device), m_Format(format), m_Width(width), m_Height(height), m_MipLevels(mipLevels)
 	{
 		CreateImage(width, height, format, tiling, usage, memoryUsage);
 
@@ -41,6 +41,11 @@ namespace Bear {
 		return m_Height;
 	}
 
+	uint32_t Image::GetMipLevels() const
+	{
+		return m_MipLevels;
+	}
+
 	PixelFormat Image::GetFormat() const
 	{
 		return FromVulkanFormat(m_Format);
@@ -54,7 +59,7 @@ namespace Bear {
 		imageInfo.extent.width = width;
 		imageInfo.extent.height = height;
 		imageInfo.extent.depth = 1;
-		imageInfo.mipLevels = 1;
+		imageInfo.mipLevels = m_MipLevels;
 		imageInfo.arrayLayers = 1;
 		imageInfo.format = format;
 		imageInfo.tiling = tiling;
@@ -79,7 +84,7 @@ namespace Bear {
 		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 		viewInfo.format = m_Format;
 		viewInfo.subresourceRange.baseMipLevel = 0;
-		viewInfo.subresourceRange.levelCount = 1;
+		viewInfo.subresourceRange.levelCount = m_MipLevels;
 		viewInfo.subresourceRange.baseArrayLayer = 0;
 		viewInfo.subresourceRange.layerCount = 1;
 		viewInfo.subresourceRange.aspectMask = GetAspectMask(format); // Determine aspect mask based on format

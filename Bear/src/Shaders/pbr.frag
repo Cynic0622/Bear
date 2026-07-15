@@ -106,25 +106,31 @@ void main() {
     vec3 kS = F;
     vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
     // Lambert diffuse
-    vec3 diffuse = kD * albedo / 3.14159265;
+    vec3 diffuse = kD * albedo / PI;
     Lo += (diffuse + specular) * radiance * NdotL;
-    // IBL
-    
+
+    // IBL (split-sum approximation)
+    float NdotV = max(dot(N, V), 0.0);
+
+    // Diffuse IBL — sample with normal at max blur
+    vec3 irradiance = textureLod(IBLSampler, vec2(
+        atan(N.z, N.x) / (2.0 * PI) + 0.5,
+        asin(N.y) / PI + 0.5), MAX_IBL_LOD).rgb * exp2(-2.0);
+    vec3 F_ibl = FresnelSchlickRoughness(NdotV, F0, roughness);
+    vec3 kD_ibl = (vec3(1.0) - F_ibl) * (1.0 - metallic);
+    vec3 diffuseIBL = kD_ibl * albedo * irradiance;
+
+    // Specular IBL — sample with reflection at roughness-dependent LOD
     float lod = roughness * MAX_IBL_LOD;
-    vec3 iblReflection = textureLod(IBLSampler, vec2(
-		atan(R.z, R.x) / (2.0 * 3.14159265) + 0.5,
-		asin(R.y) / 3.14159265 + 0.5), lod).rgb;
-    iblReflection = iblReflection * exp2(-2.0);
-    vec3 L1 = iblReflection * F;
-    // Lo += L1;
+    vec3 prefiltered = textureLod(IBLSampler, vec2(
+        atan(R.z, R.x) / (2.0 * PI) + 0.5,
+        asin(R.y) / PI + 0.5), lod).rgb * exp2(-2.0);
+    vec3 specularIBL = prefiltered * EnvBRDFApprox(F0, roughness, NdotV);
+
+    Lo += diffuseIBL + specularIBL;
 
     vec3 ambient = vec3(0.15) * albedo * ao;
-    // ambient = vec3(0.2, 0.2, 0.2) * albedo * ao;
     vec3 color = ambient + Lo + emissive;
-     color = ACESFilm(color);
-    // Combine the textures and material properties
-    // outColor = vec4(normalize(TBN * (texture(normalSampler, fragTexCoord).xyz*2-1))*0.5+0.5, 1);
-    // outColor = vec4(N * 0.5 + 0.5, 1.0);
+    color = ACESFilm(color);
     outColor = vec4(color, alpha);
-    // outColor = vec4(albedo, 1.0);
 }

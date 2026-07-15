@@ -432,7 +432,9 @@ namespace Bear {
 		VkImageUsageFlags vkUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 		if (config.usage != ImageUsage::None)
 			vkUsage = ToVulkanImageUsage(config.usage);
-		return std::make_unique<Image>(*this, config.width, config.height, vkFormat, VK_IMAGE_TILING_OPTIMAL, vkUsage, VMA_MEMORY_USAGE_GPU_ONLY);
+		if (config.mipLevels > 1)
+			vkUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+		return std::make_unique<Image>(*this, config.width, config.height, vkFormat, VK_IMAGE_TILING_OPTIMAL, vkUsage, VMA_MEMORY_USAGE_GPU_ONLY, config.mipLevels);
 	}
 	std::shared_ptr<RHISampler> Device::CreateSampler(const RHISamplerConfig& config)
 	{

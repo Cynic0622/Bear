@@ -34,11 +34,13 @@ namespace Bear {
 		virtual void Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) = 0;
 		virtual void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t firstIndex = 0, int32_t vertexOffset = 0, uint32_t firstInstance = 0) = 0;
 
-		virtual void TransitionImageLayout(RHIImage& texture, ImageLayout oldLayout, ImageLayout newLayout) = 0;
+		virtual void TransitionImageLayout(RHIImage& texture, ImageLayout oldLayout, ImageLayout newLayout, uint32_t baseMipLevel = 0, uint32_t levelCount = 1) = 0;
 		virtual void CopyBufferToTexture(const RHIBuffer& srcBuffer, RHIImage& dstTexture) = 0;
 
 		// pipeline barrrier
 		virtual void PipelineBarrier(const MemoryBarrier& memoryBarrier) = 0;
+
+		virtual void BlitImage(RHIImage& srcImage, RHIImage& dstImage, uint32_t srcLevel, uint32_t dstLevel) = 0;
 
 		// copy buffer
 		virtual void CopyBuffer(const RHIBuffer& srcBuffer, const RHIBuffer& dstBuffer, size_t size, size_t srcOffset = 0, size_t dstOffset = 0) = 0;

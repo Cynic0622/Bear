@@ -21,10 +21,10 @@ namespace Bear
 	void SceneLayer::OnAttach()
 	{
 		// 1. load gltf scene, file --> cpu
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/Sponza/glTF/Sponza.gltf");
+		auto modelDesc = AssetLoader::ImportModel("assets/models/Sponza/glTF/Sponza.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/New_FlightHelmet/FlightHelmet.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/DamagedHelmet/glTF/DamagedHelmet.gltf");
-		auto modelDesc = AssetLoader::ImportModel("assets/models/TransmissionOrderTest/glTF/TransmissionOrderTest.gltf");
+		// auto modelDesc = AssetLoader::ImportModel("assets/models/TransmissionOrderTest/glTF/TransmissionOrderTest.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/TransmissionTest/glTF/TransmissionTest.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/SciFiHelmet/glTF/SciFiHelmet.gltf");
 		// auto modelDesc = AssetLoader::ImportModel("assets/models/Suzanne/glTF/Suzanne.gltf");
