@@ -33,6 +33,16 @@ namespace Bear {
         m_OnModelSwitch = std::move(callback);
     }
 
+    void GuiLayer::SetOnReloadModelCallback(std::function<void()> callback)
+    {
+        m_OnReloadModel = std::move(callback);
+    }
+
+    void GuiLayer::SetOnInstanceCountChangeCallback(std::function<void(uint32_t)> callback)
+    {
+        m_OnInstanceCountChange = std::move(callback);
+    }
+
     void GuiLayer::OnUpdate(float deltaTime) {
         float dtMs = deltaTime * 1000.0f;
 
@@ -46,18 +56,29 @@ namespace Bear {
         if (dtMs > m_MaxFrameTime) m_MaxFrameTime = dtMs;
 
         // --- Model Switcher ---
-        if (m_OnModelSwitch)
+        if (m_OnModelSwitch && m_OnInstanceCountChange && m_OnReloadModel)
         {
-            ImGui::Begin("Models");
-            static int current = 0;
+            static int currentModel = 0;
+            static int instanceCount = 1;
             const auto& models = SceneLayer::GetModelList();
             std::vector<const char*> names;
             for (const auto& m : models)
                 names.push_back(m.first);
-            ImGui::Combo("Model", &current, names.data(), (int)names.size());
+            ImGui::Begin("Models");
+            ImGui::Combo("Model", &currentModel, names.data(), (int)names.size());
+            ImGui::SameLine();
             if (ImGui::Button("Load"))
             {
-                m_OnModelSwitch(models[current].second);
+                m_OnInstanceCountChange(instanceCount);
+                m_OnModelSwitch(models[currentModel].second);
+            }
+
+            ImGui::SliderInt("Instances", &instanceCount, 1, 200);
+            ImGui::SameLine();
+            if (ImGui::Button("Apply"))
+            {
+                m_OnInstanceCountChange(instanceCount);
+                m_OnReloadModel();
             }
             ImGui::End();
         }

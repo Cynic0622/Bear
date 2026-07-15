@@ -43,14 +43,29 @@ namespace Bear
 	void SceneLayer::LoadModel(const std::string& path)
 	{
 		BEAR_CORE_INFO("Loading model: {}", path);
+		m_CurrentModelPath = path;
+		ReloadModel();
+	}
+
+	void SceneLayer::ReloadModel()
+	{
+		if (m_CurrentModelPath.empty()) return;
+		BEAR_CORE_INFO("Reloading model: {}", m_CurrentModelPath);
 		auto& app = Application::Get();
 		auto& resourceManager = app.GetRenderer()->GetResourceManager();
 
-		auto modelDesc = AssetLoader::ImportModel(path);
+		auto modelDesc = AssetLoader::ImportModel(m_CurrentModelPath);
 		auto resources = resourceManager.CreateResources(modelDesc);
 
 		m_Scene->ClearAllEntities();
 		m_Scene->CreateSceneGraph(modelDesc, resources);
+		if (m_InstanceMultiplier > 1)
+			m_Scene->MultiplyInstances(m_InstanceMultiplier, 50.0f);
+	}
+
+	void SceneLayer::SetInstanceMultiplier(uint32_t count)
+	{
+		m_InstanceMultiplier = count;
 	}
 	void SceneLayer::OnDetach()
 	{

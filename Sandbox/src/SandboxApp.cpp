@@ -14,6 +14,12 @@ public:
 		guiLayer->SetOnModelSwitchCallback([sceneLayer](const std::string& path) {
 			sceneLayer->LoadModel(path);
 		});
+		guiLayer->SetOnReloadModelCallback([sceneLayer]() {
+			sceneLayer->ReloadModel();
+		});
+		guiLayer->SetOnInstanceCountChangeCallback([sceneLayer](uint32_t count) {
+			sceneLayer->SetInstanceMultiplier(count);
+		});
 
 		PushLayer(sceneLayer);
 		PushOverlay(guiLayer);

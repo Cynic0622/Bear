@@ -8,6 +8,7 @@
 #include "ResourceManager.h"
 #include "CameraController.h"
 #include "BaseData.h"
+#include <random>
 namespace Bear
 {
 	Scene::Scene()
@@ -143,6 +144,39 @@ namespace Bear
 		m_Registry.clear();
 		Entity light = CreateEntity("Directional Light");
 		light.AddComponent<LightComponent>(LightComponent::CreateDirectional({ -1.0, -2.5, -1.0 }, {1.f, .98f, .9f, 4.f}));
+	}
+
+	void Scene::MultiplyInstances(uint32_t count, float spread)
+	{
+		if (count <= 1) return;
+		auto view = m_Registry.view<MeshComponent, MaterialComponent, TransformComponent>();
+		std::vector<std::tuple<MeshComponent, MaterialComponent, TransformComponent>> templates;
+		for (auto entity : view)
+		{
+			templates.emplace_back(
+				m_Registry.get<MeshComponent>(entity),
+				m_Registry.get<MaterialComponent>(entity),
+				m_Registry.get<TransformComponent>(entity));
+		}
+
+		std::mt19937 rng{ std::random_device{}() };
+		std::uniform_real_distribution<float> posDist(-spread, spread);
+		std::uniform_real_distribution<float> rotDist(0.0f, 360.0f);
+
+		for (uint32_t i = 1; i < count; ++i)
+		{
+			for (const auto& [mesh, mat, tf] : templates)
+			{
+				Entity clone = CreateEntity("Instance_" + std::to_string(i));
+				clone.AddComponent<MeshComponent>(mesh.MeshRes);
+				clone.AddComponent<MaterialComponent>(mat.MaterialRes);
+				auto& cloneTf = clone.GetComponent<TransformComponent>();
+				cloneTf.Position = tf.Position + glm::vec3(posDist(rng), posDist(rng) * 0.3f, posDist(rng));
+				cloneTf.Scale = tf.Scale;
+				cloneTf.Rotation = glm::vec3(0.0f, rotDist(rng), 0.0f);
+			}
+		}
+		BEAR_CORE_INFO("Multiplied instances: {} → {} (x{})", (uint32_t)templates.size(), (uint32_t)(templates.size() * count), count);
 	}
 
 	void Scene::CreateSceneGraph(const ModelDescription& desc, const Resources& resources)

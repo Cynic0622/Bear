@@ -28,10 +28,15 @@ namespace Bear
 		bool OnKeyPress(Event& event);
 
 		void LoadModel(const std::string& path);
+		void ReloadModel();
+		void SetInstanceMultiplier(uint32_t count);
+		uint32_t GetInstanceMultiplier() const { return m_InstanceMultiplier; }
 
 		static const std::vector<std::pair<const char*, const char*>>& GetModelList();
 
 	private:
 		std::unique_ptr<Scene> m_Scene;
+		std::string m_CurrentModelPath;
+		uint32_t m_InstanceMultiplier = 1;
 	};
 }

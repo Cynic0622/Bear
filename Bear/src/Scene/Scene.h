@@ -30,6 +30,7 @@ namespace Bear
 
 		void CreateSceneGraph(const ModelDescription& desc, const Resources& resources);
 		void ClearAllEntities();
+		void MultiplyInstances(uint32_t count, float spread);
 
 
 		// deal with events
