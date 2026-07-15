@@ -7,6 +7,7 @@
 #include "Bear/Events/MouseEvent.h"
 
 #include <vulkan/vulkan.h>
+#include <functional>
 
 namespace Bear
 {
@@ -36,6 +37,8 @@ namespace Bear {
     	void OnEvent(Event& event) override;
         void OnRender() const override;
 
+        void SetOnModelSwitchCallback(std::function<void(const std::string&)> callback);
+
     private:
 
 		bool OnMouseButtonPress(MouseButtonPressedEvent& event);
@@ -55,5 +58,7 @@ namespace Bear {
         float m_MinFrameTime = std::numeric_limits<float>::max();
         float m_MaxFrameTime = 0.0f;
         float m_MovingAvgFrameTime = 0.0f;
+
+        std::function<void(const std::string&)> m_OnModelSwitch;
     };
 }

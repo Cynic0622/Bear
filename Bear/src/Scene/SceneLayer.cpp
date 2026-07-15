@@ -9,6 +9,18 @@
 #include "BaseData.h"
 namespace Bear
 {
+	static const std::vector<std::pair<const char*, const char*>> s_ModelList = {
+		{"Sponza",                    "assets/models/Sponza/glTF/Sponza.gltf"},
+		{"DamagedHelmet",             "assets/models/DamagedHelmet/glTF/DamagedHelmet.gltf"},
+		{"FlightHelmet",              "assets/models/FlightHelmet/FlightHelmet.gltf"},
+		{"New_FlightHelmet",          "assets/models/New_FlightHelmet/FlightHelmet.gltf"},
+		{"SciFiHelmet",               "assets/models/SciFiHelmet/glTF/SciFiHelmet.gltf"},
+		{"Suzanne",                   "assets/models/Suzanne/glTF/Suzanne.gltf"},
+		{"TransmissionOrderTest",     "assets/models/TransmissionOrderTest/glTF/TransmissionOrderTest.gltf"},
+		{"TransmissionTest",           "assets/models/TransmissionTest/glTF/TransmissionTest.gltf"},
+		{"CesiumMan",                 "assets/models/CesiumMan/CesiumMan.gltf"},
+	};
+
 	SceneLayer::SceneLayer(std::unique_ptr<Scene> scene)
 		:Layer("SceneLayer"), m_Scene(std::move(scene))
 	{
@@ -17,23 +29,27 @@ namespace Bear
 	SceneLayer::~SceneLayer()
 	{
 	}
+
+	const std::vector<std::pair<const char*, const char*>>& SceneLayer::GetModelList()
+	{
+		return s_ModelList;
+	}
 	
 	void SceneLayer::OnAttach()
 	{
-		// 1. load gltf scene, file --> cpu
-		auto modelDesc = AssetLoader::ImportModel("assets/models/Sponza/glTF/Sponza.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/New_FlightHelmet/FlightHelmet.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/DamagedHelmet/glTF/DamagedHelmet.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/TransmissionOrderTest/glTF/TransmissionOrderTest.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/TransmissionTest/glTF/TransmissionTest.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/SciFiHelmet/glTF/SciFiHelmet.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/Suzanne/glTF/Suzanne.gltf");
-		// 2. resource system create descriptor infos, cpu --> gpu
+		LoadModel(s_ModelList[0].second);
+	}
+
+	void SceneLayer::LoadModel(const std::string& path)
+	{
+		BEAR_CORE_INFO("Loading model: {}", path);
 		auto& app = Application::Get();
 		auto& resourceManager = app.GetRenderer()->GetResourceManager();
+
+		auto modelDesc = AssetLoader::ImportModel(path);
 		auto resources = resourceManager.CreateResources(modelDesc);
 
-		// 3. create scene graph
+		m_Scene->ClearAllEntities();
 		m_Scene->CreateSceneGraph(modelDesc, resources);
 	}
 	void SceneLayer::OnDetach()

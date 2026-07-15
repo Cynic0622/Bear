@@ -1,6 +1,7 @@
 #include "bearpch.h"
 #include "GuiLayer.h"
 #include "Bear/Application.h"
+#include "Scene/SceneLayer.h"
 
 namespace Bear {
     
@@ -27,6 +28,11 @@ namespace Bear {
         return false;
     }
 
+    void GuiLayer::SetOnModelSwitchCallback(std::function<void(const std::string&)> callback)
+    {
+        m_OnModelSwitch = std::move(callback);
+    }
+
     void GuiLayer::OnUpdate(float deltaTime) {
         float dtMs = deltaTime * 1000.0f;
 
@@ -38,6 +44,23 @@ namespace Bear {
 
         if (dtMs < m_MinFrameTime) m_MinFrameTime = dtMs;
         if (dtMs > m_MaxFrameTime) m_MaxFrameTime = dtMs;
+
+        // --- Model Switcher ---
+        if (m_OnModelSwitch)
+        {
+            ImGui::Begin("Models");
+            static int current = 0;
+            const auto& models = SceneLayer::GetModelList();
+            std::vector<const char*> names;
+            for (const auto& m : models)
+                names.push_back(m.first);
+            ImGui::Combo("Model", &current, names.data(), (int)names.size());
+            if (ImGui::Button("Load"))
+            {
+                m_OnModelSwitch(models[current].second);
+            }
+            ImGui::End();
+        }
 
         ImGui::Begin("Renderer Info");
         ImGui::Text("Graphics api: Vulkan");

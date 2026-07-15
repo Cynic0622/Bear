@@ -138,6 +138,13 @@ namespace Bear
 		pointLight.AddComponent<LightComponent>(LightComponent::CreatePoint(light.color));
 	}
 
+	void Scene::ClearAllEntities()
+	{
+		m_Registry.clear();
+		Entity light = CreateEntity("Directional Light");
+		light.AddComponent<LightComponent>(LightComponent::CreateDirectional({ -1.0, -2.5, -1.0 }, {1.f, .98f, .9f, 4.f}));
+	}
+
 	void Scene::CreateSceneGraph(const ModelDescription& desc, const Resources& resources)
 	{
 		// create scene graph from scene roots, bind the node description to the entity, such as name, transform, mesh, material, etc.

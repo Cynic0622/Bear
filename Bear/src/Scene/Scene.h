@@ -29,6 +29,7 @@ namespace Bear
 		void AddLight(const PointLight& light);
 
 		void CreateSceneGraph(const ModelDescription& desc, const Resources& resources);
+		void ClearAllEntities();
 
 
 		// deal with events
