@@ -39,5 +39,7 @@ namespace Bear
 		RHIDevice& m_Device;
 		RenderContext* m_RenderContext = nullptr;
 		std::array<std::shared_ptr<Texture>, MaterialSlot::Count> m_DefaultTextures;
+		std::unique_ptr<RHIBuffer> m_GlobalVertexBuffer;
+		std::unique_ptr<RHIBuffer> m_GlobalIndexBuffer;
 	};
 }

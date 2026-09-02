@@ -67,6 +67,26 @@ namespace Bear
 	{
 		m_InstanceMultiplier = count;
 	}
+	Scene* SceneLayer::GetScene() const
+	{
+		return m_Scene.get();
+	}
+	uint32_t SceneLayer::GetTotalMeshEntities() const
+	{
+		return m_Scene->GetTotalMeshEntities();
+	}
+	uint32_t SceneLayer::GetVisibleMeshEntities() const
+	{
+		return m_Scene->GetVisibleMeshEntities();
+	}
+	bool SceneLayer::IsFrustumCullingEnabled() const
+	{
+		return m_Scene->IsFrustumCullingEnabled();
+	}
+	bool SceneLayer::IsEditorMode() const
+	{
+		return m_Scene->IsEditorMode();
+	}
 	void SceneLayer::OnDetach()
 	{
 	}

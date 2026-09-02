@@ -9,6 +9,7 @@ namespace Bear {
 		virtual void* Map() = 0;
 		virtual void Unmap() = 0;
 		virtual void UploadData(const void* data, size_t size, size_t offset = 0) = 0;
+		virtual size_t GetSize() const = 0;
 	};
 
 	class RHIImage

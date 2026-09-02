@@ -31,11 +31,26 @@ namespace Bear
 		glm::vec3 GetForwardDirection() const;
 
 		const glm::vec3& GetPosition() const { return m_Position; }
-		void SetPosition(const glm::vec3& position) { m_Position = position; RecalculateViewMatrix(); }
+		void SetPosition(const glm::vec3& position)
+		{
+			if (m_Position != position)
+			{
+				m_Position = position;
+				RecalculateViewMatrix();
+			}
+		}
 		// rotation in degrees
 		float GetPitch() const { return m_Pitch; }
 		float GetYaw() const { return m_Yaw; }
-		void SetRotation(float pitch, float yaw) { m_Pitch = pitch; m_Yaw = yaw; RecalculateViewMatrix(); }
+		void SetRotation(float pitch, float yaw)
+		{
+			if (m_Pitch != pitch || m_Yaw != yaw)
+			{
+				m_Pitch = pitch;
+				m_Yaw = yaw;
+				RecalculateViewMatrix();
+			}
+		}
 
 		// get frustum
 		const Frustum& GetFrustum() const { return m_Frustum; }

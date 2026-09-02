@@ -86,7 +86,8 @@ namespace Bear
 		StagingBuffer = 1 << 3,
 		StorageBuffer = 1 << 4,
 		TransferSrcBuffer = 1 << 5,
-		TransferDstBuffer = 1 << 6
+		TransferDstBuffer = 1 << 6,
+		IndirectBuffer = 1 << 7
 	};
 
 	enum class ImageUsage : uint32_t
@@ -122,6 +123,12 @@ namespace Bear
 
 		AllGraphics = Vertex | Fragment | Geometry,
 		All = 0xFFFFFFFF
+	};
+
+	enum class PipelineBindPoint : uint8_t
+	{
+		Graphics = 0,
+		Compute = 1
 	};
 
 	// ���
@@ -274,6 +281,16 @@ namespace Bear
 	{
 		return static_cast<AccessFlags>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
 	}
+
+	// Must match VkDrawIndexedIndirectCommand layout exactly (5 x 4 bytes, size 20, alignment 4).
+	struct DrawIndexedIndirectCommand
+	{
+		uint32_t indexCount;
+		uint32_t instanceCount;
+		uint32_t firstIndex;
+		int32_t  vertexOffset;
+		uint32_t firstInstance;
+	};
 
 	// subpass description (attachments lists)
 	struct SubpassDescription

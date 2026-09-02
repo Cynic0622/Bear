@@ -1,0 +1,72 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+struct AABB
+{
+    vec4 min;
+    vec4 max;
+};
+
+struct IndirectCommand
+{
+    uint indexCount;
+    uint instanceCount;
+    uint firstIndex;
+    int  vertexOffset;
+    uint firstInstance;
+};
+
+layout(set = 0, binding = 2) readonly buffer Matrices     { mat4 models[]; }     g_Matrices;
+layout(set = 1, binding = 0) readonly buffer AABBs        { AABB aabbs[]; }      g_AABBs;
+layout(set = 1, binding = 1) readonly buffer InputCmds    { IndirectCommand cmds[]; } g_Input;
+layout(set = 1, binding = 2) buffer OutputCmds            { IndirectCommand cmds[]; } g_Output;
+layout(set = 1, binding = 3) buffer Counters              { uint counters[]; }   g_Counters;
+layout(set = 1, binding = 4) readonly buffer MaterialIds  { uint ids[]; }        g_MaterialIds;
+layout(set = 1, binding = 5) readonly buffer RegionBases  { uint base[]; }       g_RegionBase;
+
+layout(push_constant) uniform PushConstants
+{
+    vec4 planes[6];
+    uint objectCount;
+    uint materialCount;
+} g_PC;
+
+void main()
+{
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= g_PC.objectCount)
+        return;
+
+    IndirectCommand cmd = g_Input.cmds[i];
+    uint orig = cmd.firstInstance; // original renderObject index (commands are material-sorted)
+
+    AABB a = g_AABBs.aabbs[orig];
+    mat4 m = g_Matrices.models[orig];
+
+    // world-space AABB via abs-matrix trick (same math as CPU TransformAABB)
+    vec3 center   = (a.min.xyz + a.max.xyz) * 0.5;
+    vec3 halfSize = (a.max.xyz - a.min.xyz) * 0.5;
+    vec3 worldCenter = vec3(m * vec4(center, 1.0));
+    mat3 rot = mat3(m);
+    mat3 absRot = mat3(abs(rot[0]), abs(rot[1]), abs(rot[2]));
+    vec3 newHalf = absRot * halfSize;
+    vec3 wMin = worldCenter - newHalf;
+    vec3 wMax = worldCenter + newHalf;
+
+    // p-vertex frustum test: if the vertex most towards the plane is outside, cull
+    for (int p = 0; p < 6; ++p)
+    {
+        vec3 n = g_PC.planes[p].xyz;
+        vec3 pv = mix(wMin, wMax, greaterThanEqual(n, vec3(0.0)));
+        if (dot(n, pv) + g_PC.planes[p].w < 0.0)
+            return;
+    }
+
+    uint mat = g_MaterialIds.ids[i];
+    uint slot = atomicAdd(g_Counters.counters[mat], 1u);
+    g_Output.cmds[g_RegionBase.base[mat] + slot] = cmd;
+
+    // total visible count lives at counters[materialCount]
+    atomicAdd(g_Counters.counters[g_PC.materialCount], 1u);
+}

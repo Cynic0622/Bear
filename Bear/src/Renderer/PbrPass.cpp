@@ -3,6 +3,8 @@
 #include "Texture.h"
 #include "NtcMaterial.h"
 #include "PbrMaterial.h"
+#include "Common/Mesh.h"
+#include "CullingPass.h"
 
 namespace Bear
 {
@@ -17,6 +19,14 @@ namespace Bear
 		CreateFramebuffers();
 		CreatePbrDescriptorSetLayout();
 		CreatePipeline();
+
+		m_IndirectBuffer.resize(context->MAX_FRAMES_IN_FLIGHT);
+		for (auto& buf : m_IndirectBuffer)
+		{
+			buf = context->device->CreateBuffer(
+				4096 * sizeof(DrawIndexedIndirectCommand),
+				BufferUsage::IndirectBuffer | BufferUsage::TransferDstBuffer, true);
+		}
 	}
 
 	void PbrPass::Execute(RHICommandList* cmd, std::vector<RenderObject> renderObjects)
@@ -25,42 +35,140 @@ namespace Bear
 		auto currentFrameIndex = m_Context->device->GetCurrentFrameIndex();
 		auto width = m_Context->swapchain->GetWidth();
 		auto height = m_Context->swapchain->GetHeight();
+
+		// Resolve the command pool: CullingPass builds it when present; otherwise build locally.
+		const std::vector<DrawIndexedIndirectCommand>* commands = nullptr;
+		const std::vector<CullingMaterialRange>* ranges = nullptr;
+		const std::vector<uint32_t>* regionBases = nullptr;
+		std::vector<DrawIndexedIndirectCommand> localCommands;
+		std::vector<CullingMaterialRange> localRanges;
+		std::vector<uint32_t> localRegionBases;
+		uint32_t objectCount = 0;
+
+
+		if (m_CullingPass)
+		{
+			commands = &m_CullingPass->GetCommands();
+			ranges = &m_CullingPass->GetMaterialRanges();
+			regionBases = &m_CullingPass->GetRegionBases();
+			objectCount = m_CullingPass->GetObjectCount();
+
+		}
+		else
+		{
+			std::vector<size_t> opaqueIdx;
+			for (size_t i = 0; i < renderObjects.size(); ++i)
+				if (!renderObjects[i].material->IsTransparent())
+					opaqueIdx.push_back(i);
+
+			std::sort(opaqueIdx.begin(), opaqueIdx.end(),
+				[&](size_t a, size_t b) {
+					return renderObjects[a].material.get() < renderObjects[b].material.get();
+				});
+
+			localCommands.resize(opaqueIdx.size());
+			uint32_t materialIndex = 0;
+			localRanges.push_back({ 0, 0, 0, nullptr });
+			localRegionBases.push_back(0);
+			for (size_t i = 0; i < opaqueIdx.size(); ++i)
+			{
+				auto& obj = renderObjects[opaqueIdx[i]];
+				localCommands[i] = {
+					obj.mesh->GetIndexCount(), 1,
+					obj.mesh->GetGlobalFirstIndex(),
+					obj.mesh->GetGlobalVertexOffset(),
+					static_cast<uint32_t>(opaqueIdx[i])
+				};
+				if (i > 0 && renderObjects[opaqueIdx[i]].material.get() != renderObjects[opaqueIdx[i - 1]].material.get())
+				{
+					++materialIndex;
+					localRanges.push_back({ materialIndex, static_cast<uint32_t>(i), 0, renderObjects[opaqueIdx[i]].material });
+					localRegionBases.push_back(static_cast<uint32_t>(i));
+				}
+				localRanges.back().count++;
+			}
+			commands = &localCommands;
+			ranges = &localRanges;
+			regionBases = &localRegionBases;
+			objectCount = static_cast<uint32_t>(opaqueIdx.size());
+
+		}
+
+		bool gpuCulling = m_CullingPass && m_CullingPass->IsEnabled() && objectCount > 0;
+
+		// CPU path: upload the pool into our own indirect buffer.
+		auto& indirectBuf = m_IndirectBuffer[currentFrameIndex];
+		if (!gpuCulling && objectCount > 0)
+		{
+			size_t cmdBytes = commands->size() * sizeof(DrawIndexedIndirectCommand);
+			if (indirectBuf->GetSize() < cmdBytes)
+			{
+				indirectBuf.reset();
+				indirectBuf = m_Context->device->CreateBuffer(
+					cmdBytes + sizeof(DrawIndexedIndirectCommand) * 64,
+					BufferUsage::IndirectBuffer | BufferUsage::TransferDstBuffer, true);
+			}
+			indirectBuf->UploadData(commands->data(), cmdBytes, 0);
+		}
+
 		std::vector<RHIClearValue> clearValues = { {{0.1f, 0.1f, 0.1f}, {}, false}, {{}, {}, true} };
 		cmd->BeginRenderPass(*m_RenderPass, *m_Framebuffers[currentImageIndex], width, height, clearValues);
 		cmd->SetScissor(0, 0, width, height);
 		cmd->SetViewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
-		uint32_t count = 0;
-		for (const auto& obj : renderObjects)
+
+		cmd->BindPipeline(*m_PreZPipeline);
+		cmd->BindDescriptorSet(*m_PreZPipelineLayout, *m_Context->baseDataDescriptorSet[currentFrameIndex], 0);
+		cmd->BindDescriptorSet(*m_PreZPipelineLayout, *m_Context->sceneDataDescriptorSet[currentFrameIndex], 1);
+
+		if (objectCount > 0)
 		{
-			if (obj.material->IsTransparent())
+			cmd->BindVertexBuffer(*Mesh::GetGlobalVertexBuffer(), 0, 0);
+			cmd->BindIndexBuffer(*Mesh::GetGlobalIndexBuffer(), 0);
+			if (gpuCulling)
 			{
-				continue;
+				// output is bucketed per material: draw each bucket with its own counter
+				for (auto& range : *ranges)
+				{
+					cmd->DrawIndexedIndirectCount(*m_CullingPass->GetOutputCommandsBuffer(),
+						*m_CullingPass->GetCountersBuffer(), range.count,
+						sizeof(DrawIndexedIndirectCommand),
+						(*regionBases)[range.materialIndex] * sizeof(DrawIndexedIndirectCommand),
+						range.materialIndex * sizeof(uint32_t));
+				}
 			}
-				
-			cmd->BindPipeline(*m_PreZPipeline);
-			cmd->BindDescriptorSet(*m_PreZPipelineLayout, *m_Context->baseDataDescriptorSet[currentFrameIndex], 0);
-			cmd->BindDescriptorSet(*m_PreZPipelineLayout, *m_Context->sceneDataDescriptorSet[currentFrameIndex], 1);
-			cmd->BindDescriptorSet(*m_PreZPipelineLayout, *obj.material->GetDescriptorSet(), 2);
-			PerObjectPushConstants pushConstants{ .model = obj.transform };
-			cmd->PushConstants(*m_PreZPipelineLayout, ShaderStage::Vertex, &pushConstants, sizeof(PerObjectPushConstants), 0);
-			obj.mesh->Draw(*cmd);
-			count++;
+			else
+			{
+				cmd->DrawIndexedIndirect(*indirectBuf, objectCount, sizeof(DrawIndexedIndirectCommand), 0);
+			}
 		}
-		// BEAR_CORE_INFO("The model has {} Q entity of total count : {}", count, renderObjects.size());
+
 		cmd->NextSubpass();
-		for (const auto& obj : renderObjects)
+
+		for (auto& range : *ranges)
 		{
-			if (obj.material->IsTransparent())
-				continue;
 			cmd->BindPipeline(*m_PbrPipeline);
 			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *m_Context->baseDataDescriptorSet[currentFrameIndex], 0);
 			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *m_Context->sceneDataDescriptorSet[currentFrameIndex], 1);
-			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *obj.material->GetDescriptorSet(),2);
-			PerObjectPushConstants pushConstants{ .model = obj.transform };
-			cmd->PushConstants(*m_PbrPipelineLayout, ShaderStage::Vertex, &pushConstants, sizeof(PerObjectPushConstants), 0);
-			obj.mesh->Draw(*cmd);
+			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *range.material->GetDescriptorSet(), 2);
+			if (gpuCulling)
+			{
+				cmd->DrawIndexedIndirectCount(*m_CullingPass->GetOutputCommandsBuffer(),
+					*m_CullingPass->GetCountersBuffer(), range.count,
+					sizeof(DrawIndexedIndirectCommand),
+					(*regionBases)[range.materialIndex] * sizeof(DrawIndexedIndirectCommand),
+					range.materialIndex * sizeof(uint32_t));
+			}
+			else
+			{
+				cmd->DrawIndexedIndirect(*indirectBuf, range.count,
+					sizeof(DrawIndexedIndirectCommand), range.start * sizeof(DrawIndexedIndirectCommand));
+			}
 		}
+
 		cmd->EndRenderPass();
+
+		m_Stats.opaqueObjects = objectCount;
+		m_Stats.drawCalls = (objectCount == 0 ? 0 : 1) + static_cast<uint32_t>(ranges->size());
 	}
 
 	void PbrPass::Resize()
@@ -123,7 +231,6 @@ namespace Bear
 		uint32_t width = m_Context->swapchain->GetWidth();
 		uint32_t height = m_Context->swapchain->GetHeight();
 		auto depthAttachment = m_Context->swapchain->GetDepthView();
-		// auto colorAttachment = m_Context->swapchain->GetC();
 		for (uint32_t i = 0; i < m_Context->swapchain->GetImageCount(); ++i)
 		{
 			m_Framebuffers.push_back(m_Context->device->CreateFramebuffer(*m_RenderPass, { m_Context->swapchain->GetColorView(i), depthAttachment }, width, height));

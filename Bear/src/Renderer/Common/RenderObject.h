@@ -32,23 +32,5 @@ namespace Bear {
 			return m_CachedAABB;
 		}
 	private:
-		static AABB TransformAABB(const AABB& localAABB, const glm::mat4& transform)
-        {
-            if (localAABB.min == localAABB.max)
-                return localAABB;
-
-            glm::vec3 center = localAABB.GetCenter();
-            glm::vec3 worldCenter = glm::vec3(transform * glm::vec4(center, 1.0f));
-            
-			glm::mat3 mat = glm::mat3(transform);
-			glm::mat3 absTransform;
-			absTransform[0] = glm::abs(mat[0]);
-			absTransform[1] = glm::abs(mat[1]);
-			absTransform[2] = glm::abs(mat[2]);
-            glm::vec3 halfSize = localAABB.GetHalfSize();
-            glm::vec3 newHalfSize = absTransform * halfSize;
-            
-            return AABB(worldCenter - newHalfSize, worldCenter + newHalfSize);
-        }
 	};
 }

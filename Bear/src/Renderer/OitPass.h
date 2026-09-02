@@ -1,5 +1,6 @@
 #pragma once
 #include "IRenderPass.h"
+#include "RenderStats.h"
 
 #define MAX_OIT_NODES_PER_PIXEL 4
 
@@ -14,6 +15,8 @@ namespace Bear
 		void Execute(RHICommandList* cmd, std::vector<RenderObject> renderObjects) override;
 		void Resize() override;
 		void Cleanup() override;
+
+		const RenderStats& GetStats() const { return m_Stats; }
 	private:
 		void CreateFramebuffer();
 		void CreateRenderPass();
@@ -21,6 +24,7 @@ namespace Bear
 		void PrepareOit();
 		void PrepareBlend();
 	private:
+		RenderStats m_Stats;
 		RenderContext* m_Context = nullptr;
 		std::shared_ptr<RHIRenderPass> m_OitRenderPass = nullptr;
 		std::shared_ptr<RHIRenderPass> m_BlendRenderPass = nullptr;

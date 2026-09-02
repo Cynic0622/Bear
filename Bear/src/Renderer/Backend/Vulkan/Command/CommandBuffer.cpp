@@ -122,13 +122,30 @@ namespace Bear {
 	{
 		vkCmdDrawIndexed(m_CommandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 	}
-	void CommandBuffer::BindDescriptorSet(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& descriptorSet, uint32_t firstSet)
+	void CommandBuffer::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
+	{
+		vkCmdDispatch(m_CommandBuffer, groupCountX, groupCountY, groupCountZ);
+	}
+	void CommandBuffer::DrawIndexedIndirect(const RHIBuffer& buffer, uint32_t drawCount, uint32_t stride, size_t offset)
+	{
+		const auto& vkBuffer = dynamic_cast<const Buffer&>(buffer);
+		vkCmdDrawIndexedIndirect(m_CommandBuffer, vkBuffer.GetHandle(), offset, drawCount, stride);
+	}
+	void CommandBuffer::DrawIndexedIndirectCount(const RHIBuffer& buffer, const RHIBuffer& countBuffer, uint32_t maxDrawCount, uint32_t stride, size_t offset, size_t countBufferOffset)
+	{
+		const auto& vkBuffer = dynamic_cast<const Buffer&>(buffer);
+		const auto& vkCountBuffer = dynamic_cast<const Buffer&>(countBuffer);
+		vkCmdDrawIndexedIndirectCount(m_CommandBuffer, vkBuffer.GetHandle(), offset, vkCountBuffer.GetHandle(), countBufferOffset, maxDrawCount, stride);
+	}
+	void CommandBuffer::BindDescriptorSet(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& descriptorSet, uint32_t firstSet, PipelineBindPoint bindPoint)
 	{
 		const auto& vkPipelineLayout = dynamic_cast<const PipelineLayout&>(pipelineLayout);
 		const auto& vkDescriptorSet = dynamic_cast<const DescriptorSet&>(descriptorSet);
-		VkPipelineLayout pipelineLayoutHandle = vkPipelineLayout.GetHandle();
+		VkPipelineBindPoint vkBindPoint = bindPoint == PipelineBindPoint::Compute
+			? VK_PIPELINE_BIND_POINT_COMPUTE
+			: VK_PIPELINE_BIND_POINT_GRAPHICS;
 		VkDescriptorSet descriptorSetHandle = vkDescriptorSet.GetHandle();
-		vkCmdBindDescriptorSets(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutHandle, firstSet, 1, &descriptorSetHandle, 0, nullptr);
+		vkCmdBindDescriptorSets(m_CommandBuffer, vkBindPoint, vkPipelineLayout.GetHandle(), firstSet, 1, &descriptorSetHandle, 0, nullptr);
 	}
 	void CommandBuffer::TransitionImageLayout(RHIImage& texture, ImageLayout oldLayout, ImageLayout newLayout, uint32_t baseMipLevel, uint32_t levelCount)
 	{

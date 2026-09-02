@@ -16,14 +16,14 @@ namespace Bear
 		m_GameCamera = std::make_unique<CameraController>(45.0f, (float)1280 / 720, 0.1f, 1000.f);
 		m_EditorCamera = std::make_unique<CameraController>(45.0f, (float)1280 / 720, 0.1f, 1000.f);
 		// add some random lights for sponza scene.
-		std::srand(static_cast<unsigned>(std::time(nullptr)));
+		std::srand(42); // fixed seed so perf tests are reproducible across runs
 		for (int i = 0; i < m_LightNumber; i++)
 		{
 			Entity light = CreateEntity("Light" + std::to_string(i));
 			auto& transform = light.GetComponent<TransformComponent>();
-			transform.Position = glm::vec3(static_cast<float>(std::rand() % 30 - 15),
+			transform.SetPosition(glm::vec3(static_cast<float>(std::rand() % 30 - 15),
 				static_cast<float>(std::rand() % 30),
-				static_cast<float>(std::rand() % 30 - 15));
+				static_cast<float>(std::rand() % 30 - 15)));
 			glm::vec3 color = glm::vec3(1.0f);
 			// light.AddComponent<LightComponent>(glm::vec3(color),10);
 			light.AddComponent<LightComponent>(LightComponent::CreatePoint(glm::vec4(color, 10)));
@@ -37,21 +37,47 @@ namespace Bear
 	}
 	void Scene::Update(float deltaTime)
 	{
-		auto view = m_Registry.view<TransformComponent, HierarchyComponent>();
-		for (auto entity : view)
+		if (m_UpdateOrderDirty)
 		{
-			/*Entity e = { entity, this };*/
+			m_UpdateOrder.clear();
+			auto view = m_Registry.view<TransformComponent, HierarchyComponent>();
+			for (auto root : view)
+			{
+				if (m_Registry.get<HierarchyComponent>(root).Parent != entt::null)
+					continue;
+				m_UpdateOrder.push_back(root);
+				for (size_t i = 0; i < m_UpdateOrder.size(); ++i)
+				{
+					auto& hierarchy = m_Registry.get<HierarchyComponent>(m_UpdateOrder[i]);
+					for (auto child : hierarchy.Children)
+						m_UpdateOrder.push_back(child);
+				}
+			}
+			m_UpdateOrderDirty = false;
+		}
+
+		static const glm::mat4 kIdentity(1.0f);
+		for (auto entity : m_UpdateOrder)
+		{
+			auto& transform = m_Registry.get<TransformComponent>(entity);
 			auto& hierarchy = m_Registry.get<HierarchyComponent>(entity);
+
+			const glm::mat4* parentWorld = &kIdentity;
+			bool parentWorldDirty = false;
 			if (hierarchy.Parent != entt::null)
 			{
 				auto& parentTransform = m_Registry.get<TransformComponent>(hierarchy.Parent);
-				auto& transform = m_Registry.get<TransformComponent>(entity);
-				transform.WorldTransform = parentTransform.GetWorldTransform() * transform.GetLocalTransform();
+				parentWorld = &parentTransform.WorldTransform;
+				parentWorldDirty = parentTransform.WorldDirty;
 			}
-			else
+
+			bool worldDirty = transform.IsLocalDirty() || parentWorldDirty;
+			transform.WorldDirty = worldDirty;
+			if (worldDirty)
 			{
-				auto& transform = m_Registry.get<TransformComponent>(entity);
-				transform.WorldTransform = transform.GetLocalTransform();
+				transform.WorldTransform = *parentWorld * transform.GetLocalTransform();
+				transform.WorldAABBDirty = true;
+				transform.ClearLocalDirty();
 			}
 		}
 		// update light position
@@ -59,27 +85,37 @@ namespace Bear
 		for (auto entity : lightView)
 		{
 			auto& transform = m_Registry.get<TransformComponent>(entity);
-			glm::vec3 rotate = glm::rotate(glm::mat4(1.0f), glm::radians((float)glfwGetTime() / 2), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(transform.Position, 1.0f);
-			// transform.Position = rotate;
-			transform.WorldTransform = transform.GetLocalTransform();
+			glm::vec3 rotate = glm::rotate(glm::mat4(1.0f), glm::radians((float)glfwGetTime() / 2), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(transform.GetPosition(), 1.0f);
+			// transform.SetPosition(rotate);
 		}
 		GetActiveCamera()->Update(deltaTime);
 	}
 	void Scene::CollectRenderData(std::vector<RenderObject>& ObjectsList, SceneData& sceneData, BaseData& baseData)
 	{
+		m_TotalMeshEntities = 0;
+		m_VisibleMeshEntities = 0;
 		auto view = m_Registry.view<MeshComponent, TransformComponent, MaterialComponent>();
 		for (auto entity : view)
 		{
-			auto& meshComponent = m_Registry.get<MeshComponent>(entity);
+			m_TotalMeshEntities++;			auto& meshComponent = m_Registry.get<MeshComponent>(entity);
 			auto& transformComponent = m_Registry.get<TransformComponent>(entity);
 			RenderObject renderObject;
 			renderObject.mesh = meshComponent.MeshRes;
 			renderObject.transform = transformComponent.GetWorldTransform();
 			renderObject.material = m_Registry.try_get<MaterialComponent>(entity) ? m_Registry.get<MaterialComponent>(entity).MaterialRes : nullptr;
 			// frustum culling check.
-			if (m_FrustumCull && !GetActiveCamera()->GetFrustum().Contains(renderObject.GetAABB()))
-				continue;
+			if (m_FrustumCull)
+			{
+				if (transformComponent.WorldAABBDirty && meshComponent.MeshRes)
+				{
+					transformComponent.WorldAABB = TransformAABB(meshComponent.MeshRes->GetAABB(), transformComponent.WorldTransform);
+					transformComponent.WorldAABBDirty = false;
+				}
+				if (!GetActiveCamera()->GetFrustum().Contains(transformComponent.WorldAABB))
+					continue;
+			}
 			ObjectsList.push_back(renderObject);
+			m_VisibleMeshEntities++;
 		}
 		// collect scene data
 		auto lightView = m_Registry.view<TransformComponent, LightComponent>();
@@ -91,15 +127,15 @@ namespace Bear
 
 			switch (lightComponent.Type)
 			{
-			case LightType::Point:
-				{
-					if (index >= MAX_POINT_LIGHTS)
+				case LightType::Point:
+					{
+						if (index >= MAX_POINT_LIGHTS)
+							break;
+						sceneData.pointLights[index].color = lightComponent.Color;
+						sceneData.pointLights[index].position = glm::vec4(transformComponent.GetPosition(), 1.0f);
+						index++;
 						break;
-					sceneData.pointLights[index].color = lightComponent.Color;
-					sceneData.pointLights[index].position = glm::vec4(transformComponent.Position, 1.0f);
-					index++;
-					break;
-				}
+					}
 				case LightType::Directional:
 				{
 					sceneData.dirLight.color = lightComponent.Color;
@@ -124,6 +160,7 @@ namespace Bear
 		entity.AddComponent<TagComponent>(name);
 		entity.AddComponent<TransformComponent>();
 		entity.AddComponent<HierarchyComponent>();
+		m_UpdateOrderDirty = true;
 		return entity;
 	}
 	void Scene::DestroyEntity(Entity entity)
@@ -135,13 +172,14 @@ namespace Bear
 	{
 		Entity pointLight = CreateEntity("Point Light");
 		auto& transform = pointLight.GetComponent<TransformComponent>();
-		transform.Position = glm::vec3(light.position);
+		transform.SetPosition(glm::vec3(light.position));
 		pointLight.AddComponent<LightComponent>(LightComponent::CreatePoint(light.color));
 	}
 
 	void Scene::ClearAllEntities()
 	{
 		m_Registry.clear();
+		m_UpdateOrderDirty = true;
 		Entity light = CreateEntity("Directional Light");
 		light.AddComponent<LightComponent>(LightComponent::CreateDirectional({ -1.0, -2.5, -1.0 }, {1.f, .98f, .9f, 4.f}));
 	}
@@ -149,31 +187,62 @@ namespace Bear
 	void Scene::MultiplyInstances(uint32_t count, float spread)
 	{
 		if (count <= 1) return;
-		auto view = m_Registry.view<MeshComponent, MaterialComponent, TransformComponent>();
-		std::vector<std::tuple<MeshComponent, MaterialComponent, TransformComponent>> templates;
-		for (auto entity : view)
+
+		struct MeshInstance
 		{
-			templates.emplace_back(
-				m_Registry.get<MeshComponent>(entity),
-				m_Registry.get<MaterialComponent>(entity),
-				m_Registry.get<TransformComponent>(entity));
+			std::shared_ptr<Mesh> meshRes;
+			std::shared_ptr<Material> matRes;
+			glm::mat4 worldMatrix;
+		};
+		std::vector<MeshInstance> templates;
+
+		auto getWorldMatrix = [&](entt::entity entity, auto& self) -> glm::mat4
+		{
+			auto& tf = m_Registry.get<TransformComponent>(entity);
+			auto& hierarchy = m_Registry.get<HierarchyComponent>(entity);
+			glm::mat4 local = glm::translate(glm::mat4(1.0f), tf.GetPosition())
+							* glm::toMat4(glm::quat(tf.GetRotation()))
+							* glm::scale(glm::mat4(1.0f), tf.GetScale());
+			if (hierarchy.Parent != entt::null && m_Registry.valid(hierarchy.Parent))
+				return self(hierarchy.Parent, self) * local;
+			return local;
+		};
+
+		auto meshView = m_Registry.view<MeshComponent, MaterialComponent, TransformComponent, HierarchyComponent>();
+		for (auto entity : meshView)
+		{
+			templates.push_back({
+				m_Registry.get<MeshComponent>(entity).MeshRes,
+				m_Registry.get<MaterialComponent>(entity).MaterialRes,
+				getWorldMatrix(entity, getWorldMatrix)
+			});
 		}
 
-		std::mt19937 rng{ std::random_device{}() };
+		if (templates.empty()) return;
+
+		// compute cluster center
+		glm::vec3 center(0.0f);
+		for (auto& t : templates)
+			center += glm::vec3(t.worldMatrix[3]);
+		center /= (float)templates.size();
+
+		std::mt19937 rng{ 12345 }; // fixed seed so perf tests are reproducible across runs
 		std::uniform_real_distribution<float> posDist(-spread, spread);
 		std::uniform_real_distribution<float> rotDist(0.0f, 360.0f);
 
 		for (uint32_t i = 1; i < count; ++i)
 		{
-			for (const auto& [mesh, mat, tf] : templates)
+			glm::vec3 offset(posDist(rng), posDist(rng) * 0.3f, posDist(rng));
+			for (const auto& t : templates)
 			{
 				Entity clone = CreateEntity("Instance_" + std::to_string(i));
-				clone.AddComponent<MeshComponent>(mesh.MeshRes);
-				clone.AddComponent<MaterialComponent>(mat.MaterialRes);
+				clone.AddComponent<MeshComponent>(t.meshRes);
+				clone.AddComponent<MaterialComponent>(t.matRes);
 				auto& cloneTf = clone.GetComponent<TransformComponent>();
-				cloneTf.Position = tf.Position + glm::vec3(posDist(rng), posDist(rng) * 0.3f, posDist(rng));
-				cloneTf.Scale = tf.Scale;
-				cloneTf.Rotation = glm::vec3(0.0f, rotDist(rng), 0.0f);
+				glm::vec3 basePos = glm::vec3(t.worldMatrix[3]);
+				cloneTf.SetPosition(basePos + offset);
+				cloneTf.SetScale(glm::vec3(1.0f));
+				cloneTf.SetRotation(glm::vec3(0.0f, rotDist(rng), 0.0f));
 			}
 		}
 		BEAR_CORE_INFO("Multiplied instances: {} → {} (x{})", (uint32_t)templates.size(), (uint32_t)(templates.size() * count), count);
@@ -201,6 +270,7 @@ namespace Bear
 					child.AddComponent<MeshComponent>(primitiveMesh);
 					auto& hierarchy = child.GetComponent<HierarchyComponent>();
 					hierarchy.Parent = entity;
+					m_Registry.get<HierarchyComponent>(entity).Children.push_back(child);
 					if (primitiveDesc.materialIndex >= 0 && primitiveDesc.materialIndex < desc.materials.size())
 					{
 						auto material = resources.Materials[primitiveDesc.materialIndex];
@@ -213,6 +283,7 @@ namespace Bear
 			{
 				auto& hierarchy = entity.GetComponent<HierarchyComponent>();
 				hierarchy.Parent = parentEntity;
+				m_Registry.get<HierarchyComponent>(parentEntity).Children.push_back(entity);
 			}
 			for (const auto& childIndex : nodeDesc.childrenIndices)
 			{

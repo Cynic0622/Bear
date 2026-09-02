@@ -43,8 +43,9 @@ namespace Bear {
 		
 		std::string vertexShaderPath;
 		std::string fragmentShaderPath;
+		std::string computeShaderPath;
 
-		// äÖÈ¾×´Ì¬
+		// ï¿½ï¿½È¾×´Ì¬
 		PrimitiveTopology topology = PrimitiveTopology::TriangleList;
 		PolygonMode polygonMode = PolygonMode::Fill;
 		CullMode cullMode = CullMode::Back;
@@ -56,7 +57,7 @@ namespace Bear {
 
 		bool vertexInput = true;
 
-		// ... Î´À´¿ÉÒÔÌí¼Ó BlendState, DepthState µÈ
+		// ... Î´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ BlendState, DepthState ï¿½ï¿½
 	};
 
 	class RHIPipeline {

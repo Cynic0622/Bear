@@ -20,6 +20,19 @@ public:
 		guiLayer->SetOnInstanceCountChangeCallback([sceneLayer](uint32_t count) {
 			sceneLayer->SetInstanceMultiplier(count);
 		});
+		guiLayer->SetDrawStatsProvider([sceneLayer]() -> Bear::RenderStats {
+			auto stats = Bear::Application::Get().GetRenderer()->GetFrameStats();
+			stats.sceneObjects = sceneLayer->GetTotalMeshEntities();
+			return stats;
+		});
+		guiLayer->SetRenderStatesProvider([sceneLayer]() -> Bear::RenderStates {
+			Bear::RenderStates states;
+			states.frustumCull = sceneLayer->IsFrustumCullingEnabled();
+			states.gpuCulling = Bear::Application::Get().GetRenderer()->IsGpuCullingEnabled();
+			states.oitEnabled = Bear::Application::Get().GetRenderer()->IsOitEnabled();
+			states.editorMode = sceneLayer->IsEditorMode();
+			return states;
+		});
 
 		PushLayer(sceneLayer);
 		PushOverlay(guiLayer);

@@ -50,10 +50,12 @@ namespace Bear
 		cmd->SetScissor(0, 0, width, height);
 		cmd->SetViewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
 		cmd->BindPipeline(*m_OitPipeline);
+		uint32_t transparentCount = 0;
 		for (const auto& obj : renderObjects)
 		{
 			if (!obj.material->IsTransparent())
 				continue;
+			transparentCount++;
 			cmd->BindDescriptorSet(*m_OitPipelineLayout, *m_Context->baseDataDescriptorSet[currentFrameIndex], 0);
 			cmd->BindDescriptorSet(*m_OitPipelineLayout, *m_Context->sceneDataDescriptorSet[currentFrameIndex], 1);
 			cmd->BindDescriptorSet(*m_OitPipelineLayout, *obj.material->GetDescriptorSet(), 2);
@@ -77,6 +79,9 @@ namespace Bear
 		cmd->BindDescriptorSet(*m_BlendPipelineLayout, *m_BlendDescriptorSet, 0);
 		cmd->Draw(3, 1, 0, 0);
 		cmd->EndRenderPass();
+
+		m_Stats.transparentObjects = transparentCount;
+		m_Stats.drawCalls = transparentCount + 1; // per-object draws + blend fullscreen triangle
 	}
 
 	void OitPass::Resize()

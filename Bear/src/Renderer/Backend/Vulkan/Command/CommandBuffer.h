@@ -34,7 +34,8 @@ namespace Bear {
 		void BindVertexBuffer(const RHIBuffer& buffer, uint32_t binding = 0, size_t offset = 0) override; // rhi
 		void BindIndexBuffer(const RHIBuffer& buffer, size_t offset = 0) override; // rhi
 		void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t firstIndex = 0, int32_t vertexOffset = 0, uint32_t firstInstance = 0) override;
-		void BindDescriptorSet(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& set, uint32_t setIndex = 0) override;
+		void Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) override;
+		void BindDescriptorSet(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& set, uint32_t setIndex = 0, PipelineBindPoint bindPoint = PipelineBindPoint::Graphics) override;
 		void TransitionImageLayout(RHIImage& texture, ImageLayout oldLayout, ImageLayout newLayout, uint32_t baseMipLevel = 0, uint32_t levelCount = 1) override;
 		void CopyBufferToTexture(const RHIBuffer& srcBuffer, RHIImage& dstTexture) override;
 		void PushConstants(const RHIPipelineLayout& pipelineLayout, ShaderStage stage, const void* data, size_t size, uint32_t offset) override;
@@ -45,6 +46,8 @@ namespace Bear {
 		void FillBuffer(const RHIBuffer& buffer, const void* data, size_t size, size_t offset) override;
 		void ClearImage(const RHIImage& image, const ClearColor& clearColor) override;
 		void BlitImage(RHIImage& srcImage, RHIImage& dstImage, uint32_t srcLevel, uint32_t dstLevel) override;
+		void DrawIndexedIndirect(const RHIBuffer& buffer, uint32_t drawCount, uint32_t stride, size_t offset) override;
+		void DrawIndexedIndirectCount(const RHIBuffer& buffer, const RHIBuffer& countBuffer, uint32_t maxDrawCount, uint32_t stride, size_t offset, size_t countBufferOffset) override;
 		VkCommandBuffer GetHandle() const { return m_CommandBuffer; }
 
 	private:

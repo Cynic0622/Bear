@@ -52,9 +52,17 @@ namespace Bear
 		int m_LightNumber = 0;
 		uint32_t m_FrameNum = 0;
 		std::atomic<uint32_t> m_NextUID{ 1 }; // for generating unique entity IDs and use in the future.
+		std::vector<entt::entity> m_UpdateOrder; // parent-before-child order for transform propagation
+		bool m_UpdateOrderDirty = true;
+		uint32_t m_TotalMeshEntities = 0;    // mesh entities before culling (updated in CollectRenderData)
+		uint32_t m_VisibleMeshEntities = 0;  // after frustum culling
 
 	private:
 
 		CameraController* GetActiveCamera() const;
+		uint32_t GetTotalMeshEntities() const { return m_TotalMeshEntities; }
+		uint32_t GetVisibleMeshEntities() const { return m_VisibleMeshEntities; }
+		bool IsFrustumCullingEnabled() const { return m_FrustumCull; }
+		bool IsEditorMode() const { return m_EditorMode; }
 	};
 }

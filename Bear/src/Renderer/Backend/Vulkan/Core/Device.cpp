@@ -261,6 +261,20 @@ namespace Bear {
 		pipelineInfo.basePipelineIndex = -1; // Optional
 		return std::make_shared<Pipeline>(*this, pipelineInfo);
 	}
+	std::shared_ptr<RHIPipeline> Device::CreateComputePipeline(const RHIPipelineConfig& config)
+	{
+		auto vkPipelineLayout = std::static_pointer_cast<PipelineLayout>(config.pipelineLayout);
+		Shader shader(*this, config.computeShaderPath, VK_SHADER_STAGE_COMPUTE_BIT);
+
+		VkComputePipelineCreateInfo pipelineInfo{};
+		pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+		pipelineInfo.stage = shader.GetStageCreateInfo();
+		pipelineInfo.layout = vkPipelineLayout->GetHandle();
+		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+		pipelineInfo.basePipelineIndex = -1;
+
+		return std::make_shared<Pipeline>(*this, pipelineInfo);
+	}
 	std::unique_ptr<RHIDescriptorSet> Device::CreateDescriptorSet(std::shared_ptr<RHIDescriptorSetLayout> layout)
 	{
 		auto vkLayout = std::dynamic_pointer_cast<DescriptorSetLayout>(layout);
@@ -611,6 +625,7 @@ namespace Bear {
 		VkPhysicalDeviceVulkan12Features deviceVulkan12Features = {};
 		deviceVulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
 		deviceVulkan12Features.shaderFloat16 = VK_TRUE;
+		deviceVulkan12Features.drawIndirectCount = VK_TRUE;
 		VkPhysicalDeviceVulkan13Features deviceVulkan13Features = {};
 		deviceVulkan13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
 		deviceVulkan13Features.shaderIntegerDotProduct = VK_TRUE;
@@ -619,6 +634,8 @@ namespace Bear {
 		deviceFeatures.samplerAnisotropy = VK_TRUE;
 		deviceFeatures.fragmentStoresAndAtomics = VK_TRUE;
 		deviceFeatures.shaderInt16 = VK_TRUE;
+		deviceFeatures.multiDrawIndirect = VK_TRUE;
+		deviceFeatures.drawIndirectFirstInstance = VK_TRUE;
 
 		VkDeviceCreateInfo createInfo = {};
 		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

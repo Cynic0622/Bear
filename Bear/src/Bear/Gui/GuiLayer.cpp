@@ -2,6 +2,7 @@
 #include "GuiLayer.h"
 #include "Bear/Application.h"
 #include "Scene/SceneLayer.h"
+#include "Renderer/Renderer.h"
 
 namespace Bear {
     
@@ -43,6 +44,16 @@ namespace Bear {
         m_OnInstanceCountChange = std::move(callback);
     }
 
+    void GuiLayer::SetDrawStatsProvider(std::function<RenderStats()> provider)
+    {
+        m_DrawStatsProvider = std::move(provider);
+    }
+
+    void GuiLayer::SetRenderStatesProvider(std::function<RenderStates()> provider)
+    {
+        m_RenderStatesProvider = std::move(provider);
+    }
+
     void GuiLayer::OnUpdate(float deltaTime) {
         float dtMs = deltaTime * 1000.0f;
 
@@ -73,7 +84,7 @@ namespace Bear {
                 m_OnModelSwitch(models[currentModel].second);
             }
 
-            ImGui::SliderInt("Instances", &instanceCount, 1, 200);
+            ImGui::SliderInt("Instances", &instanceCount, 1, 1000);
             ImGui::SameLine();
             if (ImGui::Button("Apply"))
             {
@@ -85,11 +96,31 @@ namespace Bear {
 
         ImGui::Begin("Renderer Info");
         ImGui::Text("Graphics api: Vulkan");
+        ImGui::SeparatorText("State");
+        if (m_RenderStatesProvider)
+        {
+            RenderStates states = m_RenderStatesProvider();
+            ImGui::Text("FrustumCull [Z]: %s", states.frustumCull ? "ON" : "OFF");
+            ImGui::Text("GPU Culling [C]: %s", states.gpuCulling ? "ON" : "OFF");
+            ImGui::Text("OIT [X]: %s", states.oitEnabled ? "ON" : "OFF");
+            ImGui::Text("Editor [Q]: %s", states.editorMode ? "ON" : "OFF");
+        }
         ImGui::SeparatorText("Frame Timing");
         ImGui::Text("Frame time: %.3f ms", dtMs);
         ImGui::Text("FPS: %.1f", 1.0f / deltaTime);
         ImGui::Text("Avg (120 frames): %.3f ms  (%.1f FPS)", m_MovingAvgFrameTime, 1000.0f / m_MovingAvgFrameTime);
         ImGui::Text("Min: %.3f ms   Max: %.3f ms", m_MinFrameTime, m_MaxFrameTime);
+
+        if (m_DrawStatsProvider)
+        {
+            RenderStats stats = m_DrawStatsProvider();
+            uint32_t culled = stats.sceneObjects > stats.visibleObjects ? stats.sceneObjects - stats.visibleObjects : 0;
+            float culledPct = stats.sceneObjects > 0 ? (100.0f * culled) / (float)stats.sceneObjects : 0.0f;
+            ImGui::SeparatorText("Draw Stats");
+            ImGui::Text("Objects: %u total, %u visible (culled %u, %.1f%%)", stats.sceneObjects, stats.visibleObjects, culled, culledPct);
+            ImGui::Text("Opaque: %u   Transparent: %u", stats.opaqueObjects, stats.transparentObjects);
+            ImGui::Text("Scene draw calls: %u", stats.drawCalls);
+        }
 
         static constexpr float kLabelWidth = 48.0f;
         static constexpr float kGraphHeight = 100.0f;

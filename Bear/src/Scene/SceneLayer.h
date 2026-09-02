@@ -34,6 +34,12 @@ namespace Bear
 
 		static const std::vector<std::pair<const char*, const char*>>& GetModelList();
 
+		Scene* GetScene() const;
+		uint32_t GetTotalMeshEntities() const;
+		uint32_t GetVisibleMeshEntities() const;
+		bool IsFrustumCullingEnabled() const;
+		bool IsEditorMode() const;
+
 	private:
 		std::unique_ptr<Scene> m_Scene;
 		std::string m_CurrentModelPath;

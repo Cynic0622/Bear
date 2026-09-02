@@ -6,6 +6,7 @@
 #include "UIPass.h"
 #include "PbrPass.h"
 #include "OitPass.h"
+#include "CullingPass.h"
 #include "RHI/RHIDevice.h"
 #include "RHI/RHI.h"
 #include "RHI/RHISwapchain.h"
@@ -54,7 +55,24 @@ namespace Bear {
 		auto frameIndex = m_Device->GetCurrentFrameIndex();
 		m_BaseDataUniformBuffer[frameIndex]->UploadData(&baseData, sizeof(baseData)); // set 0.
 		m_SceneDataUniformBuffer[frameIndex]->UploadData(&sceneData, sizeof(sceneData));
+
+		size_t perObjectSize = renderObjects.size() * sizeof(glm::mat4);
+		auto& perObjBuf = m_PerObjectBuffer[frameIndex];
+		if (perObjBuf->GetSize() < perObjectSize)
+		{
+			m_Device->WaitIdle();
+			perObjBuf = m_Device->CreateBuffer(perObjectSize + sizeof(glm::mat4) * 256,
+				BufferUsage::StorageBuffer, true);
+			m_SceneDataDescriptorSet[frameIndex]->UpdateBuffer(2, *perObjBuf);
+		}
+		for (size_t i = 0; i < renderObjects.size(); ++i)
+		{
+			perObjBuf->UploadData(&renderObjects[i].transform, sizeof(glm::mat4), i * sizeof(glm::mat4));
+		}
+
 		m_SkyboxPass->Execute(m_CurrentCommandBuffer, renderObjects);
+		m_CullingPass->SetViewProjection(baseData.projMat * baseData.viewMat);
+		m_CullingPass->Execute(m_CurrentCommandBuffer, renderObjects);
 		m_PbrPass->Execute(m_CurrentCommandBuffer, renderObjects);
 		if (OitEnabled)
 		{
@@ -64,6 +82,17 @@ namespace Bear {
 				m_OitPass->Setup(m_RenderContext);
 			}
 			m_OitPass->Execute(m_CurrentCommandBuffer, renderObjects);
+		}
+
+		const auto& pbrStats = m_PbrPass->GetStats();
+		m_FrameStats.visibleObjects = static_cast<uint32_t>(renderObjects.size());
+		m_FrameStats.opaqueObjects = pbrStats.opaqueObjects;
+		m_FrameStats.drawCalls = 1 /*skybox*/ + pbrStats.drawCalls;
+		if (OitEnabled)
+		{
+			const auto& oitStats = m_OitPass->GetStats();
+			m_FrameStats.transparentObjects = oitStats.transparentObjects;
+			m_FrameStats.drawCalls += oitStats.drawCalls;
 		}
 	}
 	
@@ -107,7 +136,8 @@ namespace Bear {
 			});
 		m_SceneDataDescriptorSetLayout = m_Device->CreateDescriptorSetLayout({
 			{0, DescriptorType::UniformBuffer, 1, ShaderStage::Vertex | ShaderStage::Fragment},
-			{1, DescriptorType::CombinedImageSampler, 1, ShaderStage::Fragment }
+			{1, DescriptorType::CombinedImageSampler, 1, ShaderStage::Fragment },
+			{2, DescriptorType::StorageBuffer, 1, ShaderStage::Vertex | ShaderStage::Compute }
 			});
 
 		std::string filePath = "assets/skybox/kloppenheim_06_puresky_4k.hdr";
@@ -115,6 +145,7 @@ namespace Bear {
 		m_IBLDescriptorSet = m_Device->CreateDescriptorSet(m_SceneDataDescriptorSetLayout);
 		m_IBLDescriptorSet->UpdateTexture(1, m_IBLTexture->GetImage(), m_IBLTexture->GetSampler());
 
+		m_PerObjectBuffer.resize(MAX_FRAMES_IN_FLIGHT);
 		for (uint8_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
 		{
 			m_BaseDataDescriptorSet[i] = m_Device->CreateDescriptorSet(m_BaseDataDescriptorSetLayout);
@@ -124,6 +155,8 @@ namespace Bear {
 			m_SceneDataUniformBuffer[i] = m_Device->CreateBuffer(sizeof(SceneData), BufferUsage::UniformBuffer, true);
 			m_SceneDataDescriptorSet[i]->UpdateBuffer(0, *m_SceneDataUniformBuffer[i]);
 			m_SceneDataDescriptorSet[i]->UpdateTexture(1, m_IBLTexture->GetImage(), m_IBLTexture->GetSampler());
+			m_PerObjectBuffer[i] = m_Device->CreateBuffer(65536 * sizeof(glm::mat4), BufferUsage::StorageBuffer, true);
+			m_SceneDataDescriptorSet[i]->UpdateBuffer(2, *m_PerObjectBuffer[i]);
 			m_RenderContext->baseDataDescriptorSet.push_back(m_BaseDataDescriptorSet[i].get());
 			m_RenderContext->sceneDataDescriptorSet.push_back(m_SceneDataDescriptorSet[i].get());
 		}
@@ -144,9 +177,16 @@ namespace Bear {
 		m_SkyboxPass->Setup(m_RenderContext);
 		m_PbrPass = std::make_unique<PbrPass>();
 		m_PbrPass->Setup(m_RenderContext);
+		m_CullingPass = std::make_unique<CullingPass>();
+		m_CullingPass->Setup(m_RenderContext);
+		m_PbrPass->SetCullingPass(m_CullingPass.get());
 	}
 	
 	
+	bool Renderer::IsGpuCullingEnabled() const
+	{
+		return m_CullingPass && m_CullingPass->IsEnabled();
+	}
 	bool Renderer::OnWindowResize() const
 	{
 		if (m_Swapchain) {
@@ -176,6 +216,12 @@ namespace Bear {
 		{
 			OitEnabled = !OitEnabled;
 			BEAR_CORE_INFO("OIT: {}", OitEnabled ? "ON" : "OFF");
+			return true;
+		}
+		if (Input::IsKeyPressed(Key::C))
+		{
+			m_CullingPass->SetEnabled(!m_CullingPass->IsEnabled());
+			BEAR_CORE_INFO("GPU Culling: {}", m_CullingPass->IsEnabled() ? "ON" : "OFF");
 			return true;
 		}
 		return false;

@@ -86,11 +86,57 @@ namespace Bear
 
 			res.Materials[i] = CreateMaterial(desc.materials[i], textureMap);
 		}
-		
-		res.Meshes.resize(desc.primitives.size());
-		for (size_t i = 0; i < desc.primitives.size(); ++i)
+
+		size_t totalVertices = 0;
+		size_t totalIndices = 0;
+		for (const auto& prim : desc.primitives)
 		{
-			res.Meshes[i] = CreateMesh(desc.primitives[i]);
+			totalVertices += prim.vertices.size();
+			totalIndices += prim.indices.size();
+		}
+
+		res.Meshes.resize(desc.primitives.size());
+		if (totalVertices > 0 && totalIndices > 0)
+		{
+			m_GlobalVertexBuffer = m_Device.CreateBuffer(
+				totalVertices * sizeof(VertexDescription),
+				BufferUsage::VertexBuffer | BufferUsage::TransferDstBuffer, true);
+			m_GlobalIndexBuffer = m_Device.CreateBuffer(
+				totalIndices * sizeof(uint32_t),
+				BufferUsage::IndexBuffer | BufferUsage::TransferDstBuffer, true);
+
+			size_t vtxOffset = 0;
+			size_t idxOffset = 0;
+			for (size_t i = 0; i < desc.primitives.size(); ++i)
+			{
+				const auto& prim = desc.primitives[i];
+				auto mesh = std::make_shared<Mesh>(m_Device, prim.vertices, prim.indices);
+
+				size_t vtxSize = prim.vertices.size() * sizeof(VertexDescription);
+				size_t idxSize = prim.indices.size() * sizeof(uint32_t);
+
+				if (vtxSize > 0)
+					m_GlobalVertexBuffer->UploadData(prim.vertices.data(), vtxSize, vtxOffset);
+				if (idxSize > 0)
+					m_GlobalIndexBuffer->UploadData(prim.indices.data(), idxSize, idxOffset);
+
+				mesh->SetupIndirect(static_cast<int32_t>(vtxOffset / sizeof(VertexDescription)),
+					static_cast<uint32_t>(idxOffset / sizeof(uint32_t)));
+
+				vtxOffset += vtxSize;
+				idxOffset += idxSize;
+
+				res.Meshes[i] = std::move(mesh);
+			}
+
+			Mesh::SetGlobalBuffers(m_GlobalVertexBuffer.get(), m_GlobalIndexBuffer.get());
+		}
+		else
+		{
+			for (size_t i = 0; i < desc.primitives.size(); ++i)
+			{
+				res.Meshes[i] = CreateMesh(desc.primitives[i]);
+			}
 		}
 		return res;
 	}
