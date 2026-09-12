@@ -5,7 +5,6 @@
 #include "PbrMaterial.h"
 #include "Common/Mesh.h"
 #include "CullingPass.h"
-#include "HiZPass.h"
 
 namespace Bear
 {
@@ -20,24 +19,29 @@ namespace Bear
 		CreateFramebuffers();
 		CreatePbrDescriptorSetLayout();
 		CreatePipeline();
-
-		m_IndirectBuffer.resize(context->MAX_FRAMES_IN_FLIGHT);
-		for (auto& buf : m_IndirectBuffer)
-		{
-			buf = context->device->CreateBuffer(
-				4096 * sizeof(DrawIndexedIndirectCommand),
-				BufferUsage::IndirectBuffer | BufferUsage::TransferDstBuffer, true);
-		}
 	}
 
-	void PbrPass::DrawCommandBuckets(RHICommandList* cmd, bool rescued)
+	void PbrPass::Execute(RHICommandList* cmd, const IndirectDrawSet& drawSet, bool clearDepth)
 	{
-		auto& ranges = m_CullingPass->GetMaterialRanges();
-		const auto& regionBases = m_CullingPass->GetRegionBases();
-		auto frameIndex = m_Context->device->GetCurrentFrameIndex();
+		auto currentImageIndex = m_Context->device->GetCurrentImageIndex();
+		auto currentFrameIndex = m_Context->device->GetCurrentFrameIndex();
+		auto width = m_Context->swapchain->GetWidth();
+		auto height = m_Context->swapchain->GetHeight();
 
-		RHIBuffer* commands = rescued ? m_CullingPass->GetRescuedCommandsBuffer() : m_CullingPass->GetOutputCommandsBuffer();
-		RHIBuffer* counters = rescued ? m_CullingPass->GetRescuedCountersBuffer() : m_CullingPass->GetCountersBuffer();
+		if (!drawSet.commands || !drawSet.counters || !drawSet.ranges || !drawSet.regionBases)
+			return;
+
+		auto& renderPass = clearDepth ? *m_PbrClearRenderPass : *m_PbrLoadRenderPass;
+		auto& framebuffer = clearDepth
+			? *m_PbrClearFramebuffers[currentImageIndex]
+			: *m_PbrLoadFramebuffers[currentImageIndex];
+
+		cmd->BeginRenderPass(renderPass, framebuffer, width, height, { {{}, {}, false}, {{}, {}, true} });
+		cmd->SetScissor(0, 0, width, height);
+		cmd->SetViewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
+
+		auto& ranges = *drawSet.ranges;
+		const auto& regionBases = *drawSet.regionBases;
 
 		cmd->BindVertexBuffer(*Mesh::GetGlobalVertexBuffer(), 0, 0);
 		cmd->BindIndexBuffer(*Mesh::GetGlobalIndexBuffer(), 0);
@@ -45,145 +49,20 @@ namespace Bear
 		for (auto& range : ranges)
 		{
 			cmd->BindPipeline(*m_PbrPipeline);
-			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *m_Context->baseDataDescriptorSet[frameIndex], 0);
-			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *m_Context->sceneDataDescriptorSet[frameIndex], 1);
+			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *m_Context->baseDataDescriptorSet[currentFrameIndex], 0);
+			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *m_Context->sceneDataDescriptorSet[currentFrameIndex], 1);
 			cmd->BindDescriptorSet(*m_PbrPipelineLayout, *range.material->GetDescriptorSet(), 2);
-			cmd->DrawIndexedIndirectCount(*commands, *counters, range.count,
+			cmd->DrawIndexedIndirectCount(*drawSet.commands, *drawSet.counters, range.count,
 				sizeof(DrawIndexedIndirectCommand),
 				regionBases[range.materialIndex] * sizeof(DrawIndexedIndirectCommand),
 				range.materialIndex * sizeof(uint32_t));
 		}
-	}
 
-	void PbrPass::Execute(RHICommandList* cmd, std::vector<RenderObject> renderObjects)
-	{
-		auto currentImageIndex = m_Context->device->GetCurrentImageIndex();
-		auto currentFrameIndex = m_Context->device->GetCurrentFrameIndex();
-		auto width = m_Context->swapchain->GetWidth();
-		auto height = m_Context->swapchain->GetHeight();
-
-		const bool gpuCulling = m_CullingPass && m_CullingPass->IsEnabled() && m_CullingPass->GetObjectCount() > 0;
-		const bool occlusion = gpuCulling && m_CullingPass->IsOcclusionEnabled() && m_HiZPass != nullptr;
-
-		if (gpuCulling)
-		{
-			// ---------- PBR1: early-visible set (A); clears depth ----------
-			cmd->BeginRenderPass(*m_PbrClearRenderPass, *m_PbrClearFramebuffers[currentImageIndex], width, height, { {{}, {}, false}, {{}, {}, true} });
-			cmd->SetScissor(0, 0, width, height);
-			cmd->SetViewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
-			DrawCommandBuckets(cmd, false);
-			cmd->EndRenderPass();
-
-			uint32_t drawCalls = static_cast<uint32_t>(m_CullingPass->GetMaterialRanges().size());
-
-			if (occlusion)
-			{
-				// Hi-Z from PBR1 depth, then retest rejected objects against it
-				m_HiZPass->Execute(cmd, *m_Context->swapchain->GetDepthImage(currentImageIndex), currentFrameIndex);
-				m_CullingPass->SetHiZSource(m_HiZPass->GetPyramid(currentFrameIndex), m_HiZPass->GetSampler());
-				m_CullingPass->ExecutePhase2(cmd);
-
-				// ---------- PBR2: rescued set (B); loads depth ----------
-				cmd->BeginRenderPass(*m_PbrLoadRenderPass, *m_PbrLoadFramebuffers[currentImageIndex], width, height, { {{}, {}, false}, {{}, {}, true} });
-				cmd->SetScissor(0, 0, width, height);
-				cmd->SetViewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
-				DrawCommandBuckets(cmd, true);
-				cmd->EndRenderPass();
-
-				// N.B. the second Hi-Z build (complete depth for the next frame) is skipped:
-				// the next frame's phase 1 then tests against the phase-1 depth, which is
-				// conservative (missing rescued objects as occluders) but halves the Hi-Z cost.
-				drawCalls += static_cast<uint32_t>(m_CullingPass->GetMaterialRanges().size());
-			}
-
-			m_Stats.opaqueObjects = m_CullingPass->GetObjectCount();
-			m_Stats.drawCalls = drawCalls;
-			const auto& gpu = m_CullingPass->GetGpuStats();
-			m_Stats.gpuVisible = gpu.visibleA;
-			m_Stats.gpuRejected = gpu.rejected;
-			m_Stats.gpuRescued = gpu.rescued;
-			return;
-		}
-
-		// ---------------- CPU fallback path (no GPU culling) ----------------
-		std::vector<size_t> opaqueIdx;
-		for (size_t i = 0; i < renderObjects.size(); ++i)
-			if (!renderObjects[i].material->IsTransparent())
-				opaqueIdx.push_back(i);
-
-		std::sort(opaqueIdx.begin(), opaqueIdx.end(),
-			[&](size_t a, size_t b) {
-				return renderObjects[a].material.get() < renderObjects[b].material.get();
-			});
-
-		std::vector<DrawIndexedIndirectCommand> commands(opaqueIdx.size());
-		struct MaterialRange {
-			std::shared_ptr<Material> material;
-			uint32_t start, count;
-		};
-		std::vector<MaterialRange> ranges;
-		{
-			size_t j = 0;
-			while (j < opaqueIdx.size())
-			{
-				auto* currentMat = renderObjects[opaqueIdx[j]].material.get();
-				size_t start = j;
-				while (j < opaqueIdx.size() && renderObjects[opaqueIdx[j]].material.get() == currentMat)
-					++j;
-				ranges.push_back({ renderObjects[opaqueIdx[start]].material,
-					static_cast<uint32_t>(start), static_cast<uint32_t>(j - start) });
-			}
-		}
-		for (size_t i = 0; i < opaqueIdx.size(); ++i)
-		{
-			auto& obj = renderObjects[opaqueIdx[i]];
-			commands[i] = {
-				obj.mesh->GetIndexCount(), 1,
-				obj.mesh->GetGlobalFirstIndex(),
-				obj.mesh->GetGlobalVertexOffset(),
-				static_cast<uint32_t>(opaqueIdx[i])
-			};
-		}
-
-		auto& indirectBuf = m_IndirectBuffer[currentFrameIndex];
-		if (!commands.empty())
-		{
-			size_t cmdBytes = commands.size() * sizeof(DrawIndexedIndirectCommand);
-			if (indirectBuf->GetSize() < cmdBytes)
-			{
-				m_Context->device->WaitIdle(); // old buffer may still be referenced by in-flight frames
-				indirectBuf.reset();
-				indirectBuf = m_Context->device->CreateBuffer(
-					cmdBytes + sizeof(DrawIndexedIndirectCommand) * 64,
-					BufferUsage::IndirectBuffer | BufferUsage::TransferDstBuffer, true);
-			}
-			indirectBuf->UploadData(commands.data(), cmdBytes, 0);
-		}
-
-		// single forward pass: color + depth (depth cleared here, no separate PreZ)
-		cmd->BeginRenderPass(*m_PbrClearRenderPass, *m_PbrClearFramebuffers[currentImageIndex], width, height, { {{}, {}, false}, {{}, {}, true} });
-		cmd->SetScissor(0, 0, width, height);
-		cmd->SetViewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
-		if (!commands.empty())
-		{
-			cmd->BindVertexBuffer(*Mesh::GetGlobalVertexBuffer(), 0, 0);
-			cmd->BindIndexBuffer(*Mesh::GetGlobalIndexBuffer(), 0);
-			for (auto& range : ranges)
-			{
-				cmd->BindPipeline(*m_PbrPipeline);
-				cmd->BindDescriptorSet(*m_PbrPipelineLayout, *m_Context->baseDataDescriptorSet[currentFrameIndex], 0);
-				cmd->BindDescriptorSet(*m_PbrPipelineLayout, *m_Context->sceneDataDescriptorSet[currentFrameIndex], 1);
-				cmd->BindDescriptorSet(*m_PbrPipelineLayout, *range.material->GetDescriptorSet(), 2);
-				cmd->DrawIndexedIndirect(*indirectBuf, range.count,
-					sizeof(DrawIndexedIndirectCommand), range.start * sizeof(DrawIndexedIndirectCommand));
-			}
-		}
 		cmd->EndRenderPass();
 
-		m_Stats.opaqueObjects = static_cast<uint32_t>(commands.size());
-		m_Stats.drawCalls = commands.empty() ? 0 : static_cast<uint32_t>(ranges.size());
+		m_Stats.opaqueObjects += drawSet.objectCount;
+		m_Stats.drawCalls += static_cast<uint32_t>(ranges.size());
 	}
-
 	void PbrPass::Resize()
 	{
 		m_Context->device->WaitIdle();

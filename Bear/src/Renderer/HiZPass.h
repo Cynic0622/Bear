@@ -3,6 +3,7 @@
 #include <memory>
 #include <glm/glm.hpp>
 #include "RHI/RHITypes.h"
+#include "Pass.h"
 
 namespace Bear
 {
@@ -18,13 +19,14 @@ namespace Bear
 	// Builds a max-depth Hi-Z pyramid (mip0 = half-res of the depth buffer) for occlusion culling.
 	// Pyramids are ping-ponged per frame-in-flight: the culling pass reads the other slot
 	// (previous frame's complete pyramid), the build writes the current slot.
-	class HiZPass
+	class HiZPass : public Pass
 	{
 	public:
-		~HiZPass();
+		~HiZPass() override;
 
-		void Setup(RenderContext* context);
-		void Cleanup();
+		void Setup(RenderContext* context) override;
+		void Cleanup() override;
+		const char* GetName() const override { return "HiZPass"; }
 		void Resize();
 
 		// rebuilds the pyramid for the given frame slot from the current depth buffer
@@ -38,7 +40,6 @@ namespace Bear
 		void CreatePyramids();
 		void CreatePipeline();
 
-		RenderContext* m_Context = nullptr;
 		uint32_t m_MipCount = 1;
 		uint32_t m_DepthWidth = 0;
 		uint32_t m_DepthHeight = 0;

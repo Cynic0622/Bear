@@ -46,6 +46,7 @@ namespace Bear
 	void CullingPass::Setup(RenderContext* context)
 	{
 		m_Context = context;
+		m_Enabled = false; // GPU culling is opt-in
 
 		m_DescriptorSetLayout = m_Context->device->CreateDescriptorSetLayout({
 			{0, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // AABBs
@@ -313,25 +314,63 @@ namespace Bear
 		m_FrameIndex = m_Context->device->GetCurrentFrameIndex();
 
 		BuildCommandPool(renderObjects);
-		if (m_ObjectCount == 0 || !m_Enabled)
+		if (m_ObjectCount == 0)
 			return;
 
 		EnsureBuffers(m_ObjectCount, m_MaterialCount);
-		UpdateAabbBuffer(renderObjects);
 
 		// read last time this frame slot ran (its fence has already signaled) for the UI stats
 		{
 			uint32_t totals[3] = { 0, 0, 0 };
-			m_TotalsBuffers[m_FrameIndex]->ReadData(totals, sizeof(totals), 0);
+			if (!m_Enabled)
+			{
+				// CPU fallback: report the whole pool as visible
+				totals[0] = m_ObjectCount;
+			}
+			else
+			{
+				m_TotalsBuffers[m_FrameIndex]->ReadData(totals, sizeof(totals), 0);
+			}
 			m_GpuStats.visibleA = totals[0];
 			m_GpuStats.rejected = totals[1];
 			m_GpuStats.rescued = totals[2];
 		}
 
-		// CPU-side uploads (same host-coherent path as PbrPass indirect commands)
+		// CPU-side uploads (same host-coherent path as the GPU path)
 		m_InputCommandsBuffers[m_FrameIndex]->UploadData(m_Commands.data(), m_Commands.size() * sizeof(DrawIndexedIndirectCommand), 0);
 		m_MaterialIdBuffers[m_FrameIndex]->UploadData(m_MaterialIds.data(), m_MaterialIds.size() * sizeof(uint32_t), 0);
 		m_RegionBaseBuffers[m_FrameIndex]->UploadData(m_RegionBases.data(), m_RegionBases.size() * sizeof(uint32_t), 0);
+
+		bool occlusion = IsOcclusionActive();
+
+		if (!m_Enabled)
+		{
+			// no dispatch: provide the ready-to-draw set on the CPU side
+			m_OutputCommandsBuffers[m_FrameIndex]->UploadData(m_Commands.data(), m_Commands.size() * sizeof(DrawIndexedIndirectCommand), 0);
+
+			std::vector<uint32_t> counters(m_MaterialCount + 1, 0);
+			for (const auto& range : m_MaterialRanges)
+				counters[range.materialIndex] = range.count;
+			counters[m_MaterialCount] = m_ObjectCount;
+			m_CountersBuffers[m_FrameIndex]->UploadData(counters.data(), counters.size() * sizeof(uint32_t), 0);
+
+			// descriptors must still be valid even if the pipeline is never dispatched
+			auto& set = m_DescriptorSets[m_FrameIndex];
+			set->UpdateBuffer(0, *m_AabbBuffers[m_FrameIndex]);
+			set->UpdateBuffer(1, *m_InputCommandsBuffers[m_FrameIndex]);
+			set->UpdateBuffer(2, *m_OutputCommandsBuffers[m_FrameIndex]);
+			set->UpdateBuffer(3, *m_CountersBuffers[m_FrameIndex]);
+			set->UpdateBuffer(4, *m_MaterialIdBuffers[m_FrameIndex]);
+			set->UpdateBuffer(5, *m_RegionBaseBuffers[m_FrameIndex]);
+			set->UpdateBuffer(6, *m_RejectedBuffers[m_FrameIndex]);
+			set->UpdateBuffer(7, *m_RejectedCountersBuffers[m_FrameIndex]);
+			set->UpdateBuffer(9, *m_TotalsBuffers[m_FrameIndex]);
+			if (m_HiZImage && m_HiZSampler)
+				set->UpdateSampledImage(8, *m_HiZImage, *m_HiZSampler, UINT32_MAX, ImageLayout::General);
+			return;
+		}
+
+		UpdateAabbBuffer(renderObjects);
 
 		// Keep the descriptor set bindings in sync in case buffers were recreated
 		auto& set = m_DescriptorSets[m_FrameIndex];
@@ -350,8 +389,6 @@ namespace Bear
 		{
 			set->UpdateSampledImage(8, *m_HiZImage, *m_HiZSampler, UINT32_MAX, ImageLayout::General);
 		}
-
-		bool occlusion = OcclusionActive();
 
 		// zero counters: A[M+1], rejected[1] and totals[3]
 		{
@@ -398,7 +435,7 @@ namespace Bear
 
 	void CullingPass::ExecutePhase2(RHICommandList* cmd)
 	{
-		if (m_ObjectCount == 0 || !OcclusionActive())
+		if (m_ObjectCount == 0 || !IsOcclusionActive())
 			return;
 
 		auto& set = m_Phase2DescriptorSets[m_FrameIndex];

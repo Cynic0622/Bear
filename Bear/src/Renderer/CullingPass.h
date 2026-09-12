@@ -3,6 +3,7 @@
 #include <memory>
 #include <glm/glm.hpp>
 #include "RHI/RHITypes.h"
+#include "Pass.h"
 
 namespace Bear
 {
@@ -28,7 +29,7 @@ namespace Bear
 		std::shared_ptr<Material> material;
 	};
 
-	// GPU culling结果统计（延迟 2 帧回读，仅用于显示）
+
 	struct GpuCullStats
 	{
 		uint32_t visibleA = 0;   // phase 1 直接可见
@@ -36,30 +37,42 @@ namespace Bear
 		uint32_t rescued = 0;    // phase 2 救回
 	};
 
+	// A drawable indirect command set produced by the culling pass.
+	// Consumers (PbrPass) just draw it; they don't care how it was produced.
+	struct IndirectDrawSet
+	{
+		RHIBuffer* commands = nullptr;
+		RHIBuffer* counters = nullptr;
+		const std::vector<CullingMaterialRange>* ranges = nullptr;
+		const std::vector<uint32_t>* regionBases = nullptr;
+		uint32_t objectCount = 0; // CPU-side count, for stats only
+	};
+
 	// GPU occlusion + frustum culling.
 	//
-	// Phase 1 (Execute): frustum-tests the input pool against the previous frame's Hi-Z.
-	//   - fully visible objects go to OutA (per-material buckets)
-	//   - potentially occluded objects go to a compact rejected list (phase 2 will retest)
-	//   - frustum-culled objects are dropped
-	// Phase 2 (ExecutePhase2): retests the rejected list against the same-frame Hi-Z built
-	//   from phase 1 depth; rescued objects go to OutB.
-	class CullingPass
+	// Always builds the CPU-side command pool and uploads it. When enabled, phase 1
+	// also dispatches the GPU culler (frustum + previous-frame Hi-Z occlusion); when
+	// occlusion is on, phase 2 retests deferred objects against the same-frame Hi-Z.
+	class CullingPass : public Pass
 	{
 	public:
-		void Setup(RenderContext* context);
-		void Cleanup();
+		void Setup(RenderContext* context) override;
+		void Cleanup() override;
+		const char* GetName() const override { return "CullingPass"; }
 
 		void SetViewProjection(const glm::mat4& viewProjection);
-		void SetEnabled(bool enabled) { m_Enabled = enabled; }
-		bool IsEnabled() const { return m_Enabled; }
 		void SetOcclusionEnabled(bool enabled) { m_OcclusionEnabled = enabled; }
 		bool IsOcclusionEnabled() const { return m_OcclusionEnabled; }
+		bool IsOcclusionActive() const { return m_Enabled && m_OcclusionEnabled && m_HiZImage != nullptr; }
 		void SetHiZSource(RHIImage* pyramid, RHISampler* sampler) { m_HiZImage = pyramid; m_HiZSampler = sampler; }
 		void SetHiZMipCount(uint32_t mipCount) { m_HiZMipCount = mipCount; }
 
 		void Execute(RHICommandList* cmd, const std::vector<RenderObject>& renderObjects);
 		void ExecutePhase2(RHICommandList* cmd);
+
+		// drawable command sets (valid after Execute / ExecutePhase2 for this frame)
+		IndirectDrawSet GetVisibleSet() const { return { GetOutputCommandsBuffer(), GetCountersBuffer(), &m_MaterialRanges, &m_RegionBases, m_ObjectCount }; }
+		IndirectDrawSet GetRescuedSet() const { return { GetRescuedCommandsBuffer(), GetRescuedCountersBuffer(), &m_MaterialRanges, &m_RegionBases, 0 }; }
 
 		// results consumed by PbrPass (valid after Execute / ExecutePhase2)
 		const std::vector<DrawIndexedIndirectCommand>& GetCommands() const { return m_Commands; }
@@ -78,10 +91,7 @@ namespace Bear
 		void EnsureBuffers(uint32_t objectCount, uint32_t materialCount);
 		void BuildCommandPool(const std::vector<RenderObject>& renderObjects);
 		void UpdateAabbBuffer(const std::vector<RenderObject>& renderObjects);
-		bool OcclusionActive() const { return m_Enabled && m_OcclusionEnabled && m_HiZImage != nullptr; }
 
-		RenderContext* m_Context = nullptr;
-		bool m_Enabled = false;
 		bool m_OcclusionEnabled = false;
 
 		glm::vec4 m_Planes[6]{};

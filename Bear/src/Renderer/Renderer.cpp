@@ -70,18 +70,32 @@ namespace Bear {
 		{
 			perObjBuf->UploadData(&renderObjects[i].transform, sizeof(glm::mat4), i * sizeof(glm::mat4));
 		}
-
+		// ---------------- explicit frame flow ----------------
 		m_SkyboxPass->Execute(m_CurrentCommandBuffer, renderObjects);
+
+		// culling: build the command pool; phase 1 dispatch (frustum + previous-frame Hi-Z)
 		m_CullingPass->SetViewProjection(baseData.projMat * baseData.viewMat);
-		// phase 1 tests against the previous frame's pyramid (ping-pong of 2 slots)
 		if (m_HiZPass)
 		{
-			uint32_t prevSlot = (frameIndex + 1) % 2;
+			uint32_t prevSlot = (frameIndex + 1) % 2; // ping-pong of 2 pyramid slots
 			m_CullingPass->SetHiZSource(m_HiZPass->GetPyramid(prevSlot), m_HiZPass->GetSampler());
 			m_CullingPass->SetHiZMipCount(m_HiZPass->GetMipCount());
 		}
 		m_CullingPass->Execute(m_CurrentCommandBuffer, renderObjects);
-		m_PbrPass->Execute(m_CurrentCommandBuffer, renderObjects);
+
+		// PBR stage 1: visible set, clears depth
+		m_PbrPass->ResetStats();
+		m_PbrPass->Execute(m_CurrentCommandBuffer, m_CullingPass->GetVisibleSet(), true);
+
+		// occlusion refinement: same-frame Hi-Z, phase 2 rescue, PBR stage 2
+		if (m_HiZPass && m_CullingPass->IsOcclusionActive())
+		{
+			m_HiZPass->Execute(m_CurrentCommandBuffer, *m_Swapchain->GetDepthImage(m_CurrentImageIndex), frameIndex);
+			m_CullingPass->SetHiZSource(m_HiZPass->GetPyramid(frameIndex), m_HiZPass->GetSampler());
+			m_CullingPass->ExecutePhase2(m_CurrentCommandBuffer);
+			m_PbrPass->Execute(m_CurrentCommandBuffer, m_CullingPass->GetRescuedSet(), false);
+		}
+
 		if (OitEnabled)
 		{
 			if (!m_OitPass)
@@ -96,9 +110,10 @@ namespace Bear {
 		m_FrameStats.visibleObjects = static_cast<uint32_t>(renderObjects.size());
 		m_FrameStats.opaqueObjects = pbrStats.opaqueObjects;
 		m_FrameStats.drawCalls = 1 /*skybox*/ + pbrStats.drawCalls;
-		m_FrameStats.gpuVisible = pbrStats.gpuVisible;
-		m_FrameStats.gpuRejected = pbrStats.gpuRejected;
-		m_FrameStats.gpuRescued = pbrStats.gpuRescued;
+		const auto& gpuStats = m_CullingPass->GetGpuStats();
+		m_FrameStats.gpuVisible = gpuStats.visibleA;
+		m_FrameStats.gpuRejected = gpuStats.rejected;
+		m_FrameStats.gpuRescued = gpuStats.rescued;
 		if (OitEnabled)
 		{
 			const auto& oitStats = m_OitPass->GetStats();
@@ -190,10 +205,8 @@ namespace Bear {
 		m_PbrPass->Setup(m_RenderContext);
 		m_CullingPass = std::make_unique<CullingPass>();
 		m_CullingPass->Setup(m_RenderContext);
-		m_PbrPass->SetCullingPass(m_CullingPass.get());
 		m_HiZPass = std::make_unique<HiZPass>();
 		m_HiZPass->Setup(m_RenderContext);
-		m_PbrPass->SetHiZPass(m_HiZPass.get());
 	}
 	
 	

@@ -1,21 +1,22 @@
 #pragma once
 
-#include "IRenderPass.h"
+#include "Pass.h"
+#include "Common/RenderObject.h"
 
 namespace Bear
 {
-	class SkyboxPass : public Bear::IRenderPass
+	class SkyboxPass : public Bear::Pass
 	{
 	public:
 		~SkyboxPass() override;
 		void Setup(Bear::RenderContext* context) override;
-		void Execute(Bear::RHICommandList* cmd, std::vector<Bear::RenderObject> renderObjects = {}) override;
-		void Resize() override;
+		const char* GetName() const override { return "SkyboxPass"; }
+		void Execute(Bear::RHICommandList* cmd, std::vector<Bear::RenderObject> renderObjects = {});
+		void Resize();
 		void Cleanup() override;
 		void Prepare();
 
 	private:
-		RenderContext* m_Context = nullptr;
 		std::shared_ptr<RHIDescriptorSetLayout> m_DescriptorSetLayout;
 		std::shared_ptr<RHIPipelineLayout> m_PipelineLayout;
 		std::shared_ptr<RHIPipeline> m_Pipeline;

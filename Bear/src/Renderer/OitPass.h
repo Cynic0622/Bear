@@ -1,19 +1,21 @@
 #pragma once
-#include "IRenderPass.h"
+#include "Pass.h"
 #include "RenderStats.h"
+#include "Common/RenderObject.h"
 
 #define MAX_OIT_NODES_PER_PIXEL 4
 
 namespace Bear
 {
-	class OitPass : public IRenderPass
+	class OitPass : public Pass
 	{
 	public:
 		~OitPass() override;
 
 		void Setup(RenderContext* context) override;
-		void Execute(RHICommandList* cmd, std::vector<RenderObject> renderObjects) override;
-		void Resize() override;
+		const char* GetName() const override { return "OitPass"; }
+		void Execute(RHICommandList* cmd, std::vector<RenderObject> renderObjects);
+		void Resize();
 		void Cleanup() override;
 
 		const RenderStats& GetStats() const { return m_Stats; }
@@ -25,7 +27,6 @@ namespace Bear
 		void PrepareBlend();
 	private:
 		RenderStats m_Stats;
-		RenderContext* m_Context = nullptr;
 		std::shared_ptr<RHIRenderPass> m_OitRenderPass = nullptr;
 		std::shared_ptr<RHIRenderPass> m_BlendRenderPass = nullptr;
 		std::vector<std::shared_ptr<RHIFramebuffer>> m_OitFramebuffers;
