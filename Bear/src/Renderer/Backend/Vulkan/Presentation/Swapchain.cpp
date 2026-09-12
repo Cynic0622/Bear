@@ -302,6 +302,13 @@ namespace Bear {
 
 			BEAR_CORE_ASSERT(vkCreateImageView(m_Device.GetDevice(), &createInfo, nullptr, &m_ImageViews[i]) == VK_SUCCESS, "Failed to create image view.");
 		}
+
+		// non-owning RHIImage wrappers so the frame graph can import the swapchain color targets
+		m_ColorImageWrappers.clear();
+		for (size_t i = 0; i < m_Images.size(); ++i) {
+			m_ColorImageWrappers.push_back(std::make_unique<Image>(m_Device, m_Images[i], m_ImageViews[i],
+				m_Extent.width, m_Extent.height, m_ImageFormat));
+		}
 	}
 	void Swapchain::CreateDepthResources()
 	{

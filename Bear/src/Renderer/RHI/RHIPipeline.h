@@ -57,6 +57,12 @@ namespace Bear {
 
 		bool vertexInput = true;
 
+		// dynamic rendering path (vkCmdBeginRendering): when enabled, the pipeline is created
+		// without a VkRenderPass and declares its attachment formats instead
+		bool dynamicRendering = false;
+		std::vector<PixelFormat> colorFormats;
+		PixelFormat depthFormat = PixelFormat::Unknown;
+
 		// ... δ���������� BlendState, DepthState ��
 	};
 

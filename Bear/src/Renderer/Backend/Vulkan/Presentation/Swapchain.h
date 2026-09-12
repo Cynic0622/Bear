@@ -45,6 +45,7 @@ namespace Bear {
 		const std::vector<VkImageView>& GetImageViews() const { return m_ImageViews; }
 		void* GetDepthView(uint32_t imageIndex) const override { return m_DepthImages[imageIndex]->GetView(); } // rhi
 		RHIImage* GetDepthImage(uint32_t imageIndex) const override { return m_DepthImages[imageIndex].get(); }
+		RHIImage* GetColorImage(uint32_t imageIndex) const override { return m_ColorImageWrappers[imageIndex].get(); }
 		void* GetColorView(uint8_t index) const override { return m_ImageViews[index]; } // rhi
 		uint32_t GetImageCount() const override { return static_cast<uint32_t>(m_Images.size()); } //rhi
 		// const VkImageView& GetImage(uint32_t index) const { return m_ImageViews[index]; }
@@ -87,5 +88,6 @@ namespace Bear {
 
 		std::vector<std::unique_ptr<Framebuffer>> m_Framebuffers; // ������Ⱦ��֡������
 		std::vector<std::unique_ptr<Image>> m_DepthImages;
+		std::vector<std::unique_ptr<Image>> m_ColorImageWrappers;
 	};
 }

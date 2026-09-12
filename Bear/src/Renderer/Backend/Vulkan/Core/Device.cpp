@@ -257,6 +257,25 @@ namespace Bear {
 		pipelineInfo.renderPass = vkRenderPass.GetHandle();
 		pipelineInfo.subpass = config.subpassIndex;
 
+		if (config.dynamicRendering)
+		{
+			std::vector<VkFormat> colorFormats;
+			colorFormats.reserve(config.colorFormats.size());
+			for (PixelFormat format : config.colorFormats)
+				colorFormats.push_back(ToVulkanFormat(format));
+
+			VkPipelineRenderingCreateInfo renderingInfo{};
+			renderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+			renderingInfo.colorAttachmentCount = static_cast<uint32_t>(colorFormats.size());
+			renderingInfo.pColorAttachmentFormats = colorFormats.empty() ? nullptr : colorFormats.data();
+			renderingInfo.depthAttachmentFormat = config.depthFormat != PixelFormat::Unknown
+				? ToVulkanFormat(config.depthFormat) : VK_FORMAT_UNDEFINED;
+
+			pipelineInfo.renderPass = VK_NULL_HANDLE;
+			pipelineInfo.pNext = &renderingInfo;
+			return std::make_shared<Pipeline>(*this, pipelineInfo);
+		}
+
 		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
 		pipelineInfo.basePipelineIndex = -1; // Optional
 		return std::make_shared<Pipeline>(*this, pipelineInfo);
