@@ -3,8 +3,6 @@
 
 #include "Application.h"
 #include "CommandBuffer.h"
-#include "Swapchain.h"
-#include "RHI/RHIRenderPass.h"
 
 namespace Bear
 {
@@ -29,35 +27,26 @@ namespace Bear
 	void UIPass::Setup(RenderContext* context)
 	{
 		m_Context = context;
-		m_RenderPass = m_Context->device->CreateUIRenderPass();
-		m_Framebuffers = m_Context->device->CreateUIFramebuffer(*m_RenderPass, *m_Context->swapchain);
 		InitGUI();
 	}
 
-	void UIPass::Execute(RHICommandList* cmd, std::vector<RenderObject> renderObjects)
+	void UIPass::Execute(RHICommandList* cmd, RHIImage* color)
 	{
-		uint32_t imageIndex = m_Context->device->GetCurrentImageIndex();
 		ImDrawData* drawData = ImGui::GetDrawData();
+		if (!drawData || drawData->CmdListsCount == 0)
+			return;
 
-		cmd->BeginRenderPass(*m_RenderPass, *m_Framebuffers[imageIndex], m_Context->swapchain->GetWidth(), m_Context->swapchain->GetHeight(), {});
-		
+		std::vector<RHIRenderingAttachment> attachments = {
+			{ color, ImageLayout::ColorAttachment, AttachmentLoadOp::Load, AttachmentStoreOp::Store, nullptr, false }
+		};
+
+		cmd->BeginRendering(attachments);
 		ImGui_ImplVulkan_RenderDrawData(drawData, static_cast<VkCommandBuffer>(cmd->GetNativeHandle()));
-		
-		cmd->EndRenderPass();
-	}
-
-	void UIPass::Resize()
-	{
-		m_Context->device->WaitIdle();
-		auto* vkDevice = dynamic_cast<Device*>(m_Context->device);
-
-		m_Framebuffers.clear();
-		m_Framebuffers = m_Context->device->CreateUIFramebuffer(*m_RenderPass, *m_Context->swapchain);
+		cmd->EndRendering();
 	}
 
 	void UIPass::Cleanup()
 	{
-		m_Framebuffers.clear();
 	}
 
 	void UIPass::InitGUI()
@@ -106,8 +95,9 @@ namespace Bear
 		VkResult result = vkCreateDescriptorPool(vkDevice->GetDevice(), &pool_info, nullptr, &m_DescriptorPool);
 		BEAR_CORE_ASSERT(result == VK_SUCCESS, "Failed to create descriptor pool for ImGui!");
 
-		// 8. initialize ImGui Vulkan
+		// 5. initialize ImGui Vulkan with dynamic rendering (no render pass/framebuffers)
 		ImGui_ImplVulkan_InitInfo init_info = {};
+		init_info.ApiVersion = VK_API_VERSION_1_3;
 		init_info.Instance = vkDevice->GetInstance().GetHandle();
 		init_info.PhysicalDevice = vkDevice->GetPhysicalDevice();
 		init_info.Device = vkDevice->GetDevice();
@@ -115,12 +105,20 @@ namespace Bear
 		init_info.Queue = vkDevice->GetGraphicsQueue();
 		init_info.PipelineCache = VK_NULL_HANDLE;
 		init_info.DescriptorPool = m_DescriptorPool;
-		init_info.RenderPass = static_cast<VkRenderPass>(m_RenderPass->GetNativeHandle());
+		init_info.RenderPass = VK_NULL_HANDLE; // dynamic rendering
 		init_info.Subpass = 0;
 		init_info.MinImageCount = m_Context->swapchain->GetImageCount();
 		init_info.ImageCount = m_Context->swapchain->GetImageCount();
 		init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 		init_info.Allocator = nullptr;
+		init_info.UseDynamicRendering = true;
+
+		VkFormat colorFormat = VK_FORMAT_B8G8R8A8_SRGB;
+		init_info.PipelineRenderingCreateInfo = {};
+		init_info.PipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+		init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
+		init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &colorFormat;
+		init_info.PipelineRenderingCreateInfo.depthAttachmentFormat = VK_FORMAT_UNDEFINED;
 
 		ImGui_ImplVulkan_Init(&init_info);
 	}

@@ -4,21 +4,17 @@
 #include <vector>
 #include <memory>
 #include "RHI/RHISwapchain.h"
-#include "RHI/RHIFramebuffer.h"
-#include "Pipeline/Framebuffer.h"
 #include "Resources/Image.h"
 namespace Bear {
 
 	class Device;
 	class Surface;
-	class RenderPass;
-	class Framebuffer;
 	class Image;
 	class Semaphore;
 
 	class Swapchain : public RHISwapchain {
 		public:
-		Swapchain(Device& device, RenderPass& renderPass);
+		Swapchain(Device& device);
 		~Swapchain() override;
 
 		// ��ֹ�������ƶ�
@@ -28,8 +24,6 @@ namespace Bear {
 		Swapchain& operator=(Swapchain&&) = delete;
 
 		
-		RHIFramebuffer* GetFramebuffer(uint32_t index) const override { return m_Framebuffers[index].get(); } // rhi
-
 		uint32_t AcquireNextImage(Semaphore& imageAvailableSemaphore);
 		uint32_t AcquireNextImage() override; // rhi
 		void Present(uint32_t imageIndex) override; // rhi
@@ -53,7 +47,6 @@ namespace Bear {
 		void Init();
 		void Cleanup();
 		void Recreate();
-		void CleanupFramebuffers();
 
 		// ��ʼ�������е���ϸ����
 		void ChooseSurfaceFormat();
@@ -63,14 +56,12 @@ namespace Bear {
 
 		void CreateSwapchain();
 		void CreateImageViews();
-		void CreateFramebuffers(const RenderPass& renderPass);
 		void CreateDepthResources();
 
 		VkResult SubmitImage(uint32_t imageIndex, VkQueue presentQueue, VkSemaphore waitSemaphore);
 
 	private:
 		const Device& m_Device; // ���ж��豸������
-		const RenderPass& m_RenderPass;
 
 		VkSwapchainKHR m_Swapchain = VK_NULL_HANDLE;
 
@@ -86,7 +77,6 @@ namespace Bear {
 		VkSurfaceFormatKHR m_SurfaceFormat;
 		VkPresentModeKHR m_PresentMode;
 
-		std::vector<std::unique_ptr<Framebuffer>> m_Framebuffers; // ������Ⱦ��֡������
 		std::vector<std::unique_ptr<Image>> m_DepthImages;
 		std::vector<std::unique_ptr<Image>> m_ColorImageWrappers;
 	};

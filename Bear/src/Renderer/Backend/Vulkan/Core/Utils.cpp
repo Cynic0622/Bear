@@ -315,6 +315,20 @@ namespace Bear
 			VK_ACCESS_SHADER_READ_BIT;
 		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::ShaderWrite)) vulkanFlags |=
 			VK_ACCESS_SHADER_WRITE_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::InputAttachmentRead)) vulkanFlags |=
+			VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::ColorAttachmentRead)) vulkanFlags |=
+			VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::ColorAttachmentWrite)) vulkanFlags |=
+			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::DepthStencilAttachmentRead)) vulkanFlags |=
+			VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::DepthStencilAttachmentWrite)) vulkanFlags |=
+			VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::MemoryRead)) vulkanFlags |=
+			VK_ACCESS_MEMORY_READ_BIT;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::MemoryWrite)) vulkanFlags |=
+			VK_ACCESS_MEMORY_WRITE_BIT;
 		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::TransferRead)) vulkanFlags |=
 			VK_ACCESS_TRANSFER_READ_BIT;
 		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::TransferWrite)) vulkanFlags |=

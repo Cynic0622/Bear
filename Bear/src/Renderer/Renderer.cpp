@@ -32,7 +32,6 @@ namespace Bear {
 		m_UIPass.reset();
 		m_PbrPass.reset();
 		m_OitPass.reset();
-		m_RenderPass.reset();
 	}
 	uint32_t Renderer::GetSwapchainImageCount() const
 	{
@@ -73,6 +72,11 @@ namespace Bear {
 		// ---------------- frame graph flow ----------------
 		m_RenderGraph.Reset();
 
+		// swapchain targets enter the graph as Undefined: the graph emits the explicit
+		// layout transitions required by the dynamic-rendering passes
+		const auto colorTarget = m_RenderGraph.ImportTexture("color", m_Swapchain->GetColorImage(m_CurrentImageIndex), ImageLayout::Undefined);
+		const auto depthTarget = m_RenderGraph.ImportTexture("depth", m_Swapchain->GetDepthImage(m_CurrentImageIndex), ImageLayout::Undefined);
+
 		const bool occlusionActive = m_HiZPass && m_CullingPass->IsOcclusionActive();
 
 		// resources participating in the graph (render targets keep their layout management
@@ -99,10 +103,17 @@ namespace Bear {
 			m_CullingPass->SetHiZMipCount(m_HiZPass->GetMipCount());
 		}
 
-		// Skybox: renders into the swapchain color, no graph resources yet
+		// Skybox: clears the swapchain color/depth through dynamic rendering
 		m_RenderGraph.AddPass("Skybox",
-			nullptr,
-			[&](RHICommandList& cmd) { m_SkyboxPass->Execute(&cmd, renderObjects); });
+			[&](RenderGraph::PassBuilder& b)
+			{
+				b.Write(colorTarget, { PipelineStage::ColorAttachmentOutput, AccessFlags::ColorAttachmentWrite, ImageLayout::ColorAttachment });
+				b.Write(depthTarget, { PipelineStage::EarlyFragmentTests | PipelineStage::LateFragmentTests, AccessFlags::DepthStencilAttachmentWrite, ImageLayout::DepthStencilAttachment });
+			},
+			[&](RHICommandList& cmd)
+			{
+				m_SkyboxPass->Execute(&cmd, m_Swapchain->GetColorImage(m_CurrentImageIndex), m_Swapchain->GetDepthImage(m_CurrentImageIndex));
+			});
 
 		// Culling phase 1 -> visible set A
 		m_RenderGraph.AddPass("Culling.Primary",
@@ -112,7 +123,7 @@ namespace Bear {
 				b.Write(bufferA, { PipelineStage::ComputeShader, AccessFlags::ShaderWrite });
 				b.Write(countersA, { PipelineStage::ComputeShader, AccessFlags::ShaderWrite });
 			},
-			[&](RHICommandList& cmd) { m_CullingPass->Execute(&cmd, renderObjects); });
+			[this, renderObjects](RHICommandList& cmd) { m_CullingPass->Execute(&cmd, renderObjects); });
 
 		// PBR stage 1: draws set A with cleared depth
 		m_PbrPass->ResetStats();
@@ -121,8 +132,14 @@ namespace Bear {
 			{
 				b.Read(bufferA, { PipelineStage::DrawIndirect, AccessFlags::IndirectCommandRead });
 				b.Read(countersA, { PipelineStage::DrawIndirect, AccessFlags::IndirectCommandRead });
+				b.Write(colorTarget, { PipelineStage::ColorAttachmentOutput, AccessFlags::ColorAttachmentWrite, ImageLayout::ColorAttachment });
+				b.Write(depthTarget, { PipelineStage::EarlyFragmentTests | PipelineStage::LateFragmentTests, AccessFlags::DepthStencilAttachmentWrite, ImageLayout::DepthStencilAttachment });
 			},
-			[&](RHICommandList& cmd) { m_PbrPass->Execute(&cmd, m_CullingPass->GetVisibleSet(), true); });
+			[&](RHICommandList& cmd)
+			{
+				m_PbrPass->Execute(&cmd, m_CullingPass->GetVisibleSet(), true,
+					m_Swapchain->GetColorImage(m_CurrentImageIndex), m_Swapchain->GetDepthImage(m_CurrentImageIndex));
+			});
 
 		if (occlusionActive)
 		{
@@ -131,8 +148,9 @@ namespace Bear {
 				[&](RenderGraph::PassBuilder& b)
 				{
 					b.Write(hizCur, { PipelineStage::ComputeShader, AccessFlags::ShaderWrite, ImageLayout::General });
+					b.Read(depthTarget, { PipelineStage::ComputeShader, AccessFlags::ShaderRead, ImageLayout::ShaderReadOnly });
 				},
-				[&](RHICommandList& cmd)
+				[this, frameIndex](RHICommandList& cmd)
 				{
 					m_HiZPass->Execute(&cmd, *m_Swapchain->GetDepthImage(m_CurrentImageIndex), frameIndex);
 				});
@@ -145,7 +163,7 @@ namespace Bear {
 					b.Write(bufferB, { PipelineStage::ComputeShader, AccessFlags::ShaderWrite });
 					b.Write(countersB, { PipelineStage::ComputeShader, AccessFlags::ShaderWrite });
 				},
-				[&](RHICommandList& cmd)
+				[this, frameIndex](RHICommandList& cmd)
 				{
 					m_CullingPass->SetHiZSource(m_HiZPass->GetPyramid(frameIndex), m_HiZPass->GetSampler());
 					m_CullingPass->ExecutePhase2(&cmd);
@@ -157,17 +175,15 @@ namespace Bear {
 				{
 					b.Read(bufferB, { PipelineStage::DrawIndirect, AccessFlags::IndirectCommandRead });
 					b.Read(countersB, { PipelineStage::DrawIndirect, AccessFlags::IndirectCommandRead });
+					b.Write(colorTarget, { PipelineStage::ColorAttachmentOutput, AccessFlags::ColorAttachmentWrite, ImageLayout::ColorAttachment });
+					b.Write(depthTarget, { PipelineStage::EarlyFragmentTests | PipelineStage::LateFragmentTests, AccessFlags::DepthStencilAttachmentWrite, ImageLayout::DepthStencilAttachment });
 				},
-				[&](RHICommandList& cmd) { m_PbrPass->Execute(&cmd, m_CullingPass->GetRescuedSet(), false); });
+				[&](RHICommandList& cmd)
+				{
+					m_PbrPass->Execute(&cmd, m_CullingPass->GetRescuedSet(), false,
+						m_Swapchain->GetColorImage(m_CurrentImageIndex), m_Swapchain->GetDepthImage(m_CurrentImageIndex));
+				});
 		}
-
-		m_RenderGraph.Compile();
-		if (m_DumpGraphRequested)
-		{
-			BEAR_CORE_INFO("Frame graph:\n{}", m_RenderGraph.Dump());
-			m_DumpGraphRequested = false;
-		}
-		m_RenderGraph.Execute(*m_CurrentCommandBuffer);
 
 		if (OitEnabled)
 		{
@@ -176,11 +192,75 @@ namespace Bear {
 				m_OitPass = std::make_unique<OitPass>();
 				m_OitPass->Setup(m_RenderContext);
 			}
-			m_OitPass->Execute(m_CurrentCommandBuffer, renderObjects);
+
+			// OIT storage lives only inside the OIT pass: transient resources owned by the
+			// frame graph (aliased with other transients of disjoint lifetime)
+			const uint32_t width = m_Swapchain->GetWidth();
+			const uint32_t height = m_Swapchain->GetHeight();
+			size_t nodeStride = 32; // vec4 + float in std430
+			auto oitNodes = m_RenderGraph.CreateBuffer("oit.nodes",
+				static_cast<size_t>(width) * height * MAX_OIT_NODES_PER_PIXEL * nodeStride,
+				BufferUsage::StorageBuffer | BufferUsage::TransferDstBuffer, false);
+
+			RHITextureConfig counterConfig;
+			counterConfig.width = width;
+			counterConfig.height = height;
+			counterConfig.format = PixelFormat::R32_UINT;
+			counterConfig.usage = ImageUsage::Storage | ImageUsage::TransferDst;
+			auto oitCounter = m_RenderGraph.CreateTexture("oit.counter", counterConfig);
+
+			// transparent accumulation reads depth and blends into the color target
+			m_RenderGraph.AddPass("OIT",
+				[&](RenderGraph::PassBuilder& b)
+				{
+					b.Read(depthTarget, { PipelineStage::EarlyFragmentTests | PipelineStage::LateFragmentTests, AccessFlags::DepthStencilAttachmentRead, ImageLayout::DepthStencilAttachment });
+					b.Write(colorTarget, { PipelineStage::ColorAttachmentOutput, AccessFlags::ColorAttachmentWrite, ImageLayout::ColorAttachment });
+					b.Write(oitCounter, { PipelineStage::FragmentShader, AccessFlags::ShaderRead | AccessFlags::ShaderWrite, ImageLayout::General });
+					b.Write(oitNodes, { PipelineStage::FragmentShader, AccessFlags::ShaderWrite });
+				},
+				[this, renderObjects, oitNodes, oitCounter](RHICommandList& cmd)
+				{
+					m_OitPass->Execute(&cmd, renderObjects,
+						m_Swapchain->GetColorImage(m_CurrentImageIndex), m_Swapchain->GetDepthImage(m_CurrentImageIndex),
+						m_RenderGraph.GetBuffer(oitNodes), m_RenderGraph.GetTexture(oitCounter));
+				});
 		}
 
-		const auto& pbrStats = m_PbrPass->GetStats();
+		// UI draws last (executed after ImGui::Render in EndFrame); the present
+		// transition hands the color target over to the presentation engine
+		m_RenderGraph.AddPass("UI",
+			[&](RenderGraph::PassBuilder& b)
+			{
+				b.Write(colorTarget, { PipelineStage::ColorAttachmentOutput, AccessFlags::ColorAttachmentWrite, ImageLayout::ColorAttachment });
+			},
+			[&](RHICommandList& cmd)
+			{
+				m_UIPass->Execute(&cmd, m_Swapchain->GetColorImage(m_CurrentImageIndex));
+			});
+
+		m_RenderGraph.AddPass("Present.Transition",
+			[&](RenderGraph::PassBuilder& b)
+			{
+				b.Read(colorTarget, { PipelineStage::BottomOfPipe, AccessFlags::None, ImageLayout::PresentSrc });
+			},
+			[](RHICommandList&) {}, true, true);
+
+		m_RenderGraph.Compile();
+		if (m_DumpGraphRequested)
+		{
+			BEAR_CORE_INFO("Frame graph:\n{}", m_RenderGraph.Dump());
+			m_DumpGraphRequested = false;
+		}
+
 		m_FrameStats.visibleObjects = static_cast<uint32_t>(renderObjects.size());
+	}
+	
+	void Renderer::EndFrame()
+	{
+		ImGui::Render();
+		m_RenderGraph.Execute(*m_CurrentCommandBuffer);
+
+		const auto& pbrStats = m_PbrPass->GetStats();
 		m_FrameStats.opaqueObjects = pbrStats.opaqueObjects;
 		m_FrameStats.drawCalls = 1 /*skybox*/ + pbrStats.drawCalls;
 		const auto& gpuStats = m_CullingPass->GetGpuStats();
@@ -193,12 +273,7 @@ namespace Bear {
 			m_FrameStats.transparentObjects = oitStats.transparentObjects;
 			m_FrameStats.drawCalls += oitStats.drawCalls;
 		}
-	}
-	
-	void Renderer::EndFrame() const
-	{
-		ImGui::Render();
-		m_UIPass->Execute(m_CurrentCommandBuffer);
+
 		m_Device->EndFrame(*m_Swapchain, m_CurrentImageIndex);
 	}
 	void Renderer::Init(GraphicsAPI api)
@@ -207,23 +282,9 @@ namespace Bear {
 		platformData.windowHandle = m_Window;
 
 		m_Device = CreateDevice(api, platformData);
+		m_RenderGraph.Setup(m_Device.get(), MAX_FRAMES_IN_FLIGHT);
 
-		AttachmentDescription colorAttachment{};
-		colorAttachment.format = PixelFormat::B8G8R8A8_SRGB;
-		colorAttachment.loadOp = AttachmentLoadOp::Clear;
-		colorAttachment.storeOp = AttachmentStoreOp::Store;
-		colorAttachment.initialLayout = ImageLayout::Undefined;
-		colorAttachment.finalLayout = ImageLayout::ColorAttachment;
-
-		AttachmentDescription depthAttachment{};
-		depthAttachment.format = PixelFormat::D32_SFLOAT;
-		depthAttachment.loadOp = AttachmentLoadOp::Clear;
-		depthAttachment.storeOp = AttachmentStoreOp::Store;
-		depthAttachment.initialLayout = ImageLayout::Undefined;
-		depthAttachment.finalLayout = ImageLayout::DepthStencilAttachment;
-		m_RenderPass = m_Device->CreateRenderPass({ colorAttachment, depthAttachment });
-		
-		m_Swapchain = m_Device->CreateSwapchain(*m_RenderPass);
+		m_Swapchain = m_Device->CreateSwapchain();
 
 		m_BaseDataUniformBuffer.resize(MAX_FRAMES_IN_FLIGHT);
 		m_BaseDataDescriptorSet.resize(MAX_FRAMES_IN_FLIGHT);
@@ -295,22 +356,6 @@ namespace Bear {
 	{
 		if (m_Swapchain) {
 			m_Swapchain->Resize();
-		}
-		if (m_UIPass)
-		{
-			m_UIPass->Resize();
-		}
-		if (m_PbrPass)
-		{
-			m_PbrPass->Resize();
-		}
-		if (m_OitPass)
-		{
-			m_OitPass->Resize();
-		}
-		if (m_SkyboxPass)
-		{
-			m_SkyboxPass->Resize();
 		}
 		if (m_HiZPass)
 		{

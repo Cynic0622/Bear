@@ -43,7 +43,6 @@ namespace Bear {
 
 		// getter
 		RHIDevice* GetDevice() const { return m_Device.get(); }
-		RHIRenderPass* GetRenderPass() const { return m_RenderPass.get(); }
 		RHICommandList* GetCurrentCommandList() const { return m_CurrentCommandBuffer; }
 		uint32_t GetSwapchainImageCount() const;
 		ResourceManager& GetResourceManager() { return *m_Resource; }
@@ -54,7 +53,7 @@ namespace Bear {
 
 		void BeginFrame();
 		void Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData, const BaseData& baseData);
-		void EndFrame() const;
+		void EndFrame();
 
 
 	private:
@@ -65,8 +64,6 @@ namespace Bear {
 		const uint8_t MAX_FRAMES_IN_FLIGHT = 2;
 		std::unique_ptr<RHIDevice> m_Device;
 		std::unique_ptr<RHISwapchain> m_Swapchain;
-		std::shared_ptr<RHIRenderPass> m_RenderPass;
-		std::shared_ptr<RHIRenderPass> m_UIRenderPass; // for UI rendering
 
 		RHICommandList* m_CurrentCommandBuffer;
 		uint32_t m_CurrentImageIndex;

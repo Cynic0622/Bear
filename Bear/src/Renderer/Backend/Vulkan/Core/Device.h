@@ -48,11 +48,9 @@ namespace Bear {
         std::unique_ptr<RHIDescriptorSet> CreateDescriptorSet(std::shared_ptr<RHIDescriptorSetLayout> layout) override;
         std::shared_ptr<RHIRenderPass> CreateRenderPass(const std::vector <AttachmentDescription>& attachments) override;
         std::shared_ptr<RHIRenderPass> CreateRenderPass(const RenderPassDescription& desc) override;
-        std::unique_ptr<RHISwapchain> CreateSwapchain(RHIRenderPass& renderPass) override;
+        std::unique_ptr<RHISwapchain> CreateSwapchain() override;
 		std::unique_ptr<RHIImage> CreateTexture(const RHITextureConfig& config) override;
 		std::shared_ptr<RHISampler> CreateSampler(const RHISamplerConfig& config) override;
-        std::shared_ptr<RHIRenderPass> CreateUIRenderPass() override;
-        std::vector<std::shared_ptr<RHIFramebuffer>> CreateUIFramebuffer(RHIRenderPass& renderPass, RHISwapchain& swapchain) override;
         std::shared_ptr<RHIFramebuffer> CreateFramebuffer(RHIRenderPass& renderPass, const std::vector<void*>& attachments, uint32_t width, uint32_t height) override;
 
         void ImmediateSubmit(std::function<void(RHICommandList&)>&& function) override;
