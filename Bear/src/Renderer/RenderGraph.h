@@ -124,6 +124,10 @@ namespace Bear
 			bool everUsed = false;
 			bool transient = false;
 			RHITextureConfig config; // transient only
+			// alias pool location, assigned by AllocateTransients
+			bool hasPool = false;
+			uint32_t poolSlot = 0;
+			uint32_t poolIndex = 0;
 		};
 		struct BufferResource
 		{
@@ -137,6 +141,10 @@ namespace Bear
 			size_t size = 0; // transient only
 			BufferUsage usage = BufferUsage::None;
 			bool cpuAccessible = false;
+			// alias pool location, assigned by AllocateTransients
+			bool hasPool = false;
+			uint32_t poolSlot = 0;
+			uint32_t poolIndex = 0;
 		};
 
 		struct BarrierPlan
@@ -182,12 +190,20 @@ namespace Bear
 		// allocates transient resources using lifetime-based aliasing in the per-slot pools
 		void AllocateTransients();
 
+		// Pool entries carry the state left by the last user so the next aliased
+		// resource starts from the real state instead of Undefined/TopOfPipe
 		struct PooledTexture
 		{
 			RHITextureConfig config;
 			std::shared_ptr<RHIImage> image;
 			std::vector<std::pair<uint32_t, uint32_t>> intervals; // live ranges assigned this frame
 			uint64_t lastUsedStamp = 0;
+
+			bool hasState = false;
+			ImageLayout lastLayout = ImageLayout::Undefined;
+			PipelineStage lastStage = PipelineStage::TopOfPipe;
+			AccessFlags lastAccess = AccessFlags::None;
+			bool lastWrite = false;
 		};
 		struct PooledBuffer
 		{
@@ -197,6 +213,11 @@ namespace Bear
 			std::shared_ptr<RHIBuffer> buffer;
 			std::vector<std::pair<uint32_t, uint32_t>> intervals;
 			uint64_t lastUsedStamp = 0;
+
+			bool hasState = false;
+			PipelineStage lastStage = PipelineStage::TopOfPipe;
+			AccessFlags lastAccess = AccessFlags::None;
+			bool lastWrite = false;
 		};
 
 		RHIDevice* m_Device = nullptr;
