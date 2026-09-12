@@ -29,14 +29,12 @@ git clone --recursive https://github.com/Cynic0622/Bear.git
   - 采用实体组件系统 (Entity Component System) 构建场景图，提高数据局部性及加速场景遍历。
 
 - **渲染优化**
-  - **CPU 端视锥剔除 (Frustum Culling)**: 在提交 GPU 之前剔除视野外的物体，减少无效渲染。
-  - **GPU-Driven 剔除 (GPU Culling)**: Compute Shader 视锥剔除 + 材质分桶间接绘制（`DrawIndexedIndirectCount`），绘制调用数量与物体数量解耦。
-  - **Hi-Z 遮挡剔除 (Occlusion Culling)**: 基于深度金字塔的物体级遮挡剔除，采用"上一帧预剔 + 同帧修正"两阶段方案，避免时序伪影。
+  - **CPU 端视锥剔除 (Frustum Culling)**
+  - **GPU-Driven 剔除 (GPU Culling)**
+  - **Hi-Z 遮挡剔除 (Occlusion Culling)**
 
 - **帧图 (Render Graph)**
-  - **自动同步**: 资源导入与 transient 创建，由 pass 读写声明自动推导 RAW/WAR/WAW 依赖，稳定拓扑排序后生成 Pipeline Barrier 与布局转换；支持死 pass 剔除与屏障裁剪。
-  - **生命周期别名**: 按执行序计算 transient 资源的存活区间，描述相同且区间不重叠的资源共享同一底层内存，并按 frame-in-flight 池化复用。
-  - **全动态渲染 (Dynamic Rendering)**: 场景、OIT、UI 与 Present 交接全部基于 `vkCmdBeginRendering` 并由帧图管理，无 `VkRenderPass`/framebuffer。
+  - 根据 pass 的读写声明自动推导依赖并同步资源（屏障与布局转换），支持 transient 资源别名复用与死 pass 剔除；全帧基于动态渲染。
 
 ## 🗓️ 待实现（TODO）
 
