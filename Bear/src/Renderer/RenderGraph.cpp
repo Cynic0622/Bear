@@ -20,7 +20,7 @@ namespace Bear
 		res.image = image;
 		res.layout = initialLayout;
 		m_Textures.push_back(std::move(res));
-		return static_cast<TextureHandle>(m_Textures.size() - 1);
+		return TextureHandle{ static_cast<uint32_t>(m_Textures.size() - 1) };
 	}
 
 	RenderGraph::BufferHandle RenderGraph::ImportBuffer(const char* name, RHIBuffer* buffer)
@@ -29,7 +29,7 @@ namespace Bear
 		res.name = name ? name : "buffer";
 		res.buffer = buffer;
 		m_Buffers.push_back(std::move(res));
-		return static_cast<BufferHandle>(m_Buffers.size() - 1);
+		return BufferHandle{ static_cast<uint32_t>(m_Buffers.size() - 1) };
 	}
 
 	void RenderGraph::AddPass(const char* name, std::function<void(PassBuilder&)>&& setup, std::function<void(RHICommandList&)>&& execute)
@@ -47,14 +47,14 @@ namespace Bear
 	void RenderGraph::RecordTextureUse(size_t passIndex, TextureHandle handle, UseKind kind, const RGTextureUse& use)
 	{
 		BEAR_CORE_ASSERT(passIndex < m_Passes.size(), "invalid pass index");
-		BEAR_CORE_ASSERT(handle < m_Textures.size(), "invalid texture handle");
+		BEAR_CORE_ASSERT(handle.id < m_Textures.size(), "invalid texture handle");
 		m_Passes[passIndex].textureUses.push_back({ handle, kind, use });
 	}
 
 	void RenderGraph::RecordBufferUse(size_t passIndex, BufferHandle handle, UseKind kind, const RGBufferUse& use)
 	{
 		BEAR_CORE_ASSERT(passIndex < m_Passes.size(), "invalid pass index");
-		BEAR_CORE_ASSERT(handle < m_Buffers.size(), "invalid buffer handle");
+		BEAR_CORE_ASSERT(handle.id < m_Buffers.size(), "invalid buffer handle");
 		m_Passes[passIndex].bufferUses.push_back({ handle, kind, use });
 	}
 
@@ -68,7 +68,7 @@ namespace Bear
 
 			for (const auto& record : pass.textureUses)
 			{
-				auto& res = m_Textures[record.handle];
+				auto& res = m_Textures[record.handle.id];
 				const auto& use = record.use;
 
 				// no barrier needed for the very first use when the initial layout is undefined
@@ -119,7 +119,7 @@ namespace Bear
 
 			for (const auto& record : pass.bufferUses)
 			{
-				auto& res = m_Buffers[record.handle];
+				auto& res = m_Buffers[record.handle.id];
 				const auto& use = record.use;
 
 				// buffers have no layouts; only writes create hazards
@@ -162,8 +162,8 @@ namespace Bear
 		{
 			for (auto& entry : pass.barriers.imageBarriers)
 			{
-				if (m_Textures[entry.handle].image)
-					cmd.ImageBarrier(*m_Textures[entry.handle].image, entry.barrier);
+				if (m_Textures[entry.handle.id].image)
+					cmd.ImageBarrier(*m_Textures[entry.handle.id].image, entry.barrier);
 			}
 			if (pass.barriers.hasBufferBarrier)
 				cmd.PipelineBarrier(pass.barriers.bufferBarrier);
@@ -182,17 +182,17 @@ namespace Bear
 			for (const auto& record : pass.textureUses)
 			{
 				out += std::string("    ") + (record.kind == UseKind::Read ? "R" : "W") +
-					" texture " + m_Textures[record.handle].name +
+					" texture " + m_Textures[record.handle.id].name +
 					" (layout " + std::to_string(static_cast<int>(record.use.layout)) + ")\n";
 			}
 			for (const auto& record : pass.bufferUses)
 			{
 				out += std::string("    ") + (record.kind == UseKind::Read ? "R" : "W") +
-					" buffer " + m_Buffers[record.handle].name + "\n";
+					" buffer " + m_Buffers[record.handle.id].name + "\n";
 			}
 			for (const auto& entry : pass.barriers.imageBarriers)
 			{
-				out += "    barrier: image " + m_Textures[entry.handle].name +
+				out += "    barrier: image " + m_Textures[entry.handle.id].name +
 					" layout " + std::to_string(static_cast<int>(entry.barrier.oldLayout)) +
 					" -> " + std::to_string(static_cast<int>(entry.barrier.newLayout)) + "\n";
 			}

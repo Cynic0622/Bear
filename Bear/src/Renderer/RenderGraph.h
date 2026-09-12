@@ -33,9 +33,18 @@ namespace Bear
 	class RenderGraph
 	{
 	public:
-		using TextureHandle = uint32_t;
-		using BufferHandle = uint32_t;
-		static constexpr uint32_t kInvalid = 0xFFFFFFFFu;
+		struct TextureHandle
+		{
+			uint32_t id = 0xFFFFFFFFu;
+			bool IsValid() const { return id != 0xFFFFFFFFu; }
+			bool operator==(const TextureHandle& other) const { return id == other.id; }
+		};
+		struct BufferHandle
+		{
+			uint32_t id = 0xFFFFFFFFu;
+			bool IsValid() const { return id != 0xFFFFFFFFu; }
+			bool operator==(const BufferHandle& other) const { return id == other.id; }
+		};
 
 		void Reset();
 

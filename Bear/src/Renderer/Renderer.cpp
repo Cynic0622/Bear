@@ -70,31 +70,99 @@ namespace Bear {
 		{
 			perObjBuf->UploadData(&renderObjects[i].transform, sizeof(glm::mat4), i * sizeof(glm::mat4));
 		}
-		// ---------------- explicit frame flow ----------------
-		m_SkyboxPass->Execute(m_CurrentCommandBuffer, renderObjects);
+		// ---------------- frame graph flow ----------------
+		m_RenderGraph.Reset();
 
-		// culling: build the command pool; phase 1 dispatch (frustum + previous-frame Hi-Z)
-		m_CullingPass->SetViewProjection(baseData.projMat * baseData.viewMat);
+		const bool occlusionActive = m_HiZPass && m_CullingPass->IsOcclusionActive();
+
+		// resources participating in the graph (render targets keep their layout management
+		// inside their render passes for now)
+		RenderGraph::TextureHandle hizPrev; // invalid until imported
+		RenderGraph::TextureHandle hizCur;
 		if (m_HiZPass)
 		{
 			uint32_t prevSlot = (frameIndex + 1) % 2; // ping-pong of 2 pyramid slots
+			hizPrev = m_RenderGraph.ImportTexture("hiZ.prev", m_HiZPass->GetPyramid(prevSlot), ImageLayout::General);
+			hizCur = m_RenderGraph.ImportTexture("hiZ.cur", m_HiZPass->GetPyramid(frameIndex), ImageLayout::General);
+		}
+
+		const auto bufferA = m_RenderGraph.ImportBuffer("cull.outA", m_CullingPass->GetOutputCommandsBuffer());
+		const auto countersA = m_RenderGraph.ImportBuffer("cull.countersA", m_CullingPass->GetCountersBuffer());
+		const auto bufferB = m_RenderGraph.ImportBuffer("cull.outB", m_CullingPass->GetRescuedCommandsBuffer());
+		const auto countersB = m_RenderGraph.ImportBuffer("cull.countersB", m_CullingPass->GetRescuedCountersBuffer());
+
+		m_CullingPass->SetViewProjection(baseData.projMat * baseData.viewMat);
+		if (m_HiZPass)
+		{
+			uint32_t prevSlot = (frameIndex + 1) % 2;
 			m_CullingPass->SetHiZSource(m_HiZPass->GetPyramid(prevSlot), m_HiZPass->GetSampler());
 			m_CullingPass->SetHiZMipCount(m_HiZPass->GetMipCount());
 		}
-		m_CullingPass->Execute(m_CurrentCommandBuffer, renderObjects);
 
-		// PBR stage 1: visible set, clears depth
+		// Skybox: renders into the swapchain color, no graph resources yet
+		m_RenderGraph.AddPass("Skybox",
+			nullptr,
+			[&](RHICommandList& cmd) { m_SkyboxPass->Execute(&cmd, renderObjects); });
+
+		// Culling phase 1 -> visible set A
+		m_RenderGraph.AddPass("Culling.Primary",
+			[&](RenderGraph::PassBuilder& b)
+			{
+				b.Read(hizPrev, { PipelineStage::ComputeShader, AccessFlags::ShaderRead, ImageLayout::General });
+				b.Write(bufferA, { PipelineStage::ComputeShader, AccessFlags::ShaderWrite });
+				b.Write(countersA, { PipelineStage::ComputeShader, AccessFlags::ShaderWrite });
+			},
+			[&](RHICommandList& cmd) { m_CullingPass->Execute(&cmd, renderObjects); });
+
+		// PBR stage 1: draws set A with cleared depth
 		m_PbrPass->ResetStats();
-		m_PbrPass->Execute(m_CurrentCommandBuffer, m_CullingPass->GetVisibleSet(), true);
+		m_RenderGraph.AddPass("PBR.Primary",
+			[&](RenderGraph::PassBuilder& b)
+			{
+				b.Read(bufferA, { PipelineStage::DrawIndirect, AccessFlags::IndirectCommandRead });
+				b.Read(countersA, { PipelineStage::DrawIndirect, AccessFlags::IndirectCommandRead });
+			},
+			[&](RHICommandList& cmd) { m_PbrPass->Execute(&cmd, m_CullingPass->GetVisibleSet(), true); });
 
-		// occlusion refinement: same-frame Hi-Z, phase 2 rescue, PBR stage 2
-		if (m_HiZPass && m_CullingPass->IsOcclusionActive())
+		if (occlusionActive)
 		{
-			m_HiZPass->Execute(m_CurrentCommandBuffer, *m_Swapchain->GetDepthImage(m_CurrentImageIndex), frameIndex);
-			m_CullingPass->SetHiZSource(m_HiZPass->GetPyramid(frameIndex), m_HiZPass->GetSampler());
-			m_CullingPass->ExecutePhase2(m_CurrentCommandBuffer);
-			m_PbrPass->Execute(m_CurrentCommandBuffer, m_CullingPass->GetRescuedSet(), false);
+			// Hi-Z build from PBR stage-1 depth
+			m_RenderGraph.AddPass("HiZ.Build",
+				[&](RenderGraph::PassBuilder& b)
+				{
+					b.Write(hizCur, { PipelineStage::ComputeShader, AccessFlags::ShaderWrite, ImageLayout::General });
+				},
+				[&](RHICommandList& cmd)
+				{
+					m_HiZPass->Execute(&cmd, *m_Swapchain->GetDepthImage(m_CurrentImageIndex), frameIndex);
+				});
+
+			// Culling phase 2: same-frame retest of deferred objects -> set B
+			m_RenderGraph.AddPass("Culling.Refine",
+				[&](RenderGraph::PassBuilder& b)
+				{
+					b.Read(hizCur, { PipelineStage::ComputeShader, AccessFlags::ShaderRead, ImageLayout::General });
+					b.Write(bufferB, { PipelineStage::ComputeShader, AccessFlags::ShaderWrite });
+					b.Write(countersB, { PipelineStage::ComputeShader, AccessFlags::ShaderWrite });
+				},
+				[&](RHICommandList& cmd)
+				{
+					m_CullingPass->SetHiZSource(m_HiZPass->GetPyramid(frameIndex), m_HiZPass->GetSampler());
+					m_CullingPass->ExecutePhase2(&cmd);
+				});
+
+			// PBR stage 2: rescued set B with loaded depth
+			m_RenderGraph.AddPass("PBR.Refine",
+				[&](RenderGraph::PassBuilder& b)
+				{
+					b.Read(bufferB, { PipelineStage::DrawIndirect, AccessFlags::IndirectCommandRead });
+					b.Read(countersB, { PipelineStage::DrawIndirect, AccessFlags::IndirectCommandRead });
+				},
+				[&](RHICommandList& cmd) { m_PbrPass->Execute(&cmd, m_CullingPass->GetRescuedSet(), false); });
 		}
+
+		m_RenderGraph.Compile();
+		m_RenderGraph.Execute(*m_CurrentCommandBuffer);
 
 		if (OitEnabled)
 		{
