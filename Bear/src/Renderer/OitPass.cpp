@@ -21,7 +21,6 @@ namespace Bear
 
 	void OitPass::Execute(RHICommandList* cmd, std::vector<RenderObject> renderObjects)
 	{
-		// set a barrier to make sure last pass(pbr) depth write finished before oit pass read depth.
 		MemoryBarrier depthBarrier{};
 		depthBarrier.srcAccessMask = AccessFlags::DepthStencilAttachmentWrite;
 		depthBarrier.srcStageMask = PipelineStage::LateFragmentTests;
@@ -29,25 +28,18 @@ namespace Bear
 		depthBarrier.dstStageMask = PipelineStage::EarlyFragmentTests;
 		cmd->PipelineBarrier(depthBarrier);
 
-		// reset buffer value
-		uint32_t fillValue = 0;
-		cmd->FillBuffer(*m_AtomicCounterBuffer, &fillValue, sizeof(fillValue), offsetof(AtomicCounter, count));
-		// reset texture value
-		cmd->TransitionImageLayout(*m_HeadPointerImage, ImageLayout::General, ImageLayout::TransferDst);
+		cmd->TransitionImageLayout(*m_PixelCounterImage, ImageLayout::General, ImageLayout::TransferDst);
 		ClearColor clearColor;
-		clearColor.uint32[0] = clearColor.uint32[1] = clearColor.uint32[2] = clearColor.uint32[3] = 0xFFFFFFFF;
-		cmd->ClearImage(*m_HeadPointerImage, clearColor);
-		// image layout transferDst --> general
-		cmd->TransitionImageLayout(*m_HeadPointerImage, ImageLayout::TransferDst, ImageLayout::General);
+		clearColor.uint32[0] = clearColor.uint32[1] = clearColor.uint32[2] = clearColor.uint32[3] = 0;
+		cmd->ClearImage(*m_PixelCounterImage, clearColor);
+		cmd->TransitionImageLayout(*m_PixelCounterImage, ImageLayout::TransferDst, ImageLayout::General);
 
-		// set barrier, make sure fill and clear finished before fragment shader use.
 		MemoryBarrier barrier{};
 		barrier.srcAccessMask = AccessFlags::TransferWrite;
 		barrier.srcStageMask = PipelineStage::Transfer;
 		barrier.dstAccessMask = AccessFlags::ShaderRead | AccessFlags::ShaderWrite;
 		barrier.dstStageMask = PipelineStage::FragmentShader;
 		cmd->PipelineBarrier(barrier);
-
 
 		auto currentImageIndex = m_Context->device->GetCurrentImageIndex();
 		auto currentFrameIndex = m_Context->device->GetCurrentFrameIndex();
@@ -58,10 +50,12 @@ namespace Bear
 		cmd->SetScissor(0, 0, width, height);
 		cmd->SetViewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
 		cmd->BindPipeline(*m_OitPipeline);
+		uint32_t transparentCount = 0;
 		for (const auto& obj : renderObjects)
 		{
 			if (!obj.material->IsTransparent())
 				continue;
+			transparentCount++;
 			cmd->BindDescriptorSet(*m_OitPipelineLayout, *m_Context->baseDataDescriptorSet[currentFrameIndex], 0);
 			cmd->BindDescriptorSet(*m_OitPipelineLayout, *m_Context->sceneDataDescriptorSet[currentFrameIndex], 1);
 			cmd->BindDescriptorSet(*m_OitPipelineLayout, *obj.material->GetDescriptorSet(), 2);
@@ -71,14 +65,13 @@ namespace Bear
 			obj.mesh->Draw(*cmd);
 		}
 		cmd->EndRenderPass();
-		// set barrier, make sure write(node buffer + head pointer image) finished before next pass use.
+
 		barrier.srcStageMask = PipelineStage::FragmentShader;
 		barrier.srcAccessMask = AccessFlags::ShaderWrite;
 		barrier.dstStageMask = PipelineStage::FragmentShader;
 		barrier.dstAccessMask = AccessFlags::ShaderRead;
 		cmd->PipelineBarrier(barrier);
 
-		// Blend Pass
 		cmd->BeginRenderPass(*m_BlendRenderPass, *m_BlendFramebuffers[currentImageIndex], width, height, { {{0.1f, 0.1f, 0.1f}, {}, false} });
 		cmd->SetScissor(0, 0, width, height);
 		cmd->SetViewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
@@ -86,12 +79,17 @@ namespace Bear
 		cmd->BindDescriptorSet(*m_BlendPipelineLayout, *m_BlendDescriptorSet, 0);
 		cmd->Draw(3, 1, 0, 0);
 		cmd->EndRenderPass();
+
+		m_Stats.transparentObjects = transparentCount;
+		m_Stats.drawCalls = transparentCount + 1; // per-object draws + blend fullscreen triangle
 	}
 
 	void OitPass::Resize()
 	{
 		Cleanup();
 		CreateFramebuffer();
+		PrepareOit();
+		PrepareBlend();
 	}
 
 	void OitPass::Cleanup()
@@ -188,7 +186,7 @@ namespace Bear
 		blendPipelineConfig.fragmentShaderPath = "Bear/src/Shaders/oitBlendFrag.spv";
 		blendPipelineConfig.colorBlendAttachmentState.colorWriteMask = ColorWriteMask::All;
 		blendPipelineConfig.colorBlendAttachmentState.blendEnable = true;
-		blendPipelineConfig.colorBlendAttachmentState.srcColorBlendFactor = BlendFactor::SrcAlpha;
+		blendPipelineConfig.colorBlendAttachmentState.srcColorBlendFactor = BlendFactor::One;
 		blendPipelineConfig.colorBlendAttachmentState.dstColorBlendFactor = BlendFactor::OneMinusSrcAlpha;
 		blendPipelineConfig.colorBlendAttachmentState.colorBlendOp = BlendOp::Add;
 		blendPipelineConfig.colorBlendAttachmentState.srcAlphaBlendFactor = BlendFactor::One;
@@ -204,58 +202,43 @@ namespace Bear
 	{
 		auto width = m_Context->swapchain->GetWidth();
 		auto height = m_Context->swapchain->GetHeight();
-		size_t bufferSize = width * height * sizeof(OitNode) * MAX_OIT_NODES_PER_PIXEL;
+
+		// per-pixel continuous node buffer: stride = 32 (vec4 + float in std430)
+		size_t nodeStride = 32;
+		size_t bufferSize = (size_t)width * height * MAX_OIT_NODES_PER_PIXEL * nodeStride;
 		m_OitNodeBuffer = m_Context->device->CreateBuffer(bufferSize, BufferUsage::StorageBuffer | BufferUsage::TransferDstBuffer, false);
-
-		AtomicCounter conuter{ .count = 0, .maxCount = width * height * MAX_OIT_NODES_PER_PIXEL };
-
-		auto stagingBuffer = m_Context->device->CreateBuffer(sizeof(AtomicCounter), BufferUsage::StagingBuffer | BufferUsage::TransferSrcBuffer, true);
-		stagingBuffer->UploadData(&conuter, sizeof(conuter));
-		m_AtomicCounterBuffer = m_Context->device->CreateBuffer(sizeof(AtomicCounter), BufferUsage::StorageBuffer | BufferUsage::TransferDstBuffer, false);
-		// m_Context->device->CopyBuffer(stagingBuffer.get(), m_AtomicCounterBuffer.get(), sizeof(AtomicCounter));
-		m_Context->device->ImmediateSubmit([&](RHICommandList& cmd)
-			{
-				cmd.CopyBuffer(*stagingBuffer, *m_AtomicCounterBuffer, sizeof(AtomicCounter), 0, 0);
-			});
-		stagingBuffer.reset();
 
 		RHITextureConfig textureConfig;
 		textureConfig.width = width;
 		textureConfig.height = height;
 		textureConfig.format = PixelFormat::R32_UINT;
-		textureConfig.usage = ImageUsage::Sampled | ImageUsage::Storage | ImageUsage::TransferDst;
-		m_HeadPointerImage = m_Context->device->CreateTexture(textureConfig);
-		m_HeadPointerSampler = m_Context->device->CreateSampler(RHISamplerConfig::GetDefault());
-		// image layout undefined --> general
+		textureConfig.usage = ImageUsage::Storage | ImageUsage::TransferDst;
+		m_PixelCounterImage = m_Context->device->CreateTexture(textureConfig);
+		m_PixelCounterSampler = m_Context->device->CreateSampler(RHISamplerConfig::GetDefault());
 		m_Context->device->ImmediateSubmit([&](RHICommandList& cmd)
 			{
-				cmd.TransitionImageLayout(*m_HeadPointerImage, ImageLayout::Undefined, ImageLayout::General);
+				cmd.TransitionImageLayout(*m_PixelCounterImage, ImageLayout::Undefined, ImageLayout::General);
 			});
-		// m_RevealageTexture = m_Context->device->CreateTexture(textureConfig);
+
 		m_OitDescriptorSetLayout = m_Context->device->CreateDescriptorSetLayout({
 			{ 0, DescriptorType::StorageBuffer, 1, ShaderStage::Fragment }, // Oit Node Buffer
-			{ 1, DescriptorType::StorageBuffer, 1, ShaderStage::Fragment}, // Atomic Counter Buffer
-			{ 2, DescriptorType::StorageImage, 1, ShaderStage::Fragment}, // Accumulation Texture
-			// { 3, DescriptorType::StorageImage, 1, ShaderStage::Fragment}  // Revealage Texture
+			{ 1, DescriptorType::StorageImage, 1, ShaderStage::Fragment},  // Pixel Counter Image
 			});
 		m_PbrDescriptorSetLayout = m_Context->device->CreateDescriptorSetLayout(PbrMaterial::GetDescriptorSetLayoutBinding());
-		
+
 		m_OitDescriptorSet = m_Context->device->CreateDescriptorSet(m_OitDescriptorSetLayout);
 		m_OitDescriptorSet->UpdateBuffer(0, *m_OitNodeBuffer);
-		m_OitDescriptorSet->UpdateBuffer(1, *m_AtomicCounterBuffer);
-		m_OitDescriptorSet->UpdateTexture(2, *m_HeadPointerImage, *m_HeadPointerSampler);
+		m_OitDescriptorSet->UpdateTexture(1, *m_PixelCounterImage, *m_PixelCounterSampler);
 	}
 
 	void OitPass::PrepareBlend()
 	{
 		m_BlendDescriptorSetLayout = m_Context->device->CreateDescriptorSetLayout({
 			{ 0, DescriptorType::StorageBuffer, 1, ShaderStage::Fragment }, // Oit Node Buffer
-			// { 1, DescriptorType::StorageBuffer, 1, ShaderStage::Fragment}, // Atomic Counter Buffer
-			{ 1, DescriptorType::StorageImage, 1, ShaderStage::Fragment}, // Accumulation Texture
-			// { 3, DescriptorType::StorageImage, 1, ShaderStage::Fragment}  // Revealage Texture
+			{ 1, DescriptorType::StorageImage, 1, ShaderStage::Fragment},  // Pixel Counter Image (read-only)
 			});
 		m_BlendDescriptorSet = m_Context->device->CreateDescriptorSet(m_BlendDescriptorSetLayout);
 		m_BlendDescriptorSet->UpdateBuffer(0, *m_OitNodeBuffer);
-		m_BlendDescriptorSet->UpdateTexture(1, *m_HeadPointerImage, *m_HeadPointerSampler);
+		m_BlendDescriptorSet->UpdateTexture(1, *m_PixelCounterImage, *m_PixelCounterSampler);
 	}
 }

@@ -17,13 +17,14 @@ namespace Bear {
 		/*Pipeline(const Device& device, const std::vector<std::unique_ptr<Shader>>& shaders, const PipelineConfigInfo& configInfo, 
 			const VkPipelineBindPoint& bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS);*/
 		Pipeline(const Device& device, const VkGraphicsPipelineCreateInfo& pipelineInfo);
+		Pipeline(const Device& device, const VkComputePipelineCreateInfo& pipelineInfo);
 		~Pipeline() override;
 
 		void Bind(VkCommandBuffer commandBuffer);
-		inline VkPipeline GetHandle() const { return m_GraphicsPipeline; }
-		inline VkPipelineBindPoint GetBindPoint() const { return VK_PIPELINE_BIND_POINT_GRAPHICS; }
+		inline VkPipeline GetHandle() const { return m_Pipeline; }
+		inline VkPipelineBindPoint GetBindPoint() const { return m_BindPoint; }
 
-		// ½ûÖ¹¿½±´ºÍÒÆ¶¯
+		// ï¿½ï¿½Ö¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¶ï¿½
 		Pipeline(const Pipeline&) = delete;
 		Pipeline& operator=(const Pipeline&) = delete;
 		Pipeline(Pipeline&&) = delete;
@@ -31,6 +32,7 @@ namespace Bear {
 
 	private:
 		const Device& m_Device;
-		VkPipeline m_GraphicsPipeline = VK_NULL_HANDLE;
+		VkPipeline m_Pipeline = VK_NULL_HANDLE;
+		VkPipelineBindPoint m_BindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	};
 }

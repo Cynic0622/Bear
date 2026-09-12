@@ -69,6 +69,7 @@ namespace Bear
 
 		// 2. IO input
 		ImGuiIO& io = ImGui::GetIO();
+		io.FontGlobalScale =2.0f;
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 		io.ConfigFlags |= ImGuiBackendFlags_HasMouseCursors; // Enable Mouse Cursors
 		io.ConfigFlags |= ImGuiBackendFlags_HasSetMousePos; // Enable SetMousePos backend function

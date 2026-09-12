@@ -47,6 +47,8 @@ namespace Bear
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 		if (static_cast<uint32_t>(usage) & static_cast<uint32_t>(Bear::BufferUsage::TransferDstBuffer)) flags |=
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		if (static_cast<uint32_t>(usage) & static_cast<uint32_t>(Bear::BufferUsage::IndirectBuffer)) flags |=
+			VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
 		return flags;
 	}
 
@@ -206,6 +208,7 @@ namespace Bear
 		case ImageLayout::PresentSrc: return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 		case ImageLayout::ShaderReadOnly: return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		case ImageLayout::TransferDst: return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		case ImageLayout::TransferSrc: return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 		case ImageLayout::General: return VK_IMAGE_LAYOUT_GENERAL;
 		}
 		return VK_IMAGE_LAYOUT_UNDEFINED;
@@ -297,6 +300,8 @@ namespace Bear
 	VkAccessFlags ToVulkanAccessFlags(AccessFlags flags)
 	{
 		VkAccessFlags vulkanFlags = 0;
+		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::IndirectCommandRead)) vulkanFlags |=
+			VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
 		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::VertexAttributeRead)) vulkanFlags |=
 			VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
 		if (static_cast<uint32_t>(flags) & static_cast<uint32_t>(AccessFlags::IndexRead)) vulkanFlags |=

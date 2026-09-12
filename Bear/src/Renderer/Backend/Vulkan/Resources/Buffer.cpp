@@ -12,7 +12,7 @@ namespace Bear {
 		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		bufferInfo.size = size;
 		bufferInfo.usage = usage;
-		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE; // µ¥¶ÓÁÐ£¬ËùÒÔÊ¹ÓÃ¶ÀÕ¼Ä£Ê½
+		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE; // ï¿½ï¿½ï¿½ï¿½ï¿½Ð£ï¿½ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½Ã¶ï¿½Õ¼Ä£Ê½
 		VmaAllocationCreateInfo allocInfo = {};
 		allocInfo.usage = memoryUsage;
 		
@@ -51,9 +51,9 @@ namespace Bear {
 	{
 		BEAR_CORE_ASSERT(size <= m_Size, "Data size exceeds buffer size!");
 		void* mappedData = Map();
-		memcpy(mappedData, data, size);
-		// Èç¹ûÄÚ´æ²»ÊÇ HOST_COHERENT£¬ÐèÒªÊÖ¶¯ flush
-		vmaFlushAllocation(m_Device.GetAllocator(), m_Allocation, 0, size);
+		memcpy(static_cast<char*>(mappedData) + offset, data, size);
+		// ï¿½ï¿½ï¿½ï¿½Ú´æ²»ï¿½ï¿½ HOST_COHERENTï¿½ï¿½ï¿½ï¿½Òªï¿½Ö¶ï¿½ flush
+		vmaFlushAllocation(m_Device.GetAllocator(), m_Allocation, offset, size);
 		Unmap();
 	}
 }

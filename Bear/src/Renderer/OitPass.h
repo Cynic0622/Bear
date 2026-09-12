@@ -1,23 +1,11 @@
 #pragma once
 #include "IRenderPass.h"
+#include "RenderStats.h"
 
-#define MAX_OIT_NODES_PER_PIXEL 8
+#define MAX_OIT_NODES_PER_PIXEL 4
 
 namespace Bear
 {
-	struct OitNode
-	{
-		uint32_t index;
-		float depth;
-		glm::vec4 color;
-		uint32_t next;
-	};
-
-	struct AtomicCounter
-	{
-		uint32_t count;
-		uint32_t maxCount;
-	};
 	class OitPass : public IRenderPass
 	{
 	public:
@@ -27,6 +15,8 @@ namespace Bear
 		void Execute(RHICommandList* cmd, std::vector<RenderObject> renderObjects) override;
 		void Resize() override;
 		void Cleanup() override;
+
+		const RenderStats& GetStats() const { return m_Stats; }
 	private:
 		void CreateFramebuffer();
 		void CreateRenderPass();
@@ -34,6 +24,7 @@ namespace Bear
 		void PrepareOit();
 		void PrepareBlend();
 	private:
+		RenderStats m_Stats;
 		RenderContext* m_Context = nullptr;
 		std::shared_ptr<RHIRenderPass> m_OitRenderPass = nullptr;
 		std::shared_ptr<RHIRenderPass> m_BlendRenderPass = nullptr;
@@ -47,9 +38,8 @@ namespace Bear
 		std::shared_ptr<RHIDescriptorSetLayout> m_PbrDescriptorSetLayout = nullptr;
 		std::shared_ptr<RHIDescriptorSetLayout> m_BlendDescriptorSetLayout = nullptr;
 		std::shared_ptr<RHIBuffer> m_OitNodeBuffer = nullptr;
-		std::shared_ptr<RHIBuffer> m_AtomicCounterBuffer = nullptr;
-		std::shared_ptr<RHIImage> m_HeadPointerImage = nullptr;
-		std::shared_ptr<RHISampler> m_HeadPointerSampler = nullptr;
+		std::shared_ptr<RHIImage> m_PixelCounterImage = nullptr;
+		std::shared_ptr<RHISampler> m_PixelCounterSampler = nullptr;
 		std::shared_ptr<RHIDescriptorSet> m_OitDescriptorSet = nullptr;
 		std::shared_ptr<RHIDescriptorSet> m_BlendDescriptorSet = nullptr;
 	};

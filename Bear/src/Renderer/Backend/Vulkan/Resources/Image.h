@@ -12,7 +12,7 @@ namespace Bear {
 
 	public:
 		Image(const Device& device, uint32_t width, uint32_t height, VkFormat format,
-			VkImageTiling tiling,VkImageUsageFlags usage, VmaMemoryUsage memoryUsage);
+			VkImageTiling tiling,VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, uint32_t mipLevels = 1);
 		~Image() override;
 
 
@@ -23,6 +23,7 @@ namespace Bear {
 
 		uint32_t GetWidth() const override;
 		uint32_t GetHeight() const override;
+		uint32_t GetMipLevels() const override;
 		PixelFormat GetFormat() const override;
 
 		inline VkImageView GetView() const { return m_ImageView; }
@@ -39,6 +40,7 @@ namespace Bear {
 		VmaAllocation m_Allocation = VK_NULL_HANDLE; // vma
 		uint32_t m_Width = 0;
 		uint32_t m_Height = 0;
+		uint32_t m_MipLevels = 1;
 	private:
 		void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VmaMemoryUsage memoryUsage);
 		void CreateImageView(VkFormat format);

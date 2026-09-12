@@ -23,7 +23,7 @@ namespace Bear {
 		void UploadData(const void* data, size_t size, size_t offset = 0) override;
 
 		VkBuffer GetHandle() const { return m_Buffer; }
-		VkDeviceSize GetSize() const { return m_Size; }
+		size_t GetSize() const override { return static_cast<size_t>(m_Size); }
 
 	private:
 		const Device& m_Device;

@@ -122,15 +122,32 @@ namespace Bear {
 	{
 		vkCmdDrawIndexed(m_CommandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 	}
-	void CommandBuffer::BindDescriptorSet(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& descriptorSet, uint32_t firstSet)
+	void CommandBuffer::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
+	{
+		vkCmdDispatch(m_CommandBuffer, groupCountX, groupCountY, groupCountZ);
+	}
+	void CommandBuffer::DrawIndexedIndirect(const RHIBuffer& buffer, uint32_t drawCount, uint32_t stride, size_t offset)
+	{
+		const auto& vkBuffer = dynamic_cast<const Buffer&>(buffer);
+		vkCmdDrawIndexedIndirect(m_CommandBuffer, vkBuffer.GetHandle(), offset, drawCount, stride);
+	}
+	void CommandBuffer::DrawIndexedIndirectCount(const RHIBuffer& buffer, const RHIBuffer& countBuffer, uint32_t maxDrawCount, uint32_t stride, size_t offset, size_t countBufferOffset)
+	{
+		const auto& vkBuffer = dynamic_cast<const Buffer&>(buffer);
+		const auto& vkCountBuffer = dynamic_cast<const Buffer&>(countBuffer);
+		vkCmdDrawIndexedIndirectCount(m_CommandBuffer, vkBuffer.GetHandle(), offset, vkCountBuffer.GetHandle(), countBufferOffset, maxDrawCount, stride);
+	}
+	void CommandBuffer::BindDescriptorSet(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& descriptorSet, uint32_t firstSet, PipelineBindPoint bindPoint)
 	{
 		const auto& vkPipelineLayout = dynamic_cast<const PipelineLayout&>(pipelineLayout);
 		const auto& vkDescriptorSet = dynamic_cast<const DescriptorSet&>(descriptorSet);
-		VkPipelineLayout pipelineLayoutHandle = vkPipelineLayout.GetHandle();
+		VkPipelineBindPoint vkBindPoint = bindPoint == PipelineBindPoint::Compute
+			? VK_PIPELINE_BIND_POINT_COMPUTE
+			: VK_PIPELINE_BIND_POINT_GRAPHICS;
 		VkDescriptorSet descriptorSetHandle = vkDescriptorSet.GetHandle();
-		vkCmdBindDescriptorSets(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayoutHandle, firstSet, 1, &descriptorSetHandle, 0, nullptr);
+		vkCmdBindDescriptorSets(m_CommandBuffer, vkBindPoint, vkPipelineLayout.GetHandle(), firstSet, 1, &descriptorSetHandle, 0, nullptr);
 	}
-	void CommandBuffer::TransitionImageLayout(RHIImage& texture, ImageLayout oldLayout, ImageLayout newLayout)
+	void CommandBuffer::TransitionImageLayout(RHIImage& texture, ImageLayout oldLayout, ImageLayout newLayout, uint32_t baseMipLevel, uint32_t levelCount)
 	{
 		auto& vkImage = dynamic_cast<Image&>(texture);
 		VkImageLayout vkOldLayout = ToVulkanImageLayout(oldLayout);
@@ -143,8 +160,8 @@ namespace Bear {
 		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier.image = vkImage.GetImage();
 		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		barrier.subresourceRange.baseMipLevel = 0;
-		barrier.subresourceRange.levelCount = 1;
+		barrier.subresourceRange.baseMipLevel = baseMipLevel;
+		barrier.subresourceRange.levelCount = levelCount;
 		barrier.subresourceRange.baseArrayLayer = 0;
 		barrier.subresourceRange.layerCount = 1;
 
@@ -175,6 +192,18 @@ namespace Bear {
 			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 			sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 			destinationStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+		}
+		else if (vkOldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && vkNewLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+			sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		}
+		else if (vkOldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && vkNewLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+			barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 		}
 		else if (vkOldLayout == VK_IMAGE_LAYOUT_GENERAL && vkNewLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
 			barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
@@ -260,6 +289,36 @@ namespace Bear {
 		const auto& vkBuffer = dynamic_cast<const Buffer&>(buffer);
 		vkCmdUpdateBuffer(m_CommandBuffer, vkBuffer.GetHandle(), static_cast<VkDeviceSize>(offset), static_cast<VkDeviceSize>(size), data);
 	}
+	void CommandBuffer::BlitImage(RHIImage& srcImage, RHIImage& dstImage, uint32_t srcLevel, uint32_t dstLevel)
+	{
+		auto& vkSrcImage = dynamic_cast<Image&>(srcImage);
+		auto& vkDstImage = dynamic_cast<Image&>(dstImage);
+
+		int32_t srcW = static_cast<int32_t>(vkSrcImage.GetWidth() >> srcLevel);
+		int32_t srcH = static_cast<int32_t>(vkSrcImage.GetHeight() >> srcLevel);
+		int32_t dstW = static_cast<int32_t>(vkDstImage.GetWidth() >> dstLevel);
+		int32_t dstH = static_cast<int32_t>(vkDstImage.GetHeight() >> dstLevel);
+
+		VkImageBlit blit{};
+		blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		blit.srcSubresource.mipLevel = srcLevel;
+		blit.srcSubresource.baseArrayLayer = 0;
+		blit.srcSubresource.layerCount = 1;
+		blit.srcOffsets[0] = { 0, 0, 0 };
+		blit.srcOffsets[1] = { srcW, srcH, 1 };
+		blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		blit.dstSubresource.mipLevel = dstLevel;
+		blit.dstSubresource.baseArrayLayer = 0;
+		blit.dstSubresource.layerCount = 1;
+		blit.dstOffsets[0] = { 0, 0, 0 };
+		blit.dstOffsets[1] = { dstW, dstH, 1 };
+
+		vkCmdBlitImage(m_CommandBuffer,
+			vkSrcImage.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			vkDstImage.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			1, &blit, VK_FILTER_LINEAR);
+	}
+
 	void CommandBuffer::ClearImage(const RHIImage& image, const ClearColor& clearColor)
 	{
 		VkClearColorValue vkClearColor{};

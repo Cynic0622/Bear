@@ -5,6 +5,10 @@
 #include "Command/CommandBuffer.h"
 
 namespace Bear {
+
+	RHIBuffer* Mesh::s_GlobalVertexBuffer = nullptr;
+	RHIBuffer* Mesh::s_GlobalIndexBuffer = nullptr;
+
 	Mesh::Mesh(RHIDevice& device, const std::string& path)
 	{
 		ModelData modelData = LoadModelDataFromFile(path);
@@ -45,9 +49,29 @@ namespace Bear {
 	
 	void Mesh::Draw(RHICommandList& cmd) const
 	{
-		// cmd.Draw(m_IndexCount, 1, 0, 0);
-		cmd.BindVertexBuffer(*m_VertexBuffer, 0, 0);
-		cmd.BindIndexBuffer(*m_IndexBuffer, 0);
-		cmd.DrawIndexed(m_IndexCount, 1, 0, 0, 0);
+		if (s_GlobalVertexBuffer && s_GlobalIndexBuffer && m_GlobalVertexOffset >= 0)
+		{
+			cmd.BindVertexBuffer(*s_GlobalVertexBuffer, 0, m_GlobalVertexOffset * sizeof(VertexDescription));
+			cmd.BindIndexBuffer(*s_GlobalIndexBuffer, m_GlobalFirstIndex * sizeof(uint32_t));
+			cmd.DrawIndexed(m_IndexCount, 1, 0, 0, 0);
+		}
+		else
+		{
+			cmd.BindVertexBuffer(*m_VertexBuffer, 0, 0);
+			cmd.BindIndexBuffer(*m_IndexBuffer, 0);
+			cmd.DrawIndexed(m_IndexCount, 1, 0, 0, 0);
+		}
+	}
+
+	void Mesh::SetupIndirect(int32_t globalVertexOffset, int32_t globalFirstIndex)
+	{
+		m_GlobalVertexOffset = globalVertexOffset;
+		m_GlobalFirstIndex = globalFirstIndex;
+	}
+
+	void Mesh::SetGlobalBuffers(RHIBuffer* vertexBuffer, RHIBuffer* indexBuffer)
+	{
+		s_GlobalVertexBuffer = vertexBuffer;
+		s_GlobalIndexBuffer = indexBuffer;
 	}
 }

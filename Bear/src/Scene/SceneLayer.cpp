@@ -9,6 +9,18 @@
 #include "BaseData.h"
 namespace Bear
 {
+	static const std::vector<std::pair<const char*, const char*>> s_ModelList = {
+		{"Sponza",                    "assets/models/Sponza/glTF/Sponza.gltf"},
+		{"DamagedHelmet",             "assets/models/DamagedHelmet/glTF/DamagedHelmet.gltf"},
+		{"FlightHelmet",              "assets/models/FlightHelmet/FlightHelmet.gltf"},
+		{"New_FlightHelmet",          "assets/models/New_FlightHelmet/FlightHelmet.gltf"},
+		{"SciFiHelmet",               "assets/models/SciFiHelmet/glTF/SciFiHelmet.gltf"},
+		{"Suzanne",                   "assets/models/Suzanne/glTF/Suzanne.gltf"},
+		{"TransmissionOrderTest",     "assets/models/TransmissionOrderTest/glTF/TransmissionOrderTest.gltf"},
+		{"TransmissionTest",           "assets/models/TransmissionTest/glTF/TransmissionTest.gltf"},
+		{"CesiumMan",                 "assets/models/CesiumMan/CesiumMan.gltf"},
+	};
+
 	SceneLayer::SceneLayer(std::unique_ptr<Scene> scene)
 		:Layer("SceneLayer"), m_Scene(std::move(scene))
 	{
@@ -17,23 +29,63 @@ namespace Bear
 	SceneLayer::~SceneLayer()
 	{
 	}
+
+	const std::vector<std::pair<const char*, const char*>>& SceneLayer::GetModelList()
+	{
+		return s_ModelList;
+	}
 	
 	void SceneLayer::OnAttach()
 	{
-		// 1. load gltf scene, file --> cpu
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/Sponza/glTF/Sponza.gltf");
-		auto modelDesc = AssetLoader::ImportModel("assets/models/New_FlightHelmet/FlightHelmet.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/DamagedHelmet/glTF/DamagedHelmet.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/TransmissionOrderTest/glTF/TransmissionOrderTest.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/SciFiHelmet/glTF/SciFiHelmet.gltf");
-		// auto modelDesc = AssetLoader::ImportModel("assets/models/Suzanne/glTF/Suzanne.gltf");
-		// 2. resource system create descriptor infos, cpu --> gpu
+		LoadModel(s_ModelList[0].second);
+	}
+
+	void SceneLayer::LoadModel(const std::string& path)
+	{
+		BEAR_CORE_INFO("Loading model: {}", path);
+		m_CurrentModelPath = path;
+		ReloadModel();
+	}
+
+	void SceneLayer::ReloadModel()
+	{
+		if (m_CurrentModelPath.empty()) return;
+		BEAR_CORE_INFO("Reloading model: {}", m_CurrentModelPath);
 		auto& app = Application::Get();
 		auto& resourceManager = app.GetRenderer()->GetResourceManager();
+
+		auto modelDesc = AssetLoader::ImportModel(m_CurrentModelPath);
 		auto resources = resourceManager.CreateResources(modelDesc);
 
-		// 3. create scene graph
+		m_Scene->ClearAllEntities();
 		m_Scene->CreateSceneGraph(modelDesc, resources);
+		if (m_InstanceMultiplier > 1)
+			m_Scene->MultiplyInstances(m_InstanceMultiplier, 50.0f);
+	}
+
+	void SceneLayer::SetInstanceMultiplier(uint32_t count)
+	{
+		m_InstanceMultiplier = count;
+	}
+	Scene* SceneLayer::GetScene() const
+	{
+		return m_Scene.get();
+	}
+	uint32_t SceneLayer::GetTotalMeshEntities() const
+	{
+		return m_Scene->GetTotalMeshEntities();
+	}
+	uint32_t SceneLayer::GetVisibleMeshEntities() const
+	{
+		return m_Scene->GetVisibleMeshEntities();
+	}
+	bool SceneLayer::IsFrustumCullingEnabled() const
+	{
+		return m_Scene->IsFrustumCullingEnabled();
+	}
+	bool SceneLayer::IsEditorMode() const
+	{
+		return m_Scene->IsEditorMode();
 	}
 	void SceneLayer::OnDetach()
 	{

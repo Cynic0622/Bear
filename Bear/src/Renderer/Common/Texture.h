@@ -41,6 +41,7 @@ namespace Bear
 
     private:
         PixelFormat selectFormat(uint32_t channels);
+		static void GenerateMips(RHICommandList& cmd, RHIImage& image, uint32_t mipLevels);
     };
 } // Bear
 

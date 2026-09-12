@@ -27,5 +27,6 @@ echo Compiling shaders...
 dxc.exe -T ps_6_6 -E main -spirv ntcPS.hlsl -Fo ntcPS.spv -I "..\..\extern\rtxntc\include" -I "..\Renderer\Common"  -I "..\..\extern\rtxntc\src"  -I "..\..\extern\rtxtf"  -I "..\Renderer" -enable-16bit-types -O3 -fspv-target-env=vulkan1.2
 dxc.exe -T vs_6_6 -E main -spirv ntcVS.hlsl -Fo ntcVS.spv -I "..\..\extern\rtxntc\include"  -I "..\Renderer" -enable-16bit-types -O3 -fspv-target-env=vulkan1.2 -fvk-use-gl-layout
 dxc.exe -T vs_6_6 -E main -spirv preZ.hlsl -I "..\Renderer" -Fo preZvert.spv -O3 -fspv-target-env=vulkan1.2 -fvk-use-dx-layout
+"%GLSLC_PATH%" cull.comp -o cull.spv
 echo Done.
 pause

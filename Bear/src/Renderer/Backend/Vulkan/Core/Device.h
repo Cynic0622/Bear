@@ -42,6 +42,7 @@ namespace Bear {
         std::shared_ptr<RHIDescriptorSetLayout> CreateDescriptorSetLayout(const std::vector<RHIDescriptorSetLayoutBinding>& bindings) override;
 		std::shared_ptr<RHIPipelineLayout> CreatePipelineLayout(const std::vector<RHIDescriptorSetLayout*>& descriptorSetLayouts, const std::vector<RHIPushConstantRange>& pushConstantRanges) override;
         std::shared_ptr<RHIPipeline> CreatePipeline(const RHIPipelineConfig& config, const RHIRenderPass& renderPass) override;
+        std::shared_ptr<RHIPipeline> CreateComputePipeline(const RHIPipelineConfig& config) override;
         std::unique_ptr<RHIDescriptorSet> CreateDescriptorSet(std::shared_ptr<RHIDescriptorSetLayout> layout) override;
         std::shared_ptr<RHIRenderPass> CreateRenderPass(const std::vector <AttachmentDescription>& attachments) override;
         std::shared_ptr<RHIRenderPass> CreateRenderPass(const RenderPassDescription& desc) override;
