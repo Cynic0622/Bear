@@ -96,6 +96,7 @@ namespace Bear
 
 	void RenderGraph::AllocateTransients()
 	{
+		BEAR_CORE_ASSERT(m_Device, "RenderGraph::Setup() must be called before Compile()");
 		if (!m_Device)
 			return;
 
@@ -204,6 +205,9 @@ namespace Bear
 			chosen->intervals.emplace_back(first, last);
 			chosen->lastUsedStamp = m_FrameStamp;
 			res.image = chosen->image.get();
+			res.hasPool = true;
+			res.poolSlot = slot;
+			res.poolIndex = static_cast<uint32_t>(chosen - texturePool.data());
 		}
 
 		for (uint32_t i = 0; i < m_Buffers.size(); ++i)
@@ -240,6 +244,9 @@ namespace Bear
 			chosen->intervals.emplace_back(first, last);
 			chosen->lastUsedStamp = m_FrameStamp;
 			res.buffer = chosen->buffer.get();
+			res.hasPool = true;
+			res.poolSlot = slot;
+			res.poolIndex = static_cast<uint32_t>(chosen - bufferPool.data());
 		}
 	}
 
@@ -262,6 +269,19 @@ namespace Bear
 	{
 		BEAR_CORE_ASSERT(passIndex < m_Passes.size(), "invalid pass index");
 		BEAR_CORE_ASSERT(handle.id < m_Textures.size(), "invalid texture handle");
+
+		// the graph only emits one barrier per texture and pass (before the pass), so a
+		// resource cannot legally switch layouts between uses of the same pass
+		for (const auto& existing : m_Passes[passIndex].textureUses)
+		{
+			if (existing.handle == handle && existing.use.layout != use.layout)
+			{
+				BEAR_CORE_ERROR("RenderGraph: texture '{}' is used with two different layouts inside pass '{}'",
+					m_Textures[handle.id].name, m_Passes[passIndex].name);
+				BEAR_CORE_ASSERT(false, "texture layout must not change within a single pass");
+			}
+		}
+
 		m_Passes[passIndex].textureUses.push_back({ handle, kind, use });
 	}
 
@@ -317,8 +337,25 @@ namespace Bear
 			return false;
 		};
 
-		// a pass is live when it has side effects or when a live pass consumes one of its
-		// outputs (read); iterate to a fixed point
+		// writing an imported resource is implicitly externally consumed (swapchain,
+		// persistent buffers, GPU readback): such passes must never be culled
+		auto writesImportedResource = [&](uint32_t passIndex)
+		{
+			for (const auto& use : m_Passes[passIndex].textureUses)
+			{
+				if (use.kind == UseKind::Write && !m_Textures[use.handle.id].transient)
+					return true;
+			}
+			for (const auto& use : m_Passes[passIndex].bufferUses)
+			{
+				if (use.kind == UseKind::Write && !m_Buffers[use.handle.id].transient)
+					return true;
+			}
+			return false;
+		};
+
+		// a pass is live when it has side effects, writes an imported resource, or when a
+		// live pass consumes one of its outputs (read); iterate to a fixed point
 		bool changed = true;
 		while (changed)
 		{
@@ -326,7 +363,7 @@ namespace Bear
 			for (uint32_t p = 0; p < m_Passes.size(); ++p)
 			{
 				auto& pass = m_Passes[p];
-				if (pass.culled || pass.sideEffects)
+				if (pass.culled || pass.sideEffects || writesImportedResource(p))
 					continue;
 
 				const bool consumed = textureOutputConsumed(p, pass.textureUses) || bufferOutputConsumed(p, pass.bufferUses);
@@ -499,16 +536,34 @@ namespace Bear
 				auto& res = m_Textures[record.handle.id];
 				const auto& use = record.use;
 
+				// aliased transients inherit the state left by the previous user of the same
+				// physical memory, so the first-use barrier synchronizes the memory reuse
+				// (WAW/WAR with the previous user) instead of assuming Undefined/TopOfPipe
+				const bool firstUse = !res.everUsed;
+				bool inheritedState = false;
+				if (firstUse && res.transient && res.hasPool)
+				{
+					const auto& entry = m_TexturePools[res.poolSlot][res.poolIndex];
+					if (entry.hasState)
+					{
+						res.layout = entry.lastLayout;
+						res.lastStage = entry.lastStage;
+						res.lastAccess = entry.lastAccess;
+						res.lastWrite = entry.lastWrite;
+						inheritedState = true;
+					}
+				}
+
 				// barrier only when the state actually changes or a hazard exists:
 				//  - layout transition (incl. the first use of an Undefined import)
 				//  - RAW/WAW: the previous use was a write
 				//  - WAR: this use writes while an earlier use read
 				// pure read-after-read in the same layout needs no barrier
-				const bool firstUse = !res.everUsed;
+				const bool hadPriorUse = res.everUsed || inheritedState;
 				const bool layoutChanged = res.layout != use.layout;
-				const bool writeHazard = !firstUse && res.lastWrite;
-				const bool antiHazard = !firstUse && !res.lastWrite && record.kind == UseKind::Write;
-				const bool needsBarrier = firstUse ? layoutChanged : (layoutChanged || writeHazard || antiHazard);
+				const bool writeHazard = hadPriorUse && res.lastWrite;
+				const bool antiHazard = hadPriorUse && !res.lastWrite && record.kind == UseKind::Write;
+				const bool needsBarrier = layoutChanged || writeHazard || antiHazard;
 
 				// merge with an existing barrier for the same texture within this pass: once a
 				// barrier was emitted it must cover every later use in the pass (widen dst scope)
@@ -547,6 +602,17 @@ namespace Bear
 				res.lastAccess = use.access;
 				res.lastWrite = (record.kind == UseKind::Write);
 				res.everUsed = true;
+
+				// publish the state for the next aliased resource
+				if (res.transient && res.hasPool)
+				{
+					auto& entry = m_TexturePools[res.poolSlot][res.poolIndex];
+					entry.hasState = true;
+					entry.lastLayout = res.layout;
+					entry.lastStage = res.lastStage;
+					entry.lastAccess = res.lastAccess;
+					entry.lastWrite = res.lastWrite;
+				}
 			}
 
 			for (const auto& record : pass.bufferUses)
@@ -554,8 +620,23 @@ namespace Bear
 				auto& res = m_Buffers[record.handle.id];
 				const auto& use = record.use;
 
+				const bool firstUse = !res.everUsed;
+				bool inheritedState = false;
+				if (firstUse && res.transient && res.hasPool)
+				{
+					const auto& entry = m_BufferPools[res.poolSlot][res.poolIndex];
+					if (entry.hasState)
+					{
+						res.lastStage = entry.lastStage;
+						res.lastAccess = entry.lastAccess;
+						res.lastWrite = entry.lastWrite;
+						inheritedState = true;
+					}
+				}
+
 				// buffers have no layouts; only writes create hazards
-				const bool needBarrier = res.everUsed && (res.lastWrite || record.kind == UseKind::Write);
+				const bool hadPriorUse = res.everUsed || inheritedState;
+				const bool needBarrier = hadPriorUse && (res.lastWrite || record.kind == UseKind::Write);
 				if (needBarrier)
 				{
 					auto& barrier = pass.barriers.bufferBarrier;
@@ -580,6 +661,16 @@ namespace Bear
 				res.lastAccess = use.access;
 				res.lastWrite = (record.kind == UseKind::Write);
 				res.everUsed = true;
+
+				// publish the state for the next aliased resource
+				if (res.transient && res.hasPool)
+				{
+					auto& entry = m_BufferPools[res.poolSlot][res.poolIndex];
+					entry.hasState = true;
+					entry.lastStage = res.lastStage;
+					entry.lastAccess = res.lastAccess;
+					entry.lastWrite = res.lastWrite;
+				}
 			}
 		}
 
