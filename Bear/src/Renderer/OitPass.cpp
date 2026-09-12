@@ -121,8 +121,9 @@ namespace Bear
 		depthAttachment.samples = AttachmentSamples::Count1;
 		depthAttachment.loadOp = AttachmentLoadOp::Load;
 		depthAttachment.storeOp = AttachmentStoreOp::DontCare;
-		depthAttachment.initialLayout = ImageLayout::DepthStencilAttachment;
-		depthAttachment.finalLayout = ImageLayout::DepthStencilAttachment;
+		// the depth buffer leaves the PBR passes in ShaderReadOnly (sampled by the Hi-Z build)
+		depthAttachment.initialLayout = ImageLayout::ShaderReadOnly;
+		depthAttachment.finalLayout = ImageLayout::ShaderReadOnly;
 
 		desc.subpassCount = 1; // For oit pass
 		SubpassDescription& subpass = desc.subpasses[0];
