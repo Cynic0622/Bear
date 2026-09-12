@@ -13,6 +13,8 @@ namespace Bear {
 	public:
 		Image(const Device& device, uint32_t width, uint32_t height, VkFormat format,
 			VkImageTiling tiling,VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, uint32_t mipLevels = 1);
+		// wraps an externally owned image/view (e.g. swapchain images); does not destroy them
+		Image(const Device& device, VkImage image, VkImageView view, uint32_t width, uint32_t height, VkFormat format);
 		~Image() override;
 
 
@@ -43,6 +45,7 @@ namespace Bear {
 		VkFormat m_Format = VK_FORMAT_UNDEFINED;
 
 		VmaAllocation m_Allocation = VK_NULL_HANDLE; // vma
+		bool m_OwnsResources = true;
 		uint32_t m_Width = 0;
 		uint32_t m_Height = 0;
 		uint32_t m_MipLevels = 1;

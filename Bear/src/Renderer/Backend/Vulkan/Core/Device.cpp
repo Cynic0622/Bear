@@ -15,6 +15,7 @@
 #include "Pipeline/DescriptorSet.h"
 #include "Pipeline/DescriptorPool.h"
 #include "Pipeline/RenderPass.h"
+#include "Pipeline/Framebuffer.h"
 #include "Pipeline/Shader.h"
 #include "Presentation/Swapchain.h"
 #include "Command/CommandPool.h"
@@ -42,7 +43,7 @@ namespace Bear {
 		vmaCreateAllocator(&allocatorInfo, &m_Allocator); // vma
 
 		BEAR_CORE_ASSERT(m_Allocator != VK_NULL_HANDLE, "Failed to create VMA allocator!");
-		// ****************�����ʵ�ֲ�̫��********************
+		// ****************�����ʵ�ֲ�̫��?*******************
 		std::vector<VkDescriptorPoolSize> globalPoolSizes = {
 			{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
 			{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
@@ -164,7 +165,14 @@ namespace Bear {
 	}
 	std::shared_ptr<RHIPipeline> Device::CreatePipeline(const RHIPipelineConfig& config, const RHIRenderPass& renderPass)
 	{
-		const auto& vkRenderPass = dynamic_cast<const RenderPass&>(renderPass);
+		return CreateGraphicsPipelineImpl(config, &dynamic_cast<const RenderPass&>(renderPass));
+	}
+	std::shared_ptr<RHIPipeline> Device::CreatePipeline(const RHIPipelineConfig& config)
+	{
+		return CreateGraphicsPipelineImpl(config, nullptr);
+	}
+	std::shared_ptr<RHIPipeline> Device::CreateGraphicsPipelineImpl(const RHIPipelineConfig& config, const RenderPass* renderPass)
+	{
 		auto vkPipelineLayout = std::static_pointer_cast<PipelineLayout>(config.pipelineLayout);
 		std::vector<std::unique_ptr<Shader>> shaders;
 		shaders.push_back(std::make_unique<Shader>(*this, config.vertexShaderPath, VK_SHADER_STAGE_VERTEX_BIT));
@@ -229,8 +237,8 @@ namespace Bear {
 		depthStencilInfo.depthTestEnable = config.depthStencilState.depthTestEnable ? VK_TRUE : VK_FALSE;
 		depthStencilInfo.depthWriteEnable = config.depthStencilState.depthWriteEnable ? VK_TRUE : VK_FALSE;
 		depthStencilInfo.depthCompareOp = ToVulkanCompareOp(config.depthStencilState.depthCompareOp);
-		depthStencilInfo.depthBoundsTestEnable = VK_FALSE; // ������ȷ�Χ����
-		depthStencilInfo.stencilTestEnable = VK_FALSE; // ����ģ�����
+		depthStencilInfo.depthBoundsTestEnable = VK_FALSE; // ������ȷ�Χ����?
+		depthStencilInfo.stencilTestEnable = VK_FALSE; // ����ģ�����?
 		depthStencilInfo.front = {}; // Ĭ��ֵ
 		depthStencilInfo.back = {}; // Ĭ��ֵ
 
@@ -254,8 +262,28 @@ namespace Bear {
 		pipelineInfo.pDynamicState = &dynamicStateInfo;
 
 		pipelineInfo.layout = vkPipelineLayout->GetHandle();
-		pipelineInfo.renderPass = vkRenderPass.GetHandle();
-		pipelineInfo.subpass = config.subpassIndex;
+		pipelineInfo.renderPass = renderPass ? renderPass->GetHandle() : VK_NULL_HANDLE;
+		pipelineInfo.subpass = renderPass ? config.subpassIndex : 0;
+
+		if (config.dynamicRendering || !renderPass)
+		{
+			pipelineInfo.subpass = 0;
+			std::vector<VkFormat> colorFormats;
+			colorFormats.reserve(config.colorFormats.size());
+			for (PixelFormat format : config.colorFormats)
+				colorFormats.push_back(ToVulkanFormat(format));
+
+			VkPipelineRenderingCreateInfo renderingInfo{};
+			renderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+			renderingInfo.colorAttachmentCount = static_cast<uint32_t>(colorFormats.size());
+			renderingInfo.pColorAttachmentFormats = colorFormats.empty() ? nullptr : colorFormats.data();
+			renderingInfo.depthAttachmentFormat = config.depthFormat != PixelFormat::Unknown
+				? ToVulkanFormat(config.depthFormat) : VK_FORMAT_UNDEFINED;
+
+			pipelineInfo.renderPass = VK_NULL_HANDLE;
+			pipelineInfo.pNext = &renderingInfo;
+			return std::make_shared<Pipeline>(*this, pipelineInfo);
+		}
 
 		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
 		pipelineInfo.basePipelineIndex = -1; // Optional
@@ -435,10 +463,9 @@ namespace Bear {
 
 		return  std::make_shared<RenderPass>(*this, renderPassInfo);
 	}
-	std::unique_ptr<RHISwapchain> Device::CreateSwapchain(RHIRenderPass& renderPass)
+	std::unique_ptr<RHISwapchain> Device::CreateSwapchain()
 	{
-		auto& vkRenderPass = static_cast<RenderPass&>(renderPass);
-		return std::make_unique<Swapchain>(*this, vkRenderPass);
+		return std::make_unique<Swapchain>(*this);
 	}
 	std::unique_ptr<RHIImage> Device::CreateTexture(const RHITextureConfig& config)
 	{
@@ -473,68 +500,6 @@ namespace Bear {
 
 		return std::make_shared<Sampler>(*this, samplerInfo);
 	}
-	std::shared_ptr<RHIRenderPass> Device::CreateUIRenderPass()
-	{
-		VkAttachmentDescription colorAttachment = {};
-		colorAttachment.format = VK_FORMAT_B8G8R8A8_SRGB;
-		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-		VkAttachmentReference colorAttachmentRef = {};
-		colorAttachmentRef.attachment = 0;
-		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-		VkSubpassDescription subpass = {};
-		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		subpass.colorAttachmentCount = 1;
-		subpass.pColorAttachments = &colorAttachmentRef;
-
-		VkSubpassDependency dependency = {};
-		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-		dependency.dstSubpass = 0;
-		dependency.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
-		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-
-		VkRenderPassCreateInfo renderPassInfo = {};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		renderPassInfo.attachmentCount = 1;
-		renderPassInfo.pAttachments = &colorAttachment;
-		renderPassInfo.subpassCount = 1;
-		renderPassInfo.pSubpasses = &subpass;
-		renderPassInfo.dependencyCount = 1;
-		renderPassInfo.pDependencies = &dependency;
-
-		return std::make_shared<RenderPass>(*this, renderPassInfo);
-	}
-	std::vector<std::shared_ptr<RHIFramebuffer>> Device::CreateUIFramebuffer(RHIRenderPass& renderPass, RHISwapchain& swapchain)
-	{
-		VkFramebufferCreateInfo framebufferInfo = {};
-		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		auto& vkRenderPass = static_cast<RenderPass&>(renderPass);
-		auto& vkSwapchain = static_cast<Swapchain&>(swapchain);
-		framebufferInfo.renderPass = vkRenderPass.GetHandle();
-		framebufferInfo.attachmentCount = 1; // 1 attachment for color
-		framebufferInfo.pAttachments = nullptr; // Will be set later
-		framebufferInfo.width = vkSwapchain.GetWidth();
-		framebufferInfo.height = vkSwapchain.GetHeight();
-		framebufferInfo.layers = 1; // No layers for single-layer framebuffer
-
-		std::vector<std::shared_ptr<RHIFramebuffer>> framebuffers;
-		for (uint32_t i = 0; i < vkSwapchain.GetImageCount(); ++i) {
-			auto imageView = vkSwapchain.GetImageViews()[i];
-			framebufferInfo.pAttachments = &imageView;
-			framebuffers.push_back(std::make_shared<Framebuffer>(*this, framebufferInfo));
-		}
-		return framebuffers;
-	}
-
 	std::shared_ptr<RHIFramebuffer> Device::CreateFramebuffer(RHIRenderPass& renderPass, const std::vector<void*>& attachments, uint32_t width, uint32_t height)
 	{
 		std::vector<std::shared_ptr<RHIFramebuffer>> framebuffers;
@@ -629,6 +594,7 @@ namespace Bear {
 		VkPhysicalDeviceVulkan13Features deviceVulkan13Features = {};
 		deviceVulkan13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
 		deviceVulkan13Features.shaderIntegerDotProduct = VK_TRUE;
+		deviceVulkan13Features.dynamicRendering = VK_TRUE;
 		deviceVulkan13Features.pNext = &deviceVulkan12Features;
 		VkPhysicalDeviceFeatures deviceFeatures = {};
 		deviceFeatures.samplerAnisotropy = VK_TRUE;
@@ -677,7 +643,7 @@ namespace Bear {
 		QueueFamilyIndices indices = FindQueueFamilies(device, surface);
 		bool extensionsSupported = CheckDeviceExtensionSupport(device);
 
-		bool swapChainAdequate = false; // ����Ƿ�֧�ֽ�����
+		bool swapChainAdequate = false; // ����Ƿ�֧�ֽ�����?
 		if (extensionsSupported) {
 			uint32_t formatCount = 0;
 			vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);

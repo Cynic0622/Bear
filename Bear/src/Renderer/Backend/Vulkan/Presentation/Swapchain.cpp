@@ -11,8 +11,8 @@
 #include "Sync/Semaphore.h"
 namespace Bear {
 
-	Bear::Swapchain::Swapchain(Device& device, RenderPass& renderPass)
-		:m_Device(device), m_RenderPass(renderPass)
+	Bear::Swapchain::Swapchain(Device& device)
+		:m_Device(device)
 	{
 		Init();
 #ifdef BEAR_DEBUG
@@ -25,20 +25,6 @@ namespace Bear {
 		Cleanup();
 #ifdef BEAR_DEBUG
 		BEAR_CORE_INFO("Vulkan Swapchain destroyed successfully.");
-#endif // BEAR_DEBUG
-	}
-
-	void Swapchain::CreateFramebuffers(const RenderPass& renderPass)
-	{
-		m_Framebuffers.resize(m_ImageCount);
-
-		for (size_t i = 0; i < m_ImageCount; ++i)
-		{
-			std::vector<VkImageView> attachments = { m_ImageViews[i], m_DepthImages[i]->GetView()};
-			m_Framebuffers[i] = std::make_unique<Framebuffer>(m_Device, renderPass, attachments, m_Extent.width, m_Extent.height);
-		}
-#ifdef BEAR_DEBUG
-		BEAR_CORE_INFO("Vulkan Framebuffers created successfully.");
 #endif // BEAR_DEBUG
 	}
 
@@ -133,16 +119,15 @@ namespace Bear {
 		CreateSwapchain();
 		CreateImageViews();
 		CreateDepthResources();
-		CreateFramebuffers(m_RenderPass);
 	}
 
 	void Swapchain::Cleanup()
 	{
-		CleanupFramebuffers();
 		for (auto& depthImage : m_DepthImages) {
 			depthImage.reset();
 		}
 		m_DepthImages.clear();
+		m_ColorImageWrappers.clear();
 		for (auto imageView : m_ImageViews) {
 			vkDestroyImageView(m_Device.GetDevice(), imageView, nullptr);
 		}
@@ -151,20 +136,6 @@ namespace Bear {
 			vkDestroySwapchainKHR(m_Device.GetDevice(), m_Swapchain, nullptr);
 			m_Swapchain = VK_NULL_HANDLE;
 		}
-	}
-
-	void Swapchain::CleanupFramebuffers()
-	{
-		for (auto& depthImage : m_DepthImages) {
-			depthImage.reset();
-		}
-		m_DepthImages.clear();
-		// ��������֡������
-		m_Framebuffers.clear();
-#ifdef BEAR_DEBUG
-		BEAR_CORE_INFO("Framebuffer destoryed successfully.");
-#endif // BEAR_DEBUG
-
 	}
 
 	void Swapchain::ChooseSurfaceFormat()
@@ -301,6 +272,13 @@ namespace Bear {
 			createInfo.subresourceRange.layerCount = 1;
 
 			BEAR_CORE_ASSERT(vkCreateImageView(m_Device.GetDevice(), &createInfo, nullptr, &m_ImageViews[i]) == VK_SUCCESS, "Failed to create image view.");
+		}
+
+		// non-owning RHIImage wrappers so the frame graph can import the swapchain color targets
+		m_ColorImageWrappers.clear();
+		for (size_t i = 0; i < m_Images.size(); ++i) {
+			m_ColorImageWrappers.push_back(std::make_unique<Image>(m_Device, m_Images[i], m_ImageViews[i],
+				m_Extent.width, m_Extent.height, m_ImageFormat));
 		}
 	}
 	void Swapchain::CreateDepthResources()

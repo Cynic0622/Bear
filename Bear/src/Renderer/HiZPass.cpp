@@ -181,13 +181,7 @@ namespace Bear
 			srcHeight = dstHeight;
 		}
 
-		// pyramid is sampled by the culling pass next
-		MemoryBarrier barrier;
-		barrier.srcStageMask = PipelineStage::ComputeShader;
-		barrier.dstStageMask = PipelineStage::ComputeShader;
-		barrier.srcAccessMask = AccessFlags::ShaderWrite;
-		barrier.dstAccessMask = AccessFlags::ShaderRead;
-		cmd->PipelineBarrier(barrier);
+		// N.B. the pyramid write -> culling read barrier is emitted by the frame graph
 	}
 
 	void HiZPass::Cleanup()
