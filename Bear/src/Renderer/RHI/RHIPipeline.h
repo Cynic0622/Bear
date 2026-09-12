@@ -70,7 +70,11 @@ namespace Bear {
 		virtual ~RHIDescriptorSet() = default;
 
 		virtual void UpdateDescriptorSet(uint32_t binding, const RHIBuffer& buffer) = 0;
-		virtual void UpdateTexture(uint32_t binding, const RHIImage& image, const RHISampler& sampler) = 0;
+		// mipLevel = UINT32_MAX binds the full mip chain
+		virtual void UpdateTexture(uint32_t binding, const RHIImage& image, const RHISampler& sampler, uint32_t mipLevel = UINT32_MAX) = 0;
+		// combined image sampler with an explicit image layout (e.g. GENERAL for persistent compute resources)
+		virtual void UpdateSampledImage(uint32_t binding, const RHIImage& image, const RHISampler& sampler, uint32_t mipLevel, ImageLayout layout) = 0;
+		virtual void UpdateStorageImage(uint32_t binding, const RHIImage& image, uint32_t mipLevel) = 0;
 		virtual void UpdateBuffer(uint32_t binding, const RHIBuffer& buffer) = 0;
 	};
 }

@@ -11,6 +11,10 @@ namespace Bear
 		uint32_t opaqueObjects = 0;     // drawn via indirect commands (PbrPass)
 		uint32_t transparentObjects = 0;// drawn by OIT (OitPass)
 		uint32_t drawCalls = 0;         // scene vkCmd draw invocations (all passes)
+		// GPU culling feedback (2-frame delayed readback)
+		uint32_t gpuVisible = 0;        // phase-1 visible
+		uint32_t gpuRejected = 0;       // occlusion suspects deferred to phase 2
+		uint32_t gpuRescued = 0;        // phase-2 rescued
 	};
 
 	// Toggleable renderer states, displayed in the UI.
@@ -18,6 +22,7 @@ namespace Bear
 	{
 		bool frustumCull = true;   // CPU culling, toggled with Z
 		bool gpuCulling = false;   // GPU culling, toggled with C
+		bool occlusionCulling = false; // Hi-Z occlusion culling, toggled with O
 		bool oitEnabled = false;   // toggled with X
 		bool editorMode = true;    // toggled with Q
 	};

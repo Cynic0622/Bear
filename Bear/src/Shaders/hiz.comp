@@ -1,0 +1,33 @@
+#version 450
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) uniform sampler2D g_Src;
+layout(set = 0, binding = 1, r32f) uniform writeonly image2D g_Dst;
+
+layout(push_constant) uniform PushConstants
+{
+    ivec2 srcSize; // source level size in pixels
+} g_PC;
+
+float sampleSrc(ivec2 p)
+{
+    // out-of-bounds counts as far (conservative: never over-occlude)
+    if (p.x >= g_PC.srcSize.x || p.y >= g_PC.srcSize.y)
+        return 1.0;
+    return texelFetch(g_Src, p, 0).r;
+}
+
+void main()
+{
+    ivec2 dst = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 src = dst * 2;
+
+    float a = sampleSrc(src + ivec2(0, 0));
+    float b = sampleSrc(src + ivec2(1, 0));
+    float c = sampleSrc(src + ivec2(0, 1));
+    float d = sampleSrc(src + ivec2(1, 1));
+
+    // store the farthest depth (max) so tiles can conservatively occlude
+    imageStore(g_Dst, dst, vec4(max(max(a, b), max(c, d)), 0.0, 0.0, 1.0));
+}

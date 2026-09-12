@@ -21,6 +21,7 @@ namespace Bear {
 		void Unmap() override;
 
 		void UploadData(const void* data, size_t size, size_t offset = 0) override;
+		void ReadData(void* dst, size_t size, size_t offset = 0) override;
 
 		VkBuffer GetHandle() const { return m_Buffer; }
 		size_t GetSize() const override { return static_cast<size_t>(m_Size); }

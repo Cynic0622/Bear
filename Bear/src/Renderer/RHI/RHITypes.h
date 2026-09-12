@@ -182,6 +182,7 @@ namespace Bear
 		Unknown,
 		R8_SRGB,
 		R32_UINT,
+		R32_SFLOAT,
 		R8G8_SRGB,
 		R8G8B8_SRGB,
 		R8G8B8A8_UNORM,
@@ -501,5 +502,21 @@ namespace Bear
 		AccessFlags dstAccessMask = AccessFlags::None;
 
 		bool byRegion = true; // framebuffer-local dependency
+	};
+
+	// Generic image memory barrier (layout transition + availability/visibility).
+	struct ImageBarrierDesc
+	{
+		PipelineStage srcStageMask = PipelineStage::TopOfPipe;
+		PipelineStage dstStageMask = PipelineStage::BottomOfPipe;
+
+		AccessFlags srcAccessMask = AccessFlags::None;
+		AccessFlags dstAccessMask = AccessFlags::None;
+
+		ImageLayout oldLayout = ImageLayout::Undefined;
+		ImageLayout newLayout = ImageLayout::General;
+
+		uint32_t baseMipLevel = 0;
+		uint32_t levelCount = 1;
 	};
 }

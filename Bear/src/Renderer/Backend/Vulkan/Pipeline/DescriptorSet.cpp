@@ -48,23 +48,20 @@ namespace Bear {
 		descriptorWrite.pBufferInfo = &bufferInfoDesc;
 		vkUpdateDescriptorSets(m_Device.GetDevice(), 1, &descriptorWrite, 0, nullptr);
 	}
-	void DescriptorSet::UpdateTexture(uint32_t binding, const RHIImage& image, const RHISampler& sampler)
+	void DescriptorSet::UpdateTexture(uint32_t binding, const RHIImage& image, const RHISampler& sampler, uint32_t mipLevel)
 	{
 		const auto& vkImage = dynamic_cast<const Image&>(image);
 		const auto& vkSampler = dynamic_cast<const Sampler&>(sampler);
 
+		VkImageView view = mipLevel == UINT32_MAX ? vkImage.GetView() : vkImage.GetMipViewVk(mipLevel);
 
 		VkDescriptorImageInfo imageInfo{};
-		imageInfo.imageView = vkImage.GetView();
-		// BEAR_CORE_INFO("UpdateTexture DescriptorSet={:#x}, binding {}: imageView={:#x}, sampler={:#x}",
-		// 	(uint64_t)m_DescriptorSet, binding, (uint64_t)vkImage.GetView(), (uint64_t)vkSampler.GetHandle());
+		imageInfo.imageView = view;
 
-		if (vkImage.GetView() == VK_NULL_HANDLE) {
+		if (view == VK_NULL_HANDLE) {
 			BEAR_CORE_ERROR("UpdateTexture: imageView is VK_NULL_HANDLE for binding {}", binding);
 			return;
 		}
-		// imageInfo.sampler = vkSampler.GetHandle();
-		// imageInfo.imageLayout = vkImage.GetLa;
 		auto descriptorType = m_SetLayout.GetDescriptorType(binding);
 		if (descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
 			imageInfo.sampler = vkSampler.GetHandle();
@@ -84,6 +81,45 @@ namespace Bear {
 		descriptorWrite.dstBinding = binding;
 		descriptorWrite.dstArrayElement = 0;
 		descriptorWrite.descriptorType = m_SetLayout.GetDescriptorType(binding);
+		descriptorWrite.descriptorCount = 1;
+		descriptorWrite.pImageInfo = &imageInfo;
+		vkUpdateDescriptorSets(m_Device.GetDevice(), 1, &descriptorWrite, 0, nullptr);
+	}
+	void DescriptorSet::UpdateSampledImage(uint32_t binding, const RHIImage& image, const RHISampler& sampler, uint32_t mipLevel, ImageLayout layout)
+	{
+		const auto& vkImage = dynamic_cast<const Image&>(image);
+		const auto& vkSampler = dynamic_cast<const Sampler&>(sampler);
+
+		VkDescriptorImageInfo imageInfo{};
+		imageInfo.imageView = mipLevel == UINT32_MAX ? vkImage.GetView() : vkImage.GetMipViewVk(mipLevel);
+		imageInfo.sampler = vkSampler.GetHandle();
+		imageInfo.imageLayout = ToVulkanImageLayout(layout);
+
+		VkWriteDescriptorSet descriptorWrite{};
+		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrite.dstSet = m_DescriptorSet;
+		descriptorWrite.dstBinding = binding;
+		descriptorWrite.dstArrayElement = 0;
+		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrite.descriptorCount = 1;
+		descriptorWrite.pImageInfo = &imageInfo;
+		vkUpdateDescriptorSets(m_Device.GetDevice(), 1, &descriptorWrite, 0, nullptr);
+	}
+	void DescriptorSet::UpdateStorageImage(uint32_t binding, const RHIImage& image, uint32_t mipLevel)
+	{
+		const auto& vkImage = dynamic_cast<const Image&>(image);
+
+		VkDescriptorImageInfo imageInfo{};
+		imageInfo.imageView = vkImage.GetMipViewVk(mipLevel);
+		imageInfo.sampler = VK_NULL_HANDLE;
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+		VkWriteDescriptorSet descriptorWrite{};
+		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrite.dstSet = m_DescriptorSet;
+		descriptorWrite.dstBinding = binding;
+		descriptorWrite.dstArrayElement = 0;
+		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 		descriptorWrite.descriptorCount = 1;
 		descriptorWrite.pImageInfo = &imageInfo;
 		vkUpdateDescriptorSets(m_Device.GetDevice(), 1, &descriptorWrite, 0, nullptr);

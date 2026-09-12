@@ -31,6 +31,8 @@ namespace Bear
 		void ReloadModel();
 		void SetInstanceMultiplier(uint32_t count);
 		uint32_t GetInstanceMultiplier() const { return m_InstanceMultiplier; }
+		void SetInstanceSpread(float spread) { m_InstanceSpread = spread; }
+		float GetInstanceSpread() const { return m_InstanceSpread; }
 
 		static const std::vector<std::pair<const char*, const char*>>& GetModelList();
 
@@ -44,5 +46,6 @@ namespace Bear
 		std::unique_ptr<Scene> m_Scene;
 		std::string m_CurrentModelPath;
 		uint32_t m_InstanceMultiplier = 1;
+		float m_InstanceSpread = 50.0f;
 	};
 }

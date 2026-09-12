@@ -20,6 +20,9 @@ public:
 		guiLayer->SetOnInstanceCountChangeCallback([sceneLayer](uint32_t count) {
 			sceneLayer->SetInstanceMultiplier(count);
 		});
+		guiLayer->SetOnInstanceSpreadChangeCallback([sceneLayer](float spread) {
+			sceneLayer->SetInstanceSpread(spread);
+		});
 		guiLayer->SetDrawStatsProvider([sceneLayer]() -> Bear::RenderStats {
 			auto stats = Bear::Application::Get().GetRenderer()->GetFrameStats();
 			stats.sceneObjects = sceneLayer->GetTotalMeshEntities();
@@ -29,6 +32,7 @@ public:
 			Bear::RenderStates states;
 			states.frustumCull = sceneLayer->IsFrustumCullingEnabled();
 			states.gpuCulling = Bear::Application::Get().GetRenderer()->IsGpuCullingEnabled();
+			states.occlusionCulling = Bear::Application::Get().GetRenderer()->IsOcclusionCullingEnabled();
 			states.oitEnabled = Bear::Application::Get().GetRenderer()->IsOitEnabled();
 			states.editorMode = sceneLayer->IsEditorMode();
 			return states;

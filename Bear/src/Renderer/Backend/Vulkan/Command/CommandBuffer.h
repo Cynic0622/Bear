@@ -43,6 +43,7 @@ namespace Bear {
 		void* GetNativeHandle() const override { return m_CommandBuffer; }
 		void CopyBuffer(const RHIBuffer& srcBuffer, const RHIBuffer& dstBuffer, size_t size, size_t srcOffset, size_t dstOffset) override;
 		void PipelineBarrier(const MemoryBarrier& memoryBarrier) override;
+		void ImageBarrier(RHIImage& image, const ImageBarrierDesc& barrier) override;
 		void FillBuffer(const RHIBuffer& buffer, const void* data, size_t size, size_t offset) override;
 		void ClearImage(const RHIImage& image, const ClearColor& clearColor) override;
 		void BlitImage(RHIImage& srcImage, RHIImage& dstImage, uint32_t srcLevel, uint32_t dstLevel) override;

@@ -103,10 +103,10 @@ namespace Bear
 	{
 		uint32_t width = m_Context->swapchain->GetWidth();
 		uint32_t height = m_Context->swapchain->GetHeight();
-		auto depthAttachment = m_Context->swapchain->GetDepthView();
 		// auto colorAttachment = m_Context->swapchain->GetC();
 		for (uint32_t i = 0; i < m_Context->swapchain->GetImageCount(); ++i)
 		{
+			auto depthAttachment = m_Context->swapchain->GetDepthView(i);
 			m_OitFramebuffers.push_back(m_Context->device->CreateFramebuffer(*m_OitRenderPass, { depthAttachment }, width, height));
 			m_BlendFramebuffers.push_back(m_Context->device->CreateFramebuffer(*m_BlendRenderPass, { m_Context->swapchain->GetColorView(i) }, width, height));
 		}
@@ -121,8 +121,9 @@ namespace Bear
 		depthAttachment.samples = AttachmentSamples::Count1;
 		depthAttachment.loadOp = AttachmentLoadOp::Load;
 		depthAttachment.storeOp = AttachmentStoreOp::DontCare;
-		depthAttachment.initialLayout = ImageLayout::DepthStencilAttachment;
-		depthAttachment.finalLayout = ImageLayout::DepthStencilAttachment;
+		// the depth buffer leaves the PBR passes in ShaderReadOnly (sampled by the Hi-Z build)
+		depthAttachment.initialLayout = ImageLayout::ShaderReadOnly;
+		depthAttachment.finalLayout = ImageLayout::ShaderReadOnly;
 
 		desc.subpassCount = 1; // For oit pass
 		SubpassDescription& subpass = desc.subpasses[0];

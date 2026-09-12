@@ -42,6 +42,7 @@ namespace Bear {
         void SetOnModelSwitchCallback(std::function<void(const std::string&)> callback);
         void SetOnReloadModelCallback(std::function<void()> callback);
         void SetOnInstanceCountChangeCallback(std::function<void(uint32_t)> callback);
+        void SetOnInstanceSpreadChangeCallback(std::function<void(float)> callback);
         void SetDrawStatsProvider(std::function<RenderStats()> provider);
         void SetRenderStatesProvider(std::function<RenderStates()> provider);
 
@@ -68,6 +69,7 @@ namespace Bear {
         std::function<void(const std::string&)> m_OnModelSwitch;
         std::function<void()> m_OnReloadModel;
         std::function<void(uint32_t)> m_OnInstanceCountChange;
+        std::function<void(float)> m_OnInstanceSpreadChange;
         std::function<RenderStats()> m_DrawStatsProvider;
         std::function<RenderStates()> m_RenderStatesProvider;
     };

@@ -109,7 +109,7 @@ namespace Bear
 		uint32_t height = m_Context->swapchain->GetHeight();
 		for (uint32_t i = 0; i < m_Context->swapchain->GetImageCount(); ++i)
 		{
-			m_Framebuffers.push_back(m_Context->device->CreateFramebuffer(*m_RenderPass, { m_Context->swapchain->GetColorView(i), m_Context->swapchain->GetDepthView() }, width, height));
+			m_Framebuffers.push_back(m_Context->device->CreateFramebuffer(*m_RenderPass, { m_Context->swapchain->GetColorView(i), m_Context->swapchain->GetDepthView(i) }, width, height));
 		}
 	}
 }

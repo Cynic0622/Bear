@@ -25,9 +25,13 @@ namespace Bear {
 		uint32_t GetHeight() const override;
 		uint32_t GetMipLevels() const override;
 		PixelFormat GetFormat() const override;
+		void* GetMipView(uint32_t mipLevel) const override { return reinterpret_cast<void*>(GetMipViewVk(mipLevel)); }
 
 		inline VkImageView GetView() const { return m_ImageView; }
 		inline VkImage GetImage() const { return m_Image; }
+		// per-mip image view (levelCount = 1); falls back to the full view when out of range
+		VkImageView GetMipViewVk(uint32_t mipLevel) const;
+		VkImageAspectFlags GetAspectMask() const { return GetAspectMask(m_Format); }
 		// inline VkFormat GetFormat() const { return m_Format; }
 
 	private:
@@ -35,6 +39,7 @@ namespace Bear {
 		VkImage m_Image = VK_NULL_HANDLE;
 		//VkDeviceMemory m_Memory = VK_NULL_HANDLE;
 		VkImageView m_ImageView = VK_NULL_HANDLE;
+		std::vector<VkImageView> m_MipViews;
 		VkFormat m_Format = VK_FORMAT_UNDEFINED;
 
 		VmaAllocation m_Allocation = VK_NULL_HANDLE; // vma
@@ -44,7 +49,8 @@ namespace Bear {
 	private:
 		void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VmaMemoryUsage memoryUsage);
 		void CreateImageView(VkFormat format);
+		void CreateMipViews();
 		void Cleanup();
-		VkImageAspectFlags GetAspectMask(VkFormat format);
+		static VkImageAspectFlags GetAspectMask(VkFormat format);
 	};
 }

@@ -34,7 +34,7 @@ namespace Bear {
 
 		for (size_t i = 0; i < m_ImageCount; ++i)
 		{
-			std::vector<VkImageView> attachments = { m_ImageViews[i], m_DepthImage->GetView()};
+			std::vector<VkImageView> attachments = { m_ImageViews[i], m_DepthImages[i]->GetView()};
 			m_Framebuffers[i] = std::make_unique<Framebuffer>(m_Device, renderPass, attachments, m_Extent.width, m_Extent.height);
 		}
 #ifdef BEAR_DEBUG
@@ -59,14 +59,14 @@ namespace Bear {
 		uint32_t imageIndex = 0;
 		VkResult result = vkAcquireNextImageKHR(m_Device.GetDevice(), m_Swapchain, UINT64_MAX, imageAvailableSemaphore.GetHandle(), VK_NULL_HANDLE, &imageIndex);
 		if (result == VK_SUCCESS) {
-			return imageIndex; // ³É¹¦»ñÈ¡Í¼ÏñË÷Òý
+			return imageIndex; // ï¿½É¹ï¿½ï¿½ï¿½È¡Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		}
 		else if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR) {
-			// ½»»»Á´¿ÉÄÜÐèÒªÖØ½¨
+			// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½Ø½ï¿½
 			BEAR_CORE_WARN("Swapchain is suboptimal or out of date, need to recreate swapchain.");
 			Recreate();
 		}
-		return UINT32_MAX; // »ñÈ¡Í¼ÏñË÷ÒýÊ§°Ü»òÖØ½¨½»»»Á´£¬Ìø¹ý¸ÃÖ¡
+		return UINT32_MAX; // ï¿½ï¿½È¡Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê§ï¿½Ü»ï¿½ï¿½Ø½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¡
 	}
 
 	void Swapchain::Present(uint32_t imageIndex, Semaphore& renderFinishedSemaphore)
@@ -85,7 +85,7 @@ namespace Bear {
 
 	void Swapchain::Resize()
 	{
-		// ÔÚ´°¿Ú´óÐ¡¸Ä±äÊ±µ÷ÓÃ£¬Í¨³£ÔÚ´°¿ÚµÄresizeÊÂ¼þÖÐ´¥·¢
+		// ï¿½Ú´ï¿½ï¿½Ú´ï¿½Ð¡ï¿½Ä±ï¿½Ê±ï¿½ï¿½ï¿½Ã£ï¿½Í¨ï¿½ï¿½ï¿½Ú´ï¿½ï¿½Úµï¿½resizeï¿½Â¼ï¿½ï¿½Ð´ï¿½ï¿½ï¿½
 		Recreate();
 	}
 
@@ -95,21 +95,21 @@ namespace Bear {
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
 		presentInfo.waitSemaphoreCount = 1;
-		presentInfo.pWaitSemaphores = &waitSemaphore; // µÈ´ýÐÅºÅÁ¿
+		presentInfo.pWaitSemaphores = &waitSemaphore; // ï¿½È´ï¿½ï¿½Åºï¿½ï¿½ï¿½
 		presentInfo.swapchainCount = 1;
-		presentInfo.pSwapchains = &m_Swapchain; // ½»»»Á´
-		presentInfo.pImageIndices = &imageIndex; // Í¼ÏñË÷Òý
+		presentInfo.pSwapchains = &m_Swapchain; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+		presentInfo.pImageIndices = &imageIndex; // Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
 		BEAR_CORE_ASSERT(vkQueuePresentKHR(presentQueue, &presentInfo) == VK_SUCCESS, "Failed to present image to swapchain.");
 		return VK_SUCCESS;
 	}
 	void Swapchain::Recreate()
 	{
-		// ÔÚÖØ½¨Ö®Ç°£¬µÈ´ýÉè±¸¿ÕÏÐ£¬È·±£ËùÓÐ×ÊÔ´¶¼²»ÔÚ±»Ê¹ÓÃ
+		// ï¿½ï¿½ï¿½Ø½ï¿½Ö®Ç°ï¿½ï¿½ï¿½È´ï¿½ï¿½è±¸ï¿½ï¿½ï¿½Ð£ï¿½È·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô´ï¿½ï¿½ï¿½ï¿½ï¿½Ú±ï¿½Ê¹ï¿½ï¿½
 		vkDeviceWaitIdle(m_Device.GetDevice());
 		Cleanup();
 		
-		// ÖØÐÂ³õÊ¼»¯½»»»Á´
+		// ï¿½ï¿½ï¿½Â³ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		Init();
 	}
 
@@ -118,10 +118,10 @@ namespace Bear {
 		width = m_Extent.width;
 		height = m_Extent.height;
 		if (width == 0 || height == 0) {
-			// Èç¹û¿í¶È»ò¸ß¶ÈÎª0£¬¿ÉÄÜÊÇÒòÎª´°¿ÚÎ´ÕýÈ·³õÊ¼»¯»òÒÑ×îÐ¡»¯
+			// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È»ï¿½ß¶ï¿½Îª0ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½Î´ï¿½ï¿½È·ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½
 			BEAR_CORE_WARN("Swapchain extent is zero, returning default values.");
-			width = 800; // Ä¬ÈÏ¿í¶È
-			height = 600; // Ä¬ÈÏ¸ß¶È
+			width = 800; // Ä¬ï¿½Ï¿ï¿½ï¿½ï¿½
+			height = 600; // Ä¬ï¿½Ï¸ß¶ï¿½
 		}
 	}
 
@@ -139,9 +139,10 @@ namespace Bear {
 	void Swapchain::Cleanup()
 	{
 		CleanupFramebuffers();
-		if (m_DepthImage) {
-			m_DepthImage.reset(); // Ê¹ÓÃÖÇÄÜÖ¸Õë×Ô¶¯¹ÜÀí×ÊÔ´
+		for (auto& depthImage : m_DepthImages) {
+			depthImage.reset();
 		}
+		m_DepthImages.clear();
 		for (auto imageView : m_ImageViews) {
 			vkDestroyImageView(m_Device.GetDevice(), imageView, nullptr);
 		}
@@ -154,10 +155,11 @@ namespace Bear {
 
 	void Swapchain::CleanupFramebuffers()
 	{
-		if (m_DepthImage) {
-			m_DepthImage.reset(); // Ê¹ÓÃÖÇÄÜÖ¸Õë×Ô¶¯¹ÜÀí×ÊÔ´
+		for (auto& depthImage : m_DepthImages) {
+			depthImage.reset();
 		}
-		// Ïú»ÙËùÓÐÖ¡»º³åÇø
+		m_DepthImages.clear();
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		m_Framebuffers.clear();
 #ifdef BEAR_DEBUG
 		BEAR_CORE_INFO("Framebuffer destoryed successfully.");
@@ -173,14 +175,14 @@ namespace Bear {
 		std::vector<VkSurfaceFormatKHR> formats(formatCount);
 		vkGetPhysicalDeviceSurfaceFormatsKHR(m_Device.GetPhysicalDevice(), m_Device.GetSurface().GetHandle(), &formatCount, formats.data());
 
-		// Ñ¡Ôñ×î³£ÓÃµÄ±íÃæ¸ñÊ½£¨ÀýÈç£ºVK_FORMAT_B8G8R8A8_SRGB£©
+		// Ñ¡ï¿½ï¿½ï¿½î³£ï¿½ÃµÄ±ï¿½ï¿½ï¿½ï¿½Ê½ï¿½ï¿½ï¿½ï¿½ï¿½ç£ºVK_FORMAT_B8G8R8A8_SRGBï¿½ï¿½
 		for (const auto& format : formats) {
 			if (format.format == VK_FORMAT_B8G8R8A8_SRGB && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
 				m_SurfaceFormat = format;
 				return;
 			}
 		}
-		// Èç¹ûÃ»ÓÐÕÒµ½³£ÓÃ¸ñÊ½£¬Ñ¡ÔñµÚÒ»¸ö¿ÉÓÃ¸ñÊ½
+		// ï¿½ï¿½ï¿½Ã»ï¿½ï¿½ï¿½Òµï¿½ï¿½ï¿½ï¿½Ã¸ï¿½Ê½ï¿½ï¿½Ñ¡ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½Ã¸ï¿½Ê½
 		m_SurfaceFormat = formats[0];
 
 	}
@@ -191,14 +193,14 @@ namespace Bear {
 		BEAR_CORE_ASSERT(presentModeCount > 0, "No present modes available.");
 		std::vector<VkPresentModeKHR> presentModes(presentModeCount);
 		vkGetPhysicalDeviceSurfacePresentModesKHR(m_Device.GetPhysicalDevice(), m_Device.GetSurface().GetHandle(), &presentModeCount, presentModes.data());
-		// Ñ¡Ôñ×î³£ÓÃµÄ³ÊÏÖÄ£Ê½£¨ÀýÈç£ºVK_PRESENT_MODE_FIFO_KHR£©
+		// Ñ¡ï¿½ï¿½ï¿½î³£ï¿½ÃµÄ³ï¿½ï¿½ï¿½Ä£Ê½ï¿½ï¿½ï¿½ï¿½ï¿½ç£ºVK_PRESENT_MODE_FIFO_KHRï¿½ï¿½
 		for (const auto& mode : presentModes) {
 			if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
 				m_PresentMode = mode;
 				return;
 			}
 		}
-		// Èç¹ûÃ»ÓÐÕÒµ½³£ÓÃÄ£Ê½£¬Ñ¡ÔñµÚÒ»¸ö¿ÉÓÃÄ£Ê½
+		// ï¿½ï¿½ï¿½Ã»ï¿½ï¿½ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½Ä£Ê½ï¿½ï¿½Ñ¡ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä£Ê½
 		m_PresentMode = presentModes[0];
 	}
 	void Swapchain::ChooseExtent()
@@ -206,11 +208,11 @@ namespace Bear {
 		VkSurfaceCapabilitiesKHR capabilities;
 		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_Device.GetPhysicalDevice(), m_Device.GetSurface().GetHandle(), &capabilities);
 		if (capabilities.currentExtent.width != UINT32_MAX) {
-			// Èç¹û±íÃæ¾ßÓÐ¹Ì¶¨µÄ·¶Î§£¬ÔòÊ¹ÓÃ¸Ã·¶Î§
+			// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¹Ì¶ï¿½ï¿½Ä·ï¿½Î§ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½Ã¸Ã·ï¿½Î§
 			m_Extent = capabilities.currentExtent;
 		}
 		else {
-			// ·ñÔò£¬¸ù¾Ý´°¿Ú´óÐ¡¼ÆËã·¶Î§
+			// ï¿½ï¿½ï¿½ò£¬¸ï¿½ï¿½Ý´ï¿½ï¿½Ú´ï¿½Ð¡ï¿½ï¿½ï¿½ã·¶Î§
 			int width, height;
 			glfwGetFramebufferSize(static_cast<GLFWwindow*>(m_Device.GetSurface().GetNativeWindow()), &width, &height);
 
@@ -232,7 +234,7 @@ namespace Bear {
 	{
 		VkSurfaceCapabilitiesKHR capabilities;
 		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_Device.GetPhysicalDevice(), m_Device.GetSurface().GetHandle(), &capabilities);
-		m_MinImageCount = capabilities.minImageCount + 1; // ÖÁÉÙÐèÒªÒ»¸öÍ¼Ïñ
+		m_MinImageCount = capabilities.minImageCount + 1; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÒªÒ»ï¿½ï¿½Í¼ï¿½ï¿½
 		if (capabilities.maxImageCount > 0 && m_MinImageCount > capabilities.maxImageCount) {
 			m_MinImageCount = capabilities.maxImageCount;
 		}
@@ -243,15 +245,15 @@ namespace Bear {
 		createInfo.imageFormat = m_SurfaceFormat.format;
 		createInfo.imageColorSpace = m_SurfaceFormat.colorSpace;
 		createInfo.imageExtent = m_Extent;
-		createInfo.imageArrayLayers = 1; // µ¥²ãÍ¼Ïñ
-		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; // ÓÃÓÚÑÕÉ«¸½¼þ
-		createInfo.preTransform = capabilities.currentTransform; // ±£³Öµ±Ç°×ª»»
-		createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR; // ²»Í¸Ã÷ºÏ³É
-		createInfo.presentMode = m_PresentMode; // Ê¹ÓÃÑ¡ÔñµÄ³ÊÏÖÄ£Ê½
-		createInfo.clipped = VK_TRUE; // ¼ô²ÃÍ¼Ïñ
-		createInfo.oldSwapchain = VK_NULL_HANDLE; // Ã»ÓÐ¾É½»»»Á´
+		createInfo.imageArrayLayers = 1; // ï¿½ï¿½ï¿½ï¿½Í¼ï¿½ï¿½
+		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É«ï¿½ï¿½ï¿½ï¿½
+		createInfo.preTransform = capabilities.currentTransform; // ï¿½ï¿½ï¿½Öµï¿½Ç°×ªï¿½ï¿½
+		createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR; // ï¿½ï¿½Í¸ï¿½ï¿½ï¿½Ï³ï¿½
+		createInfo.presentMode = m_PresentMode; // Ê¹ï¿½ï¿½Ñ¡ï¿½ï¿½Ä³ï¿½ï¿½ï¿½Ä£Ê½
+		createInfo.clipped = VK_TRUE; // ï¿½ï¿½ï¿½ï¿½Í¼ï¿½ï¿½
+		createInfo.oldSwapchain = VK_NULL_HANDLE; // Ã»ï¿½Ð¾É½ï¿½ï¿½ï¿½ï¿½ï¿½
 		createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-		createInfo.pNext = nullptr; // Ã»ÓÐ¶îÍâµÄ½á¹¹Ìå
+		createInfo.pNext = nullptr; // Ã»ï¿½Ð¶ï¿½ï¿½ï¿½Ä½á¹¹ï¿½ï¿½
 
 		QueueFamilyIndices indices = m_Device.GetQueueFamilyIndices();
 		uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
@@ -269,7 +271,7 @@ namespace Bear {
 
 		BEAR_CORE_ASSERT(vkCreateSwapchainKHR(m_Device.GetDevice(), &createInfo, nullptr, &m_Swapchain) == VK_SUCCESS, "Failed to create Vulkan swapchain.");
 
-		// »ñÈ¡½»»»Á´Í¼Ïñ
+		// ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¼ï¿½ï¿½
 		uint32_t swapchainImageCount = 0;
 		vkGetSwapchainImagesKHR(m_Device.GetDevice(), m_Swapchain, &swapchainImageCount, nullptr);
 		BEAR_CORE_ASSERT(swapchainImageCount > 0, "No swapchain images available.");
@@ -305,8 +307,12 @@ namespace Bear {
 	{
 		VkFormat depthFormat = FindDepthFormat(m_Device);
 
-		m_DepthImage = std::make_unique<Image>(m_Device, m_Extent.width, m_Extent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, 
-			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+		m_DepthImages.clear();
+		for (uint32_t i = 0; i < m_ImageCount; ++i)
+		{
+			m_DepthImages.push_back(std::make_unique<Image>(m_Device, m_Extent.width, m_Extent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL,
+				VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VMA_MEMORY_USAGE_GPU_ONLY));
+		}
 	}
 	
 }

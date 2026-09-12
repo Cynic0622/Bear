@@ -13,6 +13,7 @@ namespace Bear
 	class PbrPass;
 	class SkyboxPass;
 	class CullingPass;
+	class HiZPass;
 }
 
 struct GLFWwindow;
@@ -48,6 +49,7 @@ namespace Bear {
 		const RenderStats& GetFrameStats() const { return m_FrameStats; }
 		bool IsOitEnabled() const { return OitEnabled; }
 		bool IsGpuCullingEnabled() const;
+		bool IsOcclusionCullingEnabled() const;
 
 		void BeginFrame();
 		void Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData, const BaseData& baseData);
@@ -63,12 +65,7 @@ namespace Bear {
 		std::unique_ptr<RHIDevice> m_Device;
 		std::unique_ptr<RHISwapchain> m_Swapchain;
 		std::shared_ptr<RHIRenderPass> m_RenderPass;
-		std::shared_ptr<RHIRenderPass> m_PreZRenderPass; // for pre-z rendering
 		std::shared_ptr<RHIRenderPass> m_UIRenderPass; // for UI rendering
-		std::shared_ptr<RHIPipelineLayout> m_PipelineLayout; // for pipelines
-		std::shared_ptr<RHIPipelineLayout> m_PreZPipelineLayout;
-		std::shared_ptr<RHIPipeline> m_PbrPipeline; // for pbr rendering
-		std::shared_ptr<RHIPipeline> m_PreZPipeline;
 
 		RHICommandList* m_CurrentCommandBuffer;
 		uint32_t m_CurrentImageIndex;
@@ -88,6 +85,7 @@ namespace Bear {
 		std::unique_ptr<SkyboxPass> m_SkyboxPass; // Skybox rendering pass
 		std::unique_ptr<PbrPass> m_PbrPass; // PBR rendering pass
 		std::unique_ptr<CullingPass> m_CullingPass; // GPU frustum culling pass
+		std::unique_ptr<HiZPass> m_HiZPass; // Hi-Z pyramid build for occlusion culling
 		std::unique_ptr<OitPass> m_OitPass; // Order Independent Transparency pass
 
 		bool OitEnabled = false; // Toggle for Order Independent Transparency
