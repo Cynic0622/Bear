@@ -30,13 +30,14 @@ git clone --recursive https://github.com/Cynic0622/Bear.git
 
 - **渲染优化**
   - **CPU 端视锥剔除 (Frustum Culling)**: 在提交 GPU 之前剔除视野外的物体，减少无效渲染。
-  - **Pre-Z Pass**: 提前深度测试通道，能有效减少 Overdraw，提升片段着色阶段的性能。
+  - **GPU-Driven 剔除 (GPU Culling)**: Compute Shader 视锥剔除 + 材质分桶间接绘制（`DrawIndexedIndirectCount`），绘制调用数量与物体数量解耦。
+  - **Hi-Z 遮挡剔除 (Occlusion Culling)**: 基于深度金字塔的物体级遮挡剔除，采用"上一帧预剔 + 同帧修正"两阶段方案，避免时序伪影。
 
 ## 🗓️ 待实现（TODO）
 
 ### 🛠️ 工程架构 (Engineering)
 
-- [ ] **GPU剔除**: 基于 Compute shader 实现剔除。
+- [x] **GPU剔除**: 基于 Compute shader 实现剔除（视锥 + Hi-Z 遮挡，两阶段同帧修正）。
 - [ ] **渲染依赖图 (Render Graph)**: 自动分析并管理 Render Pass 之间的依赖关系，自动插入 Pipeline Barriers 进行资源同步。
 - [ ] **资源缓存系统 (Resource Caching)**: 实现 Pipeline State Object (PSO)、Descriptor Set 及纹理等核心资源的缓存与复用机制，减少运行时开销。
 
