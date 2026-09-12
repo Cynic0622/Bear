@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include "RHITypes.h"
 namespace Bear {
 
 	class RHIPipeline;
@@ -11,6 +12,20 @@ namespace Bear {
 	class RHIFramebuffer;
 	class RHIImage;
 	enum class ImageLayout;
+	enum class AttachmentLoadOp;
+	enum class AttachmentStoreOp;
+	struct RHIClearValue;
+
+	// Attachment description for dynamic rendering (vkCmdBeginRendering path).
+	struct RHIRenderingAttachment
+	{
+		RHIImage* image = nullptr;
+		ImageLayout layout = ImageLayout::ColorAttachment;
+		AttachmentLoadOp loadOp = AttachmentLoadOp::Load;
+		AttachmentStoreOp storeOp = AttachmentStoreOp::Store;
+		RHIClearValue* clearValue = nullptr; // required when loadOp == Clear
+		bool isDepth = false;
+	};
 	class RHICommandList {
 	public:
 		virtual ~RHICommandList() = default;
@@ -21,6 +36,10 @@ namespace Bear {
 
 		virtual void BeginRenderPass(RHIRenderPass& rhiRenderPass, RHIFramebuffer& rhiFramebuffer, uint32_t width, uint32_t height, const std::vector<RHIClearValue>& clearValues) = 0;
 		virtual void EndRenderPass() = 0;
+
+		// dynamic rendering (vkCmdBeginRendering); layouts must already be transitioned by the caller
+		virtual void BeginRendering(const std::vector<RHIRenderingAttachment>& attachments) = 0;
+		virtual void EndRendering() = 0;
 
 		virtual void BindPipeline(const RHIPipeline& pipeline) = 0;
 		virtual void BindDescriptorSet(const RHIPipelineLayout& pipelineLayout, const RHIDescriptorSet& set, uint32_t setIndex = 0, PipelineBindPoint bindPoint = PipelineBindPoint::Graphics) = 0;

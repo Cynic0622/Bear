@@ -27,6 +27,8 @@ namespace Bear {
 		void BeginRenderPass(RHIRenderPass& rhiRenderPass, RHIFramebuffer& rhiFramebuffer, uint32_t width, uint32_t height, const std::vector<RHIClearValue>& clearValues) override;
 		
 		void EndRenderPass() override;
+		void BeginRendering(const std::vector<RHIRenderingAttachment>& attachments) override;
+		void EndRendering() override;
 		void BindPipeline(const RHIPipeline& pipeline) override;
 		void SetViewport(float x, float y, float width, float height, float minDepth = 0.0f, float maxDepth = 1.0f) override;
 		void SetScissor(int32_t x, int32_t y, uint32_t width, uint32_t height) override;

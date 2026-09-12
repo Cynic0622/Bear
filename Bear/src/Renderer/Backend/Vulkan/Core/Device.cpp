@@ -629,6 +629,7 @@ namespace Bear {
 		VkPhysicalDeviceVulkan13Features deviceVulkan13Features = {};
 		deviceVulkan13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
 		deviceVulkan13Features.shaderIntegerDotProduct = VK_TRUE;
+		deviceVulkan13Features.dynamicRendering = VK_TRUE;
 		deviceVulkan13Features.pNext = &deviceVulkan12Features;
 		VkPhysicalDeviceFeatures deviceFeatures = {};
 		deviceFeatures.samplerAnisotropy = VK_TRUE;
