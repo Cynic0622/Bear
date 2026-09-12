@@ -60,7 +60,7 @@ namespace Bear
 		m_Scene->ClearAllEntities();
 		m_Scene->CreateSceneGraph(modelDesc, resources);
 		if (m_InstanceMultiplier > 1)
-			m_Scene->MultiplyInstances(m_InstanceMultiplier, 50.0f);
+			m_Scene->MultiplyInstances(m_InstanceMultiplier, m_InstanceSpread);
 	}
 
 	void SceneLayer::SetInstanceMultiplier(uint32_t count)

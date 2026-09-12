@@ -95,7 +95,7 @@ namespace Bear
 		for (size_t i = 0; i < m_Context->swapchain->GetImageCount(); i++)
 		{
 			auto framebuffer = m_Context->device->CreateFramebuffer(
-				*m_RenderPass, { m_Context->swapchain->GetColorView(i), m_Context->swapchain->GetDepthView() },
+				*m_RenderPass, { m_Context->swapchain->GetColorView(i), m_Context->swapchain->GetDepthView(static_cast<uint32_t>(i)) },
 				m_Context->swapchain->GetWidth(), m_Context->swapchain->GetHeight());
 			m_Framebuffers.push_back(framebuffer);
 		}

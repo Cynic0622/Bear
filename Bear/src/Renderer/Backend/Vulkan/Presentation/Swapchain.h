@@ -21,7 +21,7 @@ namespace Bear {
 		Swapchain(Device& device, RenderPass& renderPass);
 		~Swapchain() override;
 
-		// ½ûÖ¹¿½±´ºÍÒÆ¶¯
+		// ï¿½ï¿½Ö¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¶ï¿½
 		Swapchain(const Swapchain&) = delete;
 		Swapchain& operator=(const Swapchain&) = delete;
 		Swapchain(Swapchain&&) = delete;
@@ -43,7 +43,8 @@ namespace Bear {
 		VkFormat GetImageFormat() const { return m_ImageFormat; }
 		void GetExtent(uint32_t& width, uint32_t& height) const override;
 		const std::vector<VkImageView>& GetImageViews() const { return m_ImageViews; }
-		void* GetDepthView() const override { return m_DepthImage->GetView(); } // rhi
+		void* GetDepthView(uint32_t imageIndex) const override { return m_DepthImages[imageIndex]->GetView(); } // rhi
+		RHIImage* GetDepthImage(uint32_t imageIndex) const override { return m_DepthImages[imageIndex].get(); }
 		void* GetColorView(uint8_t index) const override { return m_ImageViews[index]; } // rhi
 		uint32_t GetImageCount() const override { return static_cast<uint32_t>(m_Images.size()); } //rhi
 		// const VkImageView& GetImage(uint32_t index) const { return m_ImageViews[index]; }
@@ -53,7 +54,7 @@ namespace Bear {
 		void Recreate();
 		void CleanupFramebuffers();
 
-		// ³õÊ¼»¯¹ý³ÌÖÐµÄÏêÏ¸²½Öè
+		// ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ðµï¿½ï¿½ï¿½Ï¸ï¿½ï¿½ï¿½ï¿½
 		void ChooseSurfaceFormat();
 		void ChoosePresentMode();
 		void ChooseExtent();
@@ -67,24 +68,24 @@ namespace Bear {
 		VkResult SubmitImage(uint32_t imageIndex, VkQueue presentQueue, VkSemaphore waitSemaphore);
 
 	private:
-		const Device& m_Device; // ³ÖÓÐ¶ÔÉè±¸µÄÒýÓÃ
+		const Device& m_Device; // ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½è±¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		const RenderPass& m_RenderPass;
 
 		VkSwapchainKHR m_Swapchain = VK_NULL_HANDLE;
 
-		// ½»»»Á´×ÊÔ´
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô´
 		std::vector<VkImage> m_Images;
 		std::vector<VkImageView> m_ImageViews;
 		VkFormat m_ImageFormat;
 		VkExtent2D m_Extent;
-		uint32_t m_ImageCount = 0; // Í¼ÏñÊýÁ¿
-		uint32_t m_MinImageCount = 2; // ×îÐ¡Í¼ÏñÊýÁ¿
+		uint32_t m_ImageCount = 0; // Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+		uint32_t m_MinImageCount = 2; // ï¿½ï¿½Ð¡Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
-		// Ð­ÉÌºóÑ¡ÔñµÄ²ÎÊý
+		// Ð­ï¿½Ìºï¿½Ñ¡ï¿½ï¿½Ä²ï¿½ï¿½ï¿½
 		VkSurfaceFormatKHR m_SurfaceFormat;
 		VkPresentModeKHR m_PresentMode;
 
-		std::vector<std::unique_ptr<Framebuffer>> m_Framebuffers; // ÓÃÓÚäÖÈ¾µÄÖ¡»º³åÇø
-		std::unique_ptr<Image> m_DepthImage;
+		std::vector<std::unique_ptr<Framebuffer>> m_Framebuffers; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¾ï¿½ï¿½Ö¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+		std::vector<std::unique_ptr<Image>> m_DepthImages;
 	};
 }

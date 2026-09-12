@@ -7,6 +7,7 @@
 #include "PbrPass.h"
 #include "OitPass.h"
 #include "CullingPass.h"
+#include "HiZPass.h"
 #include "RHI/RHIDevice.h"
 #include "RHI/RHI.h"
 #include "RHI/RHISwapchain.h"
@@ -72,6 +73,13 @@ namespace Bear {
 
 		m_SkyboxPass->Execute(m_CurrentCommandBuffer, renderObjects);
 		m_CullingPass->SetViewProjection(baseData.projMat * baseData.viewMat);
+		// phase 1 tests against the previous frame's pyramid (ping-pong of 2 slots)
+		if (m_HiZPass)
+		{
+			uint32_t prevSlot = (frameIndex + 1) % 2;
+			m_CullingPass->SetHiZSource(m_HiZPass->GetPyramid(prevSlot), m_HiZPass->GetSampler());
+			m_CullingPass->SetHiZMipCount(m_HiZPass->GetMipCount());
+		}
 		m_CullingPass->Execute(m_CurrentCommandBuffer, renderObjects);
 		m_PbrPass->Execute(m_CurrentCommandBuffer, renderObjects);
 		if (OitEnabled)
@@ -88,6 +96,9 @@ namespace Bear {
 		m_FrameStats.visibleObjects = static_cast<uint32_t>(renderObjects.size());
 		m_FrameStats.opaqueObjects = pbrStats.opaqueObjects;
 		m_FrameStats.drawCalls = 1 /*skybox*/ + pbrStats.drawCalls;
+		m_FrameStats.gpuVisible = pbrStats.gpuVisible;
+		m_FrameStats.gpuRejected = pbrStats.gpuRejected;
+		m_FrameStats.gpuRescued = pbrStats.gpuRescued;
 		if (OitEnabled)
 		{
 			const auto& oitStats = m_OitPass->GetStats();
@@ -132,7 +143,7 @@ namespace Bear {
 		m_SceneDataDescriptorSet.resize(MAX_FRAMES_IN_FLIGHT);
 
 		m_BaseDataDescriptorSetLayout = m_Device->CreateDescriptorSetLayout({
-			{0, DescriptorType::UniformBuffer, 1, ShaderStage::Vertex | ShaderStage::Fragment}
+			{0, DescriptorType::UniformBuffer, 1, ShaderStage::Vertex | ShaderStage::Fragment | ShaderStage::Compute}
 			});
 		m_SceneDataDescriptorSetLayout = m_Device->CreateDescriptorSetLayout({
 			{0, DescriptorType::UniformBuffer, 1, ShaderStage::Vertex | ShaderStage::Fragment},
@@ -180,12 +191,19 @@ namespace Bear {
 		m_CullingPass = std::make_unique<CullingPass>();
 		m_CullingPass->Setup(m_RenderContext);
 		m_PbrPass->SetCullingPass(m_CullingPass.get());
+		m_HiZPass = std::make_unique<HiZPass>();
+		m_HiZPass->Setup(m_RenderContext);
+		m_PbrPass->SetHiZPass(m_HiZPass.get());
 	}
 	
 	
 	bool Renderer::IsGpuCullingEnabled() const
 	{
 		return m_CullingPass && m_CullingPass->IsEnabled();
+	}
+	bool Renderer::IsOcclusionCullingEnabled() const
+	{
+		return m_CullingPass && m_CullingPass->IsOcclusionEnabled();
 	}
 	bool Renderer::OnWindowResize() const
 	{
@@ -208,6 +226,10 @@ namespace Bear {
 		{
 			m_SkyboxPass->Resize();
 		}
+		if (m_HiZPass)
+		{
+			m_HiZPass->Resize();
+		}
 		return false; // Returning false to propagate the event further
 	}
 	bool Renderer::OnKeyPress()
@@ -222,6 +244,22 @@ namespace Bear {
 		{
 			m_CullingPass->SetEnabled(!m_CullingPass->IsEnabled());
 			BEAR_CORE_INFO("GPU Culling: {}", m_CullingPass->IsEnabled() ? "ON" : "OFF");
+			return true;
+		}
+		if (Input::IsKeyPressed(Key::O))
+		{
+			bool enable = !m_CullingPass->IsOcclusionEnabled();
+			m_CullingPass->SetOcclusionEnabled(enable);
+			if (enable && !m_CullingPass->IsEnabled())
+			{
+				// occlusion culling lives in the GPU culling pipeline: enable it together
+				m_CullingPass->SetEnabled(true);
+				BEAR_CORE_INFO("Occlusion Culling: ON (GPU Culling auto-enabled)");
+			}
+			else
+			{
+				BEAR_CORE_INFO("Occlusion Culling: {}", enable ? "ON" : "OFF");
+			}
 			return true;
 		}
 		return false;

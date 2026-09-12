@@ -44,6 +44,11 @@ namespace Bear {
         m_OnInstanceCountChange = std::move(callback);
     }
 
+    void GuiLayer::SetOnInstanceSpreadChangeCallback(std::function<void(float)> callback)
+    {
+        m_OnInstanceSpreadChange = std::move(callback);
+    }
+
     void GuiLayer::SetDrawStatsProvider(std::function<RenderStats()> provider)
     {
         m_DrawStatsProvider = std::move(provider);
@@ -67,10 +72,11 @@ namespace Bear {
         if (dtMs > m_MaxFrameTime) m_MaxFrameTime = dtMs;
 
         // --- Model Switcher ---
-        if (m_OnModelSwitch && m_OnInstanceCountChange && m_OnReloadModel)
+        if (m_OnModelSwitch && m_OnInstanceCountChange && m_OnReloadModel && m_OnInstanceSpreadChange)
         {
             static int currentModel = 0;
             static int instanceCount = 1;
+            static float instanceSpread = 50.0f;
             const auto& models = SceneLayer::GetModelList();
             std::vector<const char*> names;
             for (const auto& m : models)
@@ -81,14 +87,17 @@ namespace Bear {
             if (ImGui::Button("Load"))
             {
                 m_OnInstanceCountChange(instanceCount);
+                m_OnInstanceSpreadChange(instanceSpread);
                 m_OnModelSwitch(models[currentModel].second);
             }
 
             ImGui::SliderInt("Instances", &instanceCount, 1, 1000);
+            ImGui::SliderFloat("Spread", &instanceSpread, 1.0f, 100.0f, "%.1f");
             ImGui::SameLine();
             if (ImGui::Button("Apply"))
             {
                 m_OnInstanceCountChange(instanceCount);
+                m_OnInstanceSpreadChange(instanceSpread);
                 m_OnReloadModel();
             }
             ImGui::End();
@@ -97,11 +106,14 @@ namespace Bear {
         ImGui::Begin("Renderer Info");
         ImGui::Text("Graphics api: Vulkan");
         ImGui::SeparatorText("State");
+        RenderStates states;
         if (m_RenderStatesProvider)
         {
-            RenderStates states = m_RenderStatesProvider();
+            states = m_RenderStatesProvider();
             ImGui::Text("FrustumCull [Z]: %s", states.frustumCull ? "ON" : "OFF");
             ImGui::Text("GPU Culling [C]: %s", states.gpuCulling ? "ON" : "OFF");
+            ImGui::Text("Occlusion [O]: %s%s", states.occlusionCulling ? "ON" : "OFF",
+                (states.occlusionCulling && !states.gpuCulling) ? "  (inactive: GPU Culling off)" : "");
             ImGui::Text("OIT [X]: %s", states.oitEnabled ? "ON" : "OFF");
             ImGui::Text("Editor [Q]: %s", states.editorMode ? "ON" : "OFF");
         }
@@ -120,6 +132,10 @@ namespace Bear {
             ImGui::Text("Objects: %u total, %u visible (culled %u, %.1f%%)", stats.sceneObjects, stats.visibleObjects, culled, culledPct);
             ImGui::Text("Opaque: %u   Transparent: %u", stats.opaqueObjects, stats.transparentObjects);
             ImGui::Text("Scene draw calls: %u", stats.drawCalls);
+            if (states.gpuCulling)
+            {
+                ImGui::Text("GPU cull: A=%u  rejected=%u  rescued=%u", stats.gpuVisible, stats.gpuRejected, stats.gpuRescued);
+            }
         }
 
         static constexpr float kLabelWidth = 48.0f;

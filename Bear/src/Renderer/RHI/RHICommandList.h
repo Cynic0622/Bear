@@ -43,6 +43,7 @@ namespace Bear {
 
 		// pipeline barrrier
 		virtual void PipelineBarrier(const MemoryBarrier& memoryBarrier) = 0;
+		virtual void ImageBarrier(RHIImage& image, const ImageBarrierDesc& barrier) = 0;
 
 		virtual void BlitImage(RHIImage& srcImage, RHIImage& dstImage, uint32_t srcLevel, uint32_t dstLevel) = 0;
 

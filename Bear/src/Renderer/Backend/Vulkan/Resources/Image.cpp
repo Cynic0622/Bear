@@ -13,11 +13,16 @@ namespace Bear {
 		CreateImage(width, height, format, tiling, usage, memoryUsage);
 
 		CreateImageView(m_Format);
+		CreateMipViews();
 
 	}
 
 	Image::~Image()
 	{
+		for (VkImageView view : m_MipViews) {
+			vkDestroyImageView(m_Device.GetDevice(), view, nullptr);
+		}
+		m_MipViews.clear();
 		if (m_ImageView != VK_NULL_HANDLE) {
 			vkDestroyImageView(m_Device.GetDevice(), m_ImageView, nullptr);
 		}
@@ -89,6 +94,32 @@ namespace Bear {
 		viewInfo.subresourceRange.layerCount = 1;
 		viewInfo.subresourceRange.aspectMask = GetAspectMask(format); // Determine aspect mask based on format
 		BEAR_CORE_ASSERT(vkCreateImageView(m_Device.GetDevice(), &viewInfo, nullptr, &m_ImageView) == VK_SUCCESS, "Failed to create Vulkan image view!");
+	}
+
+	void Image::CreateMipViews()
+	{
+		m_MipViews.resize(m_MipLevels, VK_NULL_HANDLE);
+		for (uint32_t level = 0; level < m_MipLevels; ++level)
+		{
+			VkImageViewCreateInfo viewInfo = {};
+			viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+			viewInfo.image = m_Image;
+			viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+			viewInfo.format = m_Format;
+			viewInfo.subresourceRange.baseMipLevel = level;
+			viewInfo.subresourceRange.levelCount = 1;
+			viewInfo.subresourceRange.baseArrayLayer = 0;
+			viewInfo.subresourceRange.layerCount = 1;
+			viewInfo.subresourceRange.aspectMask = GetAspectMask(m_Format);
+			BEAR_CORE_ASSERT(vkCreateImageView(m_Device.GetDevice(), &viewInfo, nullptr, &m_MipViews[level]) == VK_SUCCESS, "Failed to create per-mip image view!");
+		}
+	}
+
+	VkImageView Image::GetMipViewVk(uint32_t mipLevel) const
+	{
+		if (mipLevel < m_MipViews.size())
+			return m_MipViews[mipLevel];
+		return m_ImageView;
 	}
 
 	VkImageAspectFlags Image::GetAspectMask(VkFormat format)

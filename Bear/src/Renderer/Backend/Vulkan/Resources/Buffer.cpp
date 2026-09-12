@@ -56,4 +56,13 @@ namespace Bear {
 		vmaFlushAllocation(m_Device.GetAllocator(), m_Allocation, offset, size);
 		Unmap();
 	}
+	void Buffer::ReadData(void* dst, size_t size, size_t offset)
+	{
+		BEAR_CORE_ASSERT(size + offset <= m_Size, "Read size exceeds buffer size!");
+		void* mappedData = Map();
+		// make GPU writes visible to the CPU on non-coherent memory
+		vmaInvalidateAllocation(m_Device.GetAllocator(), m_Allocation, offset, size);
+		memcpy(dst, static_cast<char*>(mappedData) + offset, size);
+		Unmap();
+	}
 }

@@ -1,0 +1,156 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+struct AABB
+{
+    vec4 min;
+    vec4 max;
+};
+
+struct IndirectCommand
+{
+    uint indexCount;
+    uint instanceCount;
+    uint firstIndex;
+    int  vertexOffset;
+    uint firstInstance;
+};
+
+struct RejectedCommand
+{
+    IndirectCommand cmd;
+    uint materialId;
+};
+
+layout(set = 0, binding = 0) uniform BaseDataBlock { mat4 viewMat; mat4 projMat; vec4 cameraPosition; uint frameIndex; } g_BaseData;
+
+layout(set = 1, binding = 2) readonly buffer Matrices     { mat4 models[]; }     g_Matrices;
+layout(set = 2, binding = 0) readonly buffer AABBs        { AABB aabbs[]; }      g_AABBs;
+layout(set = 2, binding = 1) readonly buffer InputCmds    { IndirectCommand cmds[]; } g_Input;
+layout(set = 2, binding = 2) buffer OutputCmds            { IndirectCommand cmds[]; } g_Output;
+layout(set = 2, binding = 3) buffer CountersA             { uint counters[]; }   g_CountersA;
+layout(set = 2, binding = 4) readonly buffer MaterialIds  { uint ids[]; }        g_MaterialIds;
+layout(set = 2, binding = 5) readonly buffer RegionBases  { uint base[]; }       g_RegionBases;
+layout(set = 2, binding = 6) buffer RejectedCmds          { RejectedCommand cmds[]; } g_Rejected;
+layout(set = 2, binding = 7) buffer CountersRej           { uint counters[]; }   g_CountersRej;
+layout(set = 2, binding = 8) uniform sampler2D g_HiZ;
+layout(set = 2, binding = 9) buffer Totals { uint counters[]; } g_Totals;
+
+layout(push_constant) uniform PushConstants
+{
+    vec4 planes[6];
+    uint objectCount;
+    uint materialCount;
+    uint hizMipCount;
+    uint occlusionEnabled;
+    float depthBias;
+} g_PC;
+
+vec3 transformAabbCenter(vec4 minv, vec4 maxv, mat4 m, out vec3 halfSize)
+{
+    vec3 center   = (minv.xyz + maxv.xyz) * 0.5;
+    halfSize      = (maxv.xyz - minv.xyz) * 0.5;
+    vec3 wc = vec3(m * vec4(center, 1.0));
+    mat3 rot = mat3(m);
+    mat3 absRot = mat3(abs(rot[0]), abs(rot[1]), abs(rot[2]));
+    halfSize = absRot * halfSize;
+    return wc;
+}
+
+bool frustumCulled(vec3 wMin, vec3 wMax)
+{
+    for (int p = 0; p < 6; ++p)
+    {
+        vec3 n = g_PC.planes[p].xyz;
+        vec3 pv = mix(wMin, wMax, greaterThanEqual(n, vec3(0.0)));
+        if (dot(n, pv) + g_PC.planes[p].w < 0.0)
+            return true;
+    }
+    return false;
+}
+
+// returns true when the object is fully occluded by the current Hi-Z
+bool occlusionCulled(vec3 wMin, vec3 wMax)
+{
+    mat4 viewProj = g_BaseData.projMat * g_BaseData.viewMat;
+
+    vec2 rectMin = vec2(1e9);
+    vec2 rectMax = vec2(-1e9);
+    float nearestDepth = 1.0;
+
+    for (int i = 0; i < 8; ++i)
+    {
+        vec3 corner = mix(wMin, wMax, vec3((i & 1) != 0 ? 1.0 : 0.0,
+                                           (i & 2) != 0 ? 1.0 : 0.0,
+                                           (i & 4) != 0 ? 1.0 : 0.0));
+        vec4 clip = viewProj * vec4(corner, 1.0);
+        if (clip.w <= 0.0)
+            return false; // crosses the eye plane -> conservatively visible
+        vec3 ndc = clip.xyz / clip.w;
+        vec2 uv = ndc.xy * 0.5 + 0.5;
+        rectMin = min(rectMin, uv);
+        rectMax = max(rectMax, uv);
+        nearestDepth = min(nearestDepth, ndc.z);
+    }
+
+    if (nearestDepth <= 0.0)
+        return false; // partially behind the near plane -> conservatively visible
+
+    rectMin = clamp(rectMin, vec2(0.0), vec2(1.0));
+    rectMax = clamp(rectMax, vec2(0.0), vec2(1.0));
+    if (rectMax.x <= rectMin.x || rectMax.y <= rectMin.y)
+        return false;
+
+    // pick a mip whose texels are roughly the size of the screen rect
+    ivec2 hizSize = textureSize(g_HiZ, 0) * 2; // depth size = base pyramid size * 2
+    vec2 rectPx = (rectMax - rectMin) * vec2(hizSize);
+    float maxExtent = max(rectPx.x, rectPx.y);
+    int mip = clamp(int(floor(log2(max(maxExtent, 1.0)))) - 1, 0, int(g_PC.hizMipCount) - 1);
+
+    float d0 = textureLod(g_HiZ, vec2(rectMin.x, rectMin.y), float(mip)).r;
+    float d1 = textureLod(g_HiZ, vec2(rectMax.x, rectMin.y), float(mip)).r;
+    float d2 = textureLod(g_HiZ, vec2(rectMin.x, rectMax.y), float(mip)).r;
+    float d3 = textureLod(g_HiZ, vec2(rectMax.x, rectMax.y), float(mip)).r;
+    float occluderDepth = max(max(d0, d1), max(d2, d3));
+
+    return nearestDepth > occluderDepth + g_PC.depthBias;
+}
+
+void main()
+{
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= g_PC.objectCount)
+        return;
+
+    IndirectCommand cmd = g_Input.cmds[i];
+    uint orig = cmd.firstInstance; // original renderObject index (commands are material-sorted)
+
+    AABB a = g_AABBs.aabbs[orig];
+    mat4 m = g_Matrices.models[orig];
+
+    vec3 halfSize;
+    vec3 worldCenter = transformAabbCenter(a.min, a.max, m, halfSize);
+    vec3 wMin = worldCenter - halfSize;
+    vec3 wMax = worldCenter + halfSize;
+
+    if (frustumCulled(wMin, wMax))
+        return; // outside the view frustum: drop entirely
+
+    uint mat = g_MaterialIds.ids[i];
+
+    if (g_PC.occlusionEnabled != 0 && occlusionCulled(wMin, wMax))
+    {
+        // potentially occluded: defer to phase 2 (same-frame Hi-Z retest)
+        uint slot = atomicAdd(g_CountersRej.counters[0], 1u);
+        g_Rejected.cmds[slot] = RejectedCommand(cmd, mat);
+        atomicAdd(g_Totals.counters[1], 1u);
+        return;
+    }
+
+    // visible now
+    uint outSlot = atomicAdd(g_CountersA.counters[mat], 1u);
+    g_Output.cmds[g_RegionBases.base[mat] + outSlot] = cmd;
+    atomicAdd(g_CountersA.counters[g_PC.materialCount], 1u);
+    atomicAdd(g_Totals.counters[0], 1u);
+}

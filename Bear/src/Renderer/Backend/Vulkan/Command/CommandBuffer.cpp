@@ -284,6 +284,29 @@ namespace Bear {
 			ToVulkanPipelineStage(memoryBarrier.dstStageMask),
 			0, 1, &barrier, 0, nullptr, 0, nullptr);
 	}
+	void CommandBuffer::ImageBarrier(RHIImage& image, const ImageBarrierDesc& desc)
+	{
+		const auto& vkImage = dynamic_cast<const Image&>(image);
+		VkImageMemoryBarrier barrier{};
+		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier.oldLayout = ToVulkanImageLayout(desc.oldLayout);
+		barrier.newLayout = ToVulkanImageLayout(desc.newLayout);
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.image = vkImage.GetImage();
+		barrier.subresourceRange.aspectMask = vkImage.GetAspectMask();
+		barrier.subresourceRange.baseMipLevel = desc.baseMipLevel;
+		barrier.subresourceRange.levelCount = desc.levelCount;
+		barrier.subresourceRange.baseArrayLayer = 0;
+		barrier.subresourceRange.layerCount = 1;
+		barrier.srcAccessMask = ToVulkanAccessFlags(desc.srcAccessMask);
+		barrier.dstAccessMask = ToVulkanAccessFlags(desc.dstAccessMask);
+
+		vkCmdPipelineBarrier(m_CommandBuffer,
+			ToVulkanPipelineStage(desc.srcStageMask),
+			ToVulkanPipelineStage(desc.dstStageMask),
+			0, 0, nullptr, 0, nullptr, 1, &barrier);
+	}
 	void CommandBuffer::FillBuffer(const RHIBuffer& buffer, const void* data, size_t size, size_t offset)
 	{
 		const auto& vkBuffer = dynamic_cast<const Buffer&>(buffer);

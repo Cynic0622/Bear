@@ -12,14 +12,35 @@ namespace Bear
 	namespace
 	{
 		constexpr uint32_t kGroupSize = 64;
+		constexpr float kDepthBias = 0.0001f;
 
+		// must match cull.comp push constants layout
 		struct CullPushConstants
 		{
 			glm::vec4 planes[6];
 			uint32_t objectCount;
 			uint32_t materialCount;
+			uint32_t hizMipCount;
+			uint32_t occlusionEnabled;
+			float depthBias;
 		};
-		static_assert(sizeof(CullPushConstants) == 104, "must stay within the 128-byte push constant limit");
+		static_assert(sizeof(CullPushConstants) <= 128, "push constants exceed the 128-byte limit");
+
+		// must match cull2.comp push constants layout
+		struct Cull2PushConstants
+		{
+			glm::vec4 planes[6];
+			uint32_t maxCount;
+			uint32_t materialCount;
+			uint32_t hizMipCount;
+			float depthBias;
+		};
+
+		struct RejectedCommand
+		{
+			DrawIndexedIndirectCommand cmd;
+			uint32_t materialId;
+		};
 	}
 
 	void CullingPass::Setup(RenderContext* context)
@@ -29,33 +50,68 @@ namespace Bear
 		m_DescriptorSetLayout = m_Context->device->CreateDescriptorSetLayout({
 			{0, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // AABBs
 			{1, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // input commands
-			{2, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // output commands
-			{3, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // counters
+			{2, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // output A
+			{3, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // counters A
 			{4, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // material ids
 			{5, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // region bases
+			{6, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // rejected commands
+			{7, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // rejected counter
+			{8, DescriptorType::CombinedImageSampler, 1, ShaderStage::Compute }, // Hi-Z
+			{9, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // totals
 			});
 
 		m_PipelineLayout = m_Context->device->CreatePipelineLayout(
-			{ m_Context->sceneDataDescriptorSetLayout, m_DescriptorSetLayout.get() },
+			{ m_Context->baseDataDescriptorSetLayout, m_Context->sceneDataDescriptorSetLayout, m_DescriptorSetLayout.get() },
 			{ { ShaderStage::Compute, sizeof(CullPushConstants), 0 } });
 
-		RHIPipelineConfig config;
-		config.pipelineLayout = m_PipelineLayout;
-		config.computeShaderPath = "Bear/src/Shaders/cull.spv";
-		m_Pipeline = m_Context->device->CreateComputePipeline(config);
+		m_Phase2DescriptorSetLayout = m_Context->device->CreateDescriptorSetLayout({
+			{0, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // AABBs
+			{1, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // rejected commands
+			{2, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // output B
+			{3, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // counters B
+			{4, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // rejected counter
+			{5, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // region bases
+			{6, DescriptorType::CombinedImageSampler, 1, ShaderStage::Compute }, // Hi-Z
+			{7, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // totals
+			});
+
+		m_Phase2PipelineLayout = m_Context->device->CreatePipelineLayout(
+			{ m_Context->baseDataDescriptorSetLayout, m_Context->sceneDataDescriptorSetLayout, m_Phase2DescriptorSetLayout.get() },
+			{ { ShaderStage::Compute, sizeof(Cull2PushConstants), 0 } });
+
+		CreatePipelines();
 
 		m_DescriptorSets.resize(m_Context->MAX_FRAMES_IN_FLIGHT);
+		m_Phase2DescriptorSets.resize(m_Context->MAX_FRAMES_IN_FLIGHT);
 		m_AabbBuffers.resize(m_Context->MAX_FRAMES_IN_FLIGHT);
 		m_InputCommandsBuffers.resize(m_Context->MAX_FRAMES_IN_FLIGHT);
 		m_OutputCommandsBuffers.resize(m_Context->MAX_FRAMES_IN_FLIGHT);
 		m_CountersBuffers.resize(m_Context->MAX_FRAMES_IN_FLIGHT);
 		m_MaterialIdBuffers.resize(m_Context->MAX_FRAMES_IN_FLIGHT);
 		m_RegionBaseBuffers.resize(m_Context->MAX_FRAMES_IN_FLIGHT);
+		m_RejectedBuffers.resize(m_Context->MAX_FRAMES_IN_FLIGHT);
+		m_RejectedCountersBuffers.resize(m_Context->MAX_FRAMES_IN_FLIGHT);
+		m_RescuedCommandsBuffers.resize(m_Context->MAX_FRAMES_IN_FLIGHT);
+		m_RescuedCountersBuffers.resize(m_Context->MAX_FRAMES_IN_FLIGHT);
+		m_TotalsBuffers.resize(m_Context->MAX_FRAMES_IN_FLIGHT);
 
 		for (uint8_t i = 0; i < m_Context->MAX_FRAMES_IN_FLIGHT; ++i)
 		{
 			m_DescriptorSets[i] = m_Context->device->CreateDescriptorSet(m_DescriptorSetLayout);
+			m_Phase2DescriptorSets[i] = m_Context->device->CreateDescriptorSet(m_Phase2DescriptorSetLayout);
 		}
+	}
+
+	void CullingPass::CreatePipelines()
+	{
+		RHIPipelineConfig config;
+		config.pipelineLayout = m_PipelineLayout;
+		config.computeShaderPath = "Bear/src/Shaders/cullPhase1.spv";
+		m_Pipeline = m_Context->device->CreateComputePipeline(config);
+
+		config.pipelineLayout = m_Phase2PipelineLayout;
+		config.computeShaderPath = "Bear/src/Shaders/cullPhase2.spv";
+		m_Phase2Pipeline = m_Context->device->CreateComputePipeline(config);
 	}
 
 	void CullingPass::Cleanup()
@@ -63,13 +119,21 @@ namespace Bear
 		m_Pipeline.reset();
 		m_PipelineLayout.reset();
 		m_DescriptorSetLayout.reset();
+		m_Phase2Pipeline.reset();
+		m_Phase2PipelineLayout.reset();
+		m_Phase2DescriptorSetLayout.reset();
 		m_DescriptorSets.clear();
+		m_Phase2DescriptorSets.clear();
 		m_AabbBuffers.clear();
 		m_InputCommandsBuffers.clear();
 		m_OutputCommandsBuffers.clear();
 		m_CountersBuffers.clear();
 		m_MaterialIdBuffers.clear();
 		m_RegionBaseBuffers.clear();
+		m_RejectedBuffers.clear();
+		m_RejectedCountersBuffers.clear();
+		m_RescuedCommandsBuffers.clear();
+		m_RescuedCountersBuffers.clear();
 	}
 
 	void CullingPass::SetViewProjection(const glm::mat4& viewProjection)
@@ -90,16 +154,6 @@ namespace Bear
 		}
 	}
 
-	RHIBuffer* CullingPass::GetOutputCommandsBuffer() const
-	{
-		return m_OutputCommandsBuffers[m_FrameIndex].get();
-	}
-
-	RHIBuffer* CullingPass::GetCountersBuffer() const
-	{
-		return m_CountersBuffers[m_FrameIndex].get();
-	}
-
 	void CullingPass::EnsureBuffers(uint32_t objectCount, uint32_t materialCount)
 	{
 		size_t cmdBytes = objectCount * sizeof(DrawIndexedIndirectCommand);
@@ -107,6 +161,7 @@ namespace Bear
 		size_t counterBytes = (materialCount + 1) * sizeof(uint32_t);
 		size_t idBytes = objectCount * sizeof(uint32_t);
 		size_t regionBytes = materialCount * sizeof(uint32_t);
+		size_t rejectedBytes = objectCount * sizeof(RejectedCommand);
 
 		auto recreate = [&](std::unique_ptr<RHIBuffer>& buf, size_t size, BufferUsage usage)
 		{
@@ -116,6 +171,30 @@ namespace Bear
 			}
 		};
 
+		// if anything needs reallocation, wait for the GPU first: in-flight frames may still
+		// reference the old buffers through their descriptor sets
+		auto insufficient = [](const std::unique_ptr<RHIBuffer>& buf, size_t size) { return !buf || buf->GetSize() < size; };
+		bool needsRecreate = false;
+		for (uint8_t i = 0; i < m_Context->MAX_FRAMES_IN_FLIGHT && !needsRecreate; ++i)
+		{
+			needsRecreate =
+				insufficient(m_AabbBuffers[i], aabbBytes) ||
+				insufficient(m_InputCommandsBuffers[i], cmdBytes) ||
+				insufficient(m_OutputCommandsBuffers[i], cmdBytes) ||
+				insufficient(m_CountersBuffers[i], counterBytes) ||
+				insufficient(m_MaterialIdBuffers[i], idBytes) ||
+				insufficient(m_RegionBaseBuffers[i], regionBytes) ||
+				insufficient(m_RejectedBuffers[i], rejectedBytes) ||
+				insufficient(m_RejectedCountersBuffers[i], sizeof(uint32_t)) ||
+				insufficient(m_RescuedCommandsBuffers[i], cmdBytes) ||
+				insufficient(m_RescuedCountersBuffers[i], counterBytes) ||
+				insufficient(m_TotalsBuffers[i], sizeof(uint32_t) * 3);
+		}
+		if (needsRecreate)
+		{
+			m_Context->device->WaitIdle();
+		}
+
 		for (uint8_t i = 0; i < m_Context->MAX_FRAMES_IN_FLIGHT; ++i)
 		{
 			recreate(m_AabbBuffers[i], aabbBytes, BufferUsage::StorageBuffer | BufferUsage::TransferDstBuffer);
@@ -124,6 +203,11 @@ namespace Bear
 			recreate(m_CountersBuffers[i], counterBytes, BufferUsage::StorageBuffer | BufferUsage::IndirectBuffer | BufferUsage::TransferDstBuffer);
 			recreate(m_MaterialIdBuffers[i], idBytes, BufferUsage::StorageBuffer | BufferUsage::TransferDstBuffer);
 			recreate(m_RegionBaseBuffers[i], regionBytes, BufferUsage::StorageBuffer | BufferUsage::TransferDstBuffer);
+			recreate(m_RejectedBuffers[i], rejectedBytes, BufferUsage::StorageBuffer | BufferUsage::TransferDstBuffer);
+			recreate(m_RejectedCountersBuffers[i], sizeof(uint32_t), BufferUsage::StorageBuffer | BufferUsage::TransferDstBuffer);
+			recreate(m_RescuedCommandsBuffers[i], cmdBytes, BufferUsage::StorageBuffer | BufferUsage::IndirectBuffer | BufferUsage::TransferDstBuffer);
+			recreate(m_RescuedCountersBuffers[i], counterBytes, BufferUsage::StorageBuffer | BufferUsage::IndirectBuffer | BufferUsage::TransferDstBuffer);
+			recreate(m_TotalsBuffers[i], sizeof(uint32_t) * 3, BufferUsage::StorageBuffer | BufferUsage::TransferDstBuffer);
 		}
 	}
 
@@ -229,11 +313,20 @@ namespace Bear
 		m_FrameIndex = m_Context->device->GetCurrentFrameIndex();
 
 		BuildCommandPool(renderObjects);
-		if (m_ObjectCount == 0)
+		if (m_ObjectCount == 0 || !m_Enabled)
 			return;
 
 		EnsureBuffers(m_ObjectCount, m_MaterialCount);
 		UpdateAabbBuffer(renderObjects);
+
+		// read last time this frame slot ran (its fence has already signaled) for the UI stats
+		{
+			uint32_t totals[3] = { 0, 0, 0 };
+			m_TotalsBuffers[m_FrameIndex]->ReadData(totals, sizeof(totals), 0);
+			m_GpuStats.visibleA = totals[0];
+			m_GpuStats.rejected = totals[1];
+			m_GpuStats.rescued = totals[2];
+		}
 
 		// CPU-side uploads (same host-coherent path as PbrPass indirect commands)
 		m_InputCommandsBuffers[m_FrameIndex]->UploadData(m_Commands.data(), m_Commands.size() * sizeof(DrawIndexedIndirectCommand), 0);
@@ -248,13 +341,27 @@ namespace Bear
 		set->UpdateBuffer(3, *m_CountersBuffers[m_FrameIndex]);
 		set->UpdateBuffer(4, *m_MaterialIdBuffers[m_FrameIndex]);
 		set->UpdateBuffer(5, *m_RegionBaseBuffers[m_FrameIndex]);
+		set->UpdateBuffer(6, *m_RejectedBuffers[m_FrameIndex]);
+		set->UpdateBuffer(7, *m_RejectedCountersBuffers[m_FrameIndex]);
+		set->UpdateBuffer(9, *m_TotalsBuffers[m_FrameIndex]);
 
-		if (!m_Enabled)
-			return;
+		// binding 8 is statically used by the shader, so it must always be valid
+		if (m_HiZImage && m_HiZSampler)
+		{
+			set->UpdateSampledImage(8, *m_HiZImage, *m_HiZSampler, UINT32_MAX, ImageLayout::General);
+		}
 
-		// zero counters: [0..M-1] per-material, [M] total visible count
-		std::vector<uint32_t> zeros(m_MaterialCount + 1, 0);
-		cmd->FillBuffer(*m_CountersBuffers[m_FrameIndex], zeros.data(), zeros.size() * sizeof(uint32_t), 0);
+		bool occlusion = OcclusionActive();
+
+		// zero counters: A[M+1], rejected[1] and totals[3]
+		{
+			std::vector<uint32_t> zerosA(m_MaterialCount + 1, 0);
+			cmd->FillBuffer(*m_CountersBuffers[m_FrameIndex], zerosA.data(), zerosA.size() * sizeof(uint32_t), 0);
+			uint32_t zero = 0;
+			cmd->FillBuffer(*m_RejectedCountersBuffers[m_FrameIndex], &zero, sizeof(zero), 0);
+			uint32_t zeros3[3] = { 0, 0, 0 };
+			cmd->FillBuffer(*m_TotalsBuffers[m_FrameIndex], zeros3, sizeof(zeros3), 0);
+		}
 
 		MemoryBarrier fillBarrier;
 		fillBarrier.srcStageMask = PipelineStage::Transfer;
@@ -264,19 +371,73 @@ namespace Bear
 		cmd->PipelineBarrier(fillBarrier);
 
 		cmd->BindPipeline(*m_Pipeline);
-		cmd->BindDescriptorSet(*m_PipelineLayout, *m_Context->sceneDataDescriptorSet[m_FrameIndex], 0, PipelineBindPoint::Compute);
-		cmd->BindDescriptorSet(*m_PipelineLayout, *set, 1, PipelineBindPoint::Compute);
+		cmd->BindDescriptorSet(*m_PipelineLayout, *m_Context->baseDataDescriptorSet[m_FrameIndex], 0, PipelineBindPoint::Compute);
+		cmd->BindDescriptorSet(*m_PipelineLayout, *m_Context->sceneDataDescriptorSet[m_FrameIndex], 1, PipelineBindPoint::Compute);
+		cmd->BindDescriptorSet(*m_PipelineLayout, *set, 2, PipelineBindPoint::Compute);
 
 		CullPushConstants pc{};
 		memcpy(pc.planes, m_Planes, sizeof(pc.planes));
 		pc.objectCount = m_ObjectCount;
 		pc.materialCount = m_MaterialCount;
+		pc.hizMipCount = m_HiZMipCount;
+		pc.occlusionEnabled = occlusion ? 1u : 0u;
+		pc.depthBias = kDepthBias;
 		cmd->PushConstants(*m_PipelineLayout, ShaderStage::Compute, &pc, sizeof(pc), 0);
 
 		uint32_t groups = (m_ObjectCount + kGroupSize - 1) / kGroupSize;
 		cmd->Dispatch(groups, 1, 1);
 
 		// compute writes -> draw indirect reads
+		MemoryBarrier barrier;
+		barrier.srcStageMask = PipelineStage::ComputeShader;
+		barrier.dstStageMask = PipelineStage::DrawIndirect;
+		barrier.srcAccessMask = AccessFlags::ShaderWrite;
+		barrier.dstAccessMask = AccessFlags::IndirectCommandRead;
+		cmd->PipelineBarrier(barrier);
+	}
+
+	void CullingPass::ExecutePhase2(RHICommandList* cmd)
+	{
+		if (m_ObjectCount == 0 || !OcclusionActive())
+			return;
+
+		auto& set = m_Phase2DescriptorSets[m_FrameIndex];
+		set->UpdateBuffer(0, *m_AabbBuffers[m_FrameIndex]);
+		set->UpdateBuffer(1, *m_RejectedBuffers[m_FrameIndex]);
+		set->UpdateBuffer(2, *m_RescuedCommandsBuffers[m_FrameIndex]);
+		set->UpdateBuffer(3, *m_RescuedCountersBuffers[m_FrameIndex]);
+		set->UpdateBuffer(4, *m_RejectedCountersBuffers[m_FrameIndex]);
+		set->UpdateBuffer(5, *m_RegionBaseBuffers[m_FrameIndex]);
+		set->UpdateBuffer(7, *m_TotalsBuffers[m_FrameIndex]);
+		set->UpdateSampledImage(6, *m_HiZImage, *m_HiZSampler, UINT32_MAX, ImageLayout::General);
+
+		// zero rescued counters
+		std::vector<uint32_t> zerosB(m_MaterialCount + 1, 0);
+		cmd->FillBuffer(*m_RescuedCountersBuffers[m_FrameIndex], zerosB.data(), zerosB.size() * sizeof(uint32_t), 0);
+
+		MemoryBarrier fillBarrier;
+		fillBarrier.srcStageMask = PipelineStage::Transfer;
+		fillBarrier.dstStageMask = PipelineStage::ComputeShader;
+		fillBarrier.srcAccessMask = AccessFlags::TransferWrite;
+		fillBarrier.dstAccessMask = AccessFlags::ShaderRead | AccessFlags::ShaderWrite;
+		cmd->PipelineBarrier(fillBarrier);
+
+		cmd->BindPipeline(*m_Phase2Pipeline);
+		cmd->BindDescriptorSet(*m_Phase2PipelineLayout, *m_Context->baseDataDescriptorSet[m_FrameIndex], 0, PipelineBindPoint::Compute);
+		cmd->BindDescriptorSet(*m_Phase2PipelineLayout, *m_Context->sceneDataDescriptorSet[m_FrameIndex], 1, PipelineBindPoint::Compute);
+		cmd->BindDescriptorSet(*m_Phase2PipelineLayout, *set, 2, PipelineBindPoint::Compute);
+
+		Cull2PushConstants pc{};
+		memcpy(pc.planes, m_Planes, sizeof(pc.planes));
+		pc.maxCount = m_ObjectCount;
+		pc.materialCount = m_MaterialCount;
+		pc.hizMipCount = m_HiZMipCount;
+		pc.depthBias = kDepthBias;
+		cmd->PushConstants(*m_Phase2PipelineLayout, ShaderStage::Compute, &pc, sizeof(pc), 0);
+
+		uint32_t groups = (m_ObjectCount + kGroupSize - 1) / kGroupSize;
+		cmd->Dispatch(groups, 1, 1);
+
 		MemoryBarrier barrier;
 		barrier.srcStageMask = PipelineStage::ComputeShader;
 		barrier.dstStageMask = PipelineStage::DrawIndirect;
