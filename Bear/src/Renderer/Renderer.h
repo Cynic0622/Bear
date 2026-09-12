@@ -88,6 +88,7 @@ namespace Bear {
 		std::unique_ptr<CullingPass> m_CullingPass; // GPU frustum culling pass
 		std::unique_ptr<HiZPass> m_HiZPass; // Hi-Z pyramid build for occlusion culling
 		RenderGraph m_RenderGraph; // frame graph: ordering + barrier planning
+		bool m_DumpGraphRequested = false;
 		std::unique_ptr<OitPass> m_OitPass; // Order Independent Transparency pass
 
 		bool OitEnabled = false; // Toggle for Order Independent Transparency

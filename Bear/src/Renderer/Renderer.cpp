@@ -162,6 +162,11 @@ namespace Bear {
 		}
 
 		m_RenderGraph.Compile();
+		if (m_DumpGraphRequested)
+		{
+			BEAR_CORE_INFO("Frame graph:\n{}", m_RenderGraph.Dump());
+			m_DumpGraphRequested = false;
+		}
 		m_RenderGraph.Execute(*m_CurrentCommandBuffer);
 
 		if (OitEnabled)
@@ -341,6 +346,12 @@ namespace Bear {
 			{
 				BEAR_CORE_INFO("Occlusion Culling: {}", enable ? "ON" : "OFF");
 			}
+			return true;
+		}
+		if (Input::IsKeyPressed(Key::G))
+		{
+			m_DumpGraphRequested = true;
+			BEAR_CORE_INFO("Dumping frame graph next frame...");
 			return true;
 		}
 		return false;
