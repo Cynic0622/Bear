@@ -42,7 +42,7 @@ namespace Bear {
 		vmaCreateAllocator(&allocatorInfo, &m_Allocator); // vma
 
 		BEAR_CORE_ASSERT(m_Allocator != VK_NULL_HANDLE, "Failed to create VMA allocator!");
-		// ****************�����ʵ�ֲ�̫��********************
+		// ****************�����ʵ�ֲ�̫��?*******************
 		std::vector<VkDescriptorPoolSize> globalPoolSizes = {
 			{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
 			{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
@@ -164,7 +164,14 @@ namespace Bear {
 	}
 	std::shared_ptr<RHIPipeline> Device::CreatePipeline(const RHIPipelineConfig& config, const RHIRenderPass& renderPass)
 	{
-		const auto& vkRenderPass = dynamic_cast<const RenderPass&>(renderPass);
+		return CreateGraphicsPipelineImpl(config, &dynamic_cast<const RenderPass&>(renderPass));
+	}
+	std::shared_ptr<RHIPipeline> Device::CreatePipeline(const RHIPipelineConfig& config)
+	{
+		return CreateGraphicsPipelineImpl(config, nullptr);
+	}
+	std::shared_ptr<RHIPipeline> Device::CreateGraphicsPipelineImpl(const RHIPipelineConfig& config, const RenderPass* renderPass)
+	{
 		auto vkPipelineLayout = std::static_pointer_cast<PipelineLayout>(config.pipelineLayout);
 		std::vector<std::unique_ptr<Shader>> shaders;
 		shaders.push_back(std::make_unique<Shader>(*this, config.vertexShaderPath, VK_SHADER_STAGE_VERTEX_BIT));
@@ -229,8 +236,8 @@ namespace Bear {
 		depthStencilInfo.depthTestEnable = config.depthStencilState.depthTestEnable ? VK_TRUE : VK_FALSE;
 		depthStencilInfo.depthWriteEnable = config.depthStencilState.depthWriteEnable ? VK_TRUE : VK_FALSE;
 		depthStencilInfo.depthCompareOp = ToVulkanCompareOp(config.depthStencilState.depthCompareOp);
-		depthStencilInfo.depthBoundsTestEnable = VK_FALSE; // ������ȷ�Χ����
-		depthStencilInfo.stencilTestEnable = VK_FALSE; // ����ģ�����
+		depthStencilInfo.depthBoundsTestEnable = VK_FALSE; // ������ȷ�Χ����?
+		depthStencilInfo.stencilTestEnable = VK_FALSE; // ����ģ�����?
 		depthStencilInfo.front = {}; // Ĭ��ֵ
 		depthStencilInfo.back = {}; // Ĭ��ֵ
 
@@ -254,10 +261,10 @@ namespace Bear {
 		pipelineInfo.pDynamicState = &dynamicStateInfo;
 
 		pipelineInfo.layout = vkPipelineLayout->GetHandle();
-		pipelineInfo.renderPass = vkRenderPass.GetHandle();
+		pipelineInfo.renderPass = renderPass->GetHandle();
 		pipelineInfo.subpass = config.subpassIndex;
 
-		if (config.dynamicRendering)
+		if (config.dynamicRendering || !renderPass)
 		{
 			std::vector<VkFormat> colorFormats;
 			colorFormats.reserve(config.colorFormats.size());
@@ -697,7 +704,7 @@ namespace Bear {
 		QueueFamilyIndices indices = FindQueueFamilies(device, surface);
 		bool extensionsSupported = CheckDeviceExtensionSupport(device);
 
-		bool swapChainAdequate = false; // ����Ƿ�֧�ֽ�����
+		bool swapChainAdequate = false; // ����Ƿ�֧�ֽ�����?
 		if (extensionsSupported) {
 			uint32_t formatCount = 0;
 			vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);

@@ -15,6 +15,7 @@ namespace Bear {
 	class Semaphore;
 	class Fence;
 	class Swapchain;
+	class RenderPass;
     class Device : public RHIDevice {
     public:
         Device(GLFWwindow* window);
@@ -42,6 +43,7 @@ namespace Bear {
         std::shared_ptr<RHIDescriptorSetLayout> CreateDescriptorSetLayout(const std::vector<RHIDescriptorSetLayoutBinding>& bindings) override;
 		std::shared_ptr<RHIPipelineLayout> CreatePipelineLayout(const std::vector<RHIDescriptorSetLayout*>& descriptorSetLayouts, const std::vector<RHIPushConstantRange>& pushConstantRanges) override;
         std::shared_ptr<RHIPipeline> CreatePipeline(const RHIPipelineConfig& config, const RHIRenderPass& renderPass) override;
+        std::shared_ptr<RHIPipeline> CreatePipeline(const RHIPipelineConfig& config) override; // dynamic rendering
         std::shared_ptr<RHIPipeline> CreateComputePipeline(const RHIPipelineConfig& config) override;
         std::unique_ptr<RHIDescriptorSet> CreateDescriptorSet(std::shared_ptr<RHIDescriptorSetLayout> layout) override;
         std::shared_ptr<RHIRenderPass> CreateRenderPass(const std::vector <AttachmentDescription>& attachments) override;
@@ -100,6 +102,7 @@ namespace Bear {
 
     private:
         void CreateLogicalDevice(VkInstance instance, VkSurfaceKHR surface);
+        std::shared_ptr<RHIPipeline> CreateGraphicsPipelineImpl(const RHIPipelineConfig& config, const RenderPass* renderPass);
         void PickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface);
         bool IsDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surface);
         QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface);

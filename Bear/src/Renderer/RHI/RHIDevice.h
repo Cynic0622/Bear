@@ -20,6 +20,7 @@ namespace Bear {
 		virtual std::shared_ptr<RHIPipelineLayout> CreatePipelineLayout(const std::vector<RHIDescriptorSetLayout*>& descriptorSetLayouts, const std::vector<RHIPushConstantRange>& pushConstantRanges) = 0;
 		// --- Pipeline factory ---
 		virtual std::shared_ptr<RHIPipeline> CreatePipeline(const RHIPipelineConfig& config, const RHIRenderPass& renderPass) = 0;
+		virtual std::shared_ptr<RHIPipeline> CreatePipeline(const RHIPipelineConfig& config) = 0; // dynamic rendering
 		virtual std::shared_ptr<RHIPipeline> CreateComputePipeline(const RHIPipelineConfig& config) = 0;
 		// --- DescriptorSet factory ---
 		virtual std::unique_ptr<RHIDescriptorSet> CreateDescriptorSet(std::shared_ptr<RHIDescriptorSetLayout> layout) = 0;
