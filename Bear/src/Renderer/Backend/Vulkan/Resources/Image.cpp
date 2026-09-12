@@ -17,8 +17,19 @@ namespace Bear {
 
 	}
 
+	Image::Image(const Device& device, VkImage image, VkImageView view, uint32_t width, uint32_t height, VkFormat format)
+		: m_Device(device), m_Format(format), m_Width(width), m_Height(height), m_MipLevels(1)
+	{
+		m_Image = image;
+		m_ImageView = view;
+		m_OwnsResources = false;
+	}
+
 	Image::~Image()
 	{
+		if (!m_OwnsResources)
+			return;
+
 		for (VkImageView view : m_MipViews) {
 			vkDestroyImageView(m_Device.GetDevice(), view, nullptr);
 		}

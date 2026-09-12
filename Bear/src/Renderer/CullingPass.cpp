@@ -423,14 +423,7 @@ namespace Bear
 
 		uint32_t groups = (m_ObjectCount + kGroupSize - 1) / kGroupSize;
 		cmd->Dispatch(groups, 1, 1);
-
-		// compute writes -> draw indirect reads
-		MemoryBarrier barrier;
-		barrier.srcStageMask = PipelineStage::ComputeShader;
-		barrier.dstStageMask = PipelineStage::DrawIndirect;
-		barrier.srcAccessMask = AccessFlags::ShaderWrite;
-		barrier.dstAccessMask = AccessFlags::IndirectCommandRead;
-		cmd->PipelineBarrier(barrier);
+		// N.B. the write->indirect-read barrier is emitted by the frame graph (PBR declares the read)
 	}
 
 	void CullingPass::ExecutePhase2(RHICommandList* cmd)
@@ -474,12 +467,6 @@ namespace Bear
 
 		uint32_t groups = (m_ObjectCount + kGroupSize - 1) / kGroupSize;
 		cmd->Dispatch(groups, 1, 1);
-
-		MemoryBarrier barrier;
-		barrier.srcStageMask = PipelineStage::ComputeShader;
-		barrier.dstStageMask = PipelineStage::DrawIndirect;
-		barrier.srcAccessMask = AccessFlags::ShaderWrite;
-		barrier.dstAccessMask = AccessFlags::IndirectCommandRead;
-		cmd->PipelineBarrier(barrier);
+		// N.B. the write->indirect-read barrier is emitted by the frame graph (PBR declares the read)
 	}
 }

@@ -7,6 +7,8 @@
 
 namespace Bear
 {
+	class RHIImage;
+	class RHIBuffer;
 	class OitPass : public Pass
 	{
 	public:
@@ -14,23 +16,19 @@ namespace Bear
 
 		void Setup(RenderContext* context) override;
 		const char* GetName() const override { return "OitPass"; }
-		void Execute(RHICommandList* cmd, std::vector<RenderObject> renderObjects);
-		void Resize();
+		// color/depth are the dynamic-rendering attachments (graph-managed transitions);
+		// nodeBuffer/pixelCounterImage are graph transients rebuilt every frame
+		void Execute(RHICommandList* cmd, std::vector<RenderObject> renderObjects, RHIImage* color, RHIImage* depth,
+			RHIBuffer* nodeBuffer, RHIImage* pixelCounterImage);
 		void Cleanup() override;
 
 		const RenderStats& GetStats() const { return m_Stats; }
 	private:
-		void CreateFramebuffer();
-		void CreateRenderPass();
 		void CreatePipeline();
 		void PrepareOit();
 		void PrepareBlend();
 	private:
 		RenderStats m_Stats;
-		std::shared_ptr<RHIRenderPass> m_OitRenderPass = nullptr;
-		std::shared_ptr<RHIRenderPass> m_BlendRenderPass = nullptr;
-		std::vector<std::shared_ptr<RHIFramebuffer>> m_OitFramebuffers;
-		std::vector<std::shared_ptr<RHIFramebuffer>> m_BlendFramebuffers;
 		std::shared_ptr<RHIPipeline> m_OitPipeline = nullptr;
 		std::shared_ptr<RHIPipeline> m_BlendPipeline = nullptr;
 		std::shared_ptr<RHIPipelineLayout> m_OitPipelineLayout = nullptr;
@@ -38,10 +36,8 @@ namespace Bear
 		std::shared_ptr<RHIDescriptorSetLayout> m_OitDescriptorSetLayout = nullptr;
 		std::shared_ptr<RHIDescriptorSetLayout> m_PbrDescriptorSetLayout = nullptr;
 		std::shared_ptr<RHIDescriptorSetLayout> m_BlendDescriptorSetLayout = nullptr;
-		std::shared_ptr<RHIBuffer> m_OitNodeBuffer = nullptr;
-		std::shared_ptr<RHIImage> m_PixelCounterImage = nullptr;
 		std::shared_ptr<RHISampler> m_PixelCounterSampler = nullptr;
-		std::shared_ptr<RHIDescriptorSet> m_OitDescriptorSet = nullptr;
-		std::shared_ptr<RHIDescriptorSet> m_BlendDescriptorSet = nullptr;
+		std::vector<std::shared_ptr<RHIDescriptorSet>> m_OitDescriptorSets;   // per frame in flight
+		std::vector<std::shared_ptr<RHIDescriptorSet>> m_BlendDescriptorSets; // per frame in flight
 	};
 }

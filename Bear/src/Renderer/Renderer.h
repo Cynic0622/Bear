@@ -6,6 +6,7 @@
 #include "Texture.h"
 #include "BaseData.h"
 #include "RenderStats.h"
+#include "RenderGraph.h"
 
 namespace Bear
 {
@@ -42,7 +43,6 @@ namespace Bear {
 
 		// getter
 		RHIDevice* GetDevice() const { return m_Device.get(); }
-		RHIRenderPass* GetRenderPass() const { return m_RenderPass.get(); }
 		RHICommandList* GetCurrentCommandList() const { return m_CurrentCommandBuffer; }
 		uint32_t GetSwapchainImageCount() const;
 		ResourceManager& GetResourceManager() { return *m_Resource; }
@@ -53,7 +53,7 @@ namespace Bear {
 
 		void BeginFrame();
 		void Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData, const BaseData& baseData);
-		void EndFrame() const;
+		void EndFrame();
 
 
 	private:
@@ -64,8 +64,6 @@ namespace Bear {
 		const uint8_t MAX_FRAMES_IN_FLIGHT = 2;
 		std::unique_ptr<RHIDevice> m_Device;
 		std::unique_ptr<RHISwapchain> m_Swapchain;
-		std::shared_ptr<RHIRenderPass> m_RenderPass;
-		std::shared_ptr<RHIRenderPass> m_UIRenderPass; // for UI rendering
 
 		RHICommandList* m_CurrentCommandBuffer;
 		uint32_t m_CurrentImageIndex;
@@ -86,6 +84,8 @@ namespace Bear {
 		std::unique_ptr<PbrPass> m_PbrPass; // PBR rendering pass
 		std::unique_ptr<CullingPass> m_CullingPass; // GPU frustum culling pass
 		std::unique_ptr<HiZPass> m_HiZPass; // Hi-Z pyramid build for occlusion culling
+		RenderGraph m_RenderGraph; // frame graph: ordering + barrier planning
+		bool m_DumpGraphRequested = false;
 		std::unique_ptr<OitPass> m_OitPass; // Order Independent Transparency pass
 
 		bool OitEnabled = false; // Toggle for Order Independent Transparency

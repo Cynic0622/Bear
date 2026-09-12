@@ -53,6 +53,75 @@ namespace Bear {
 		BEAR_CORE_ASSERT(vkResetCommandBuffer(m_CommandBuffer, 0) == VK_SUCCESS, "Failed to reset command buffer!");
 	}
 	
+	void CommandBuffer::BeginRendering(const std::vector<RHIRenderingAttachment>& attachments)
+	{
+		std::vector<VkRenderingAttachmentInfo> colorAttachments;
+		colorAttachments.reserve(attachments.size());
+		VkRenderingAttachmentInfo depthAttachment{};
+		bool hasDepth = false;
+		uint32_t width = 0;
+		uint32_t height = 0;
+
+		for (const auto& attachment : attachments)
+		{
+			if (!attachment.image)
+				continue;
+
+			const auto& vkImage = dynamic_cast<const Image&>(*attachment.image);
+			if (width == 0)
+			{
+				width = vkImage.GetWidth();
+				height = vkImage.GetHeight();
+			}
+
+			VkRenderingAttachmentInfo info{};
+			info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+			info.imageView = vkImage.GetMipViewVk(0);
+			info.imageLayout = ToVulkanImageLayout(attachment.layout);
+			info.loadOp = ToVulkanLoadOp(attachment.loadOp);
+			info.storeOp = ToVulkanStoreOp(attachment.storeOp);
+			if (attachment.clearValue && attachment.loadOp == AttachmentLoadOp::Clear)
+			{
+				if (attachment.isDepth)
+				{
+					info.clearValue.depthStencil.depth = attachment.clearValue->depthStencil.depth;
+					info.clearValue.depthStencil.stencil = attachment.clearValue->depthStencil.stencil;
+				}
+				else
+				{
+					info.clearValue.color.float32[0] = attachment.clearValue->color.r;
+					info.clearValue.color.float32[1] = attachment.clearValue->color.g;
+					info.clearValue.color.float32[2] = attachment.clearValue->color.b;
+					info.clearValue.color.float32[3] = attachment.clearValue->color.a;
+				}
+			}
+
+			if (attachment.isDepth)
+			{
+				depthAttachment = info;
+				hasDepth = true;
+			}
+			else
+			{
+				colorAttachments.push_back(info);
+			}
+		}
+
+		VkRenderingInfo renderInfo{};
+		renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+		renderInfo.renderArea = { {0, 0}, { width, height } };
+		renderInfo.layerCount = 1;
+		renderInfo.colorAttachmentCount = static_cast<uint32_t>(colorAttachments.size());
+		renderInfo.pColorAttachments = colorAttachments.empty() ? nullptr : colorAttachments.data();
+		if (hasDepth)
+			renderInfo.pDepthAttachment = &depthAttachment;
+
+		vkCmdBeginRendering(m_CommandBuffer, &renderInfo);
+	}
+	void CommandBuffer::EndRendering()
+	{
+		vkCmdEndRendering(m_CommandBuffer);
+	}
 	void CommandBuffer::EndRenderPass()
 	{
 		vkCmdEndRenderPass(m_CommandBuffer);

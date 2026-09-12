@@ -15,15 +15,12 @@ namespace Bear
 	void PbrPass::Setup(RenderContext* context)
 	{
 		m_Context = context;
-		CreateRenderPasses();
-		CreateFramebuffers();
 		CreatePbrDescriptorSetLayout();
 		CreatePipeline();
 	}
 
-	void PbrPass::Execute(RHICommandList* cmd, const IndirectDrawSet& drawSet, bool clearDepth)
+	void PbrPass::Execute(RHICommandList* cmd, const IndirectDrawSet& drawSet, bool clearDepth, RHIImage* color, RHIImage* depth)
 	{
-		auto currentImageIndex = m_Context->device->GetCurrentImageIndex();
 		auto currentFrameIndex = m_Context->device->GetCurrentFrameIndex();
 		auto width = m_Context->swapchain->GetWidth();
 		auto height = m_Context->swapchain->GetHeight();
@@ -31,12 +28,16 @@ namespace Bear
 		if (!drawSet.commands || !drawSet.counters || !drawSet.ranges || !drawSet.regionBases)
 			return;
 
-		auto& renderPass = clearDepth ? *m_PbrClearRenderPass : *m_PbrLoadRenderPass;
-		auto& framebuffer = clearDepth
-			? *m_PbrClearFramebuffers[currentImageIndex]
-			: *m_PbrLoadFramebuffers[currentImageIndex];
+		RHIClearValue depthClear{};
+		depthClear.isDepth = true;
+		depthClear.depthStencil.depth = 1.0f;
 
-		cmd->BeginRenderPass(renderPass, framebuffer, width, height, { {{}, {}, false}, {{}, {}, true} });
+		std::vector<RHIRenderingAttachment> attachments = {
+			{ color, ImageLayout::ColorAttachment, AttachmentLoadOp::Load, AttachmentStoreOp::Store, nullptr, false },
+			{ depth, ImageLayout::DepthStencilAttachment, clearDepth ? AttachmentLoadOp::Clear : AttachmentLoadOp::Load, AttachmentStoreOp::Store, clearDepth ? &depthClear : nullptr, true }
+		};
+
+		cmd->BeginRendering(attachments);
 		cmd->SetScissor(0, 0, width, height);
 		cmd->SetViewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
 
@@ -58,97 +59,14 @@ namespace Bear
 				range.materialIndex * sizeof(uint32_t));
 		}
 
-		cmd->EndRenderPass();
+		cmd->EndRendering();
 
 		m_Stats.opaqueObjects += drawSet.objectCount;
 		m_Stats.drawCalls += static_cast<uint32_t>(ranges.size());
 	}
-	void PbrPass::Resize()
-	{
-		m_Context->device->WaitIdle();
-		Cleanup();
-		CreateFramebuffers();
-	}
 
 	void PbrPass::Cleanup()
 	{
-		m_PbrClearFramebuffers.clear();
-		m_PbrLoadFramebuffers.clear();
-	}
-
-	void PbrPass::CreateRenderPasses()
-	{
-		// PBR pass that clears depth (first geometry pass of the frame)
-		{
-			RenderPassDescription desc;
-			desc.attachmentCount = 2;
-			AttachmentDescription& colorAttachment = desc.attachments[0];
-			colorAttachment.format = PixelFormat::B8G8R8A8_SRGB;
-			colorAttachment.samples = AttachmentSamples::Count1;
-			colorAttachment.loadOp = AttachmentLoadOp::Load;
-			colorAttachment.storeOp = AttachmentStoreOp::Store;
-			colorAttachment.initialLayout = ImageLayout::ColorAttachment;
-			colorAttachment.finalLayout = ImageLayout::ColorAttachment;
-
-			AttachmentDescription& depthAttachment = desc.attachments[1];
-			depthAttachment.format = PixelFormat::D32_SFLOAT;
-			depthAttachment.samples = AttachmentSamples::Count1;
-			depthAttachment.loadOp = AttachmentLoadOp::Clear;
-			depthAttachment.storeOp = AttachmentStoreOp::Store;
-			depthAttachment.initialLayout = ImageLayout::Undefined;
-			depthAttachment.finalLayout = ImageLayout::ShaderReadOnly;
-
-			desc.subpassCount = 1;
-			SubpassDescription& subpass = desc.subpasses[0];
-			subpass.colorAttachmentCount = 1;
-			subpass.colorAttachments[0] = { 0, ImageLayout::ColorAttachment };
-			subpass.hasDepthStencil = true;
-			subpass.depthStencilAttachment = { 1, ImageLayout::DepthStencilAttachment };
-
-			m_PbrClearRenderPass = m_Context->device->CreateRenderPass(desc);
-		}
-
-		// PBR pass that loads existing depth (phase 2 with rescued objects)
-		{
-			RenderPassDescription desc;
-			desc.attachmentCount = 2;
-			AttachmentDescription& colorAttachment = desc.attachments[0];
-			colorAttachment.format = PixelFormat::B8G8R8A8_SRGB;
-			colorAttachment.samples = AttachmentSamples::Count1;
-			colorAttachment.loadOp = AttachmentLoadOp::Load;
-			colorAttachment.storeOp = AttachmentStoreOp::Store;
-			colorAttachment.initialLayout = ImageLayout::ColorAttachment;
-			colorAttachment.finalLayout = ImageLayout::ColorAttachment;
-
-			AttachmentDescription& depthAttachment = desc.attachments[1];
-			depthAttachment.format = PixelFormat::D32_SFLOAT;
-			depthAttachment.samples = AttachmentSamples::Count1;
-			depthAttachment.loadOp = AttachmentLoadOp::Load;
-			depthAttachment.storeOp = AttachmentStoreOp::Store;
-			depthAttachment.initialLayout = ImageLayout::ShaderReadOnly;
-			depthAttachment.finalLayout = ImageLayout::ShaderReadOnly;
-
-			desc.subpassCount = 1;
-			SubpassDescription& subpass = desc.subpasses[0];
-			subpass.colorAttachmentCount = 1;
-			subpass.colorAttachments[0] = { 0, ImageLayout::ColorAttachment };
-			subpass.hasDepthStencil = true;
-			subpass.depthStencilAttachment = { 1, ImageLayout::DepthStencilAttachment };
-
-			m_PbrLoadRenderPass = m_Context->device->CreateRenderPass(desc);
-		}
-	}
-
-	void PbrPass::CreateFramebuffers()
-	{
-		uint32_t width = m_Context->swapchain->GetWidth();
-		uint32_t height = m_Context->swapchain->GetHeight();
-		for (uint32_t i = 0; i < m_Context->swapchain->GetImageCount(); ++i)
-		{
-			std::vector<void*> attachments = { m_Context->swapchain->GetColorView(i), m_Context->swapchain->GetDepthView(i) };
-			m_PbrClearFramebuffers.push_back(m_Context->device->CreateFramebuffer(*m_PbrClearRenderPass, attachments, width, height));
-			m_PbrLoadFramebuffers.push_back(m_Context->device->CreateFramebuffer(*m_PbrLoadRenderPass, attachments, width, height));
-		}
 	}
 
 	void PbrPass::CreatePipeline()
@@ -178,7 +96,10 @@ namespace Bear
 		pipelineConfig.depthStencilState.depthWriteEnable = true;
 		pipelineConfig.depthStencilState.depthCompareOp = CompareOp::LessOrEqual;
 		pipelineConfig.subpassIndex = 0;
-		m_PbrPipeline = m_Context->device->CreatePipeline(pipelineConfig, *m_PbrClearRenderPass);
+		pipelineConfig.dynamicRendering = true;
+		pipelineConfig.colorFormats = { PixelFormat::B8G8R8A8_SRGB };
+		pipelineConfig.depthFormat = PixelFormat::D32_SFLOAT;
+		m_PbrPipeline = m_Context->device->CreatePipeline(pipelineConfig);
 	}
 	void PbrPass::CreatePbrDescriptorSetLayout()
 	{

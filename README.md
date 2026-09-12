@@ -33,12 +33,17 @@ git clone --recursive https://github.com/Cynic0622/Bear.git
   - **GPU-Driven 剔除 (GPU Culling)**: Compute Shader 视锥剔除 + 材质分桶间接绘制（`DrawIndexedIndirectCount`），绘制调用数量与物体数量解耦。
   - **Hi-Z 遮挡剔除 (Occlusion Culling)**: 基于深度金字塔的物体级遮挡剔除，采用"上一帧预剔 + 同帧修正"两阶段方案，避免时序伪影。
 
+- **帧图 (Render Graph)**
+  - **自动同步**: 资源导入与 transient 创建，由 pass 读写声明自动推导 RAW/WAR/WAW 依赖，稳定拓扑排序后生成 Pipeline Barrier 与布局转换；支持死 pass 剔除与屏障裁剪。
+  - **生命周期别名**: 按执行序计算 transient 资源的存活区间，描述相同且区间不重叠的资源共享同一底层内存，并按 frame-in-flight 池化复用。
+  - **全动态渲染 (Dynamic Rendering)**: 场景、OIT、UI 与 Present 交接全部基于 `vkCmdBeginRendering` 并由帧图管理，无 `VkRenderPass`/framebuffer。
+
 ## 🗓️ 待实现（TODO）
 
 ### 🛠️ 工程架构 (Engineering)
 
 - [x] **GPU剔除**: 基于 Compute shader 实现剔除（视锥 + Hi-Z 遮挡，两阶段同帧修正）。
-- [ ] **渲染依赖图 (Render Graph)**: 自动分析并管理 Render Pass 之间的依赖关系，自动插入 Pipeline Barriers 进行资源同步。
+- [x] **渲染依赖图 (Render Graph)**: 自动分析并管理 Pass 之间的依赖关系，自动插入 Pipeline Barriers 与布局转换，含 transient 资源生命周期别名与死 pass 剔除。
 - [ ] **资源缓存系统 (Resource Caching)**: 实现 Pipeline State Object (PSO)、Descriptor Set 及纹理等核心资源的缓存与复用机制，减少运行时开销。
 
 ### 🎨 渲染特性 (Rendering)
