@@ -22,9 +22,12 @@ namespace Bear {
 		virtual uint32_t GetWidth() const = 0;
 		virtual uint32_t GetHeight() const = 0;
 		virtual uint32_t GetMipLevels() const = 0;
+		virtual uint32_t GetArrayLayers() const = 0;
 		virtual PixelFormat GetFormat() const = 0;
 		// returns the backend image-view handle for the given mip level (levelCount = 1)
 		virtual void* GetMipView(uint32_t mipLevel) const = 0;
+		// returns a 2D view of a single array layer (for rendering into one layer)
+		virtual void* GetLayerView(uint32_t layer) const = 0;
 	};
 
 	class RHISampler {

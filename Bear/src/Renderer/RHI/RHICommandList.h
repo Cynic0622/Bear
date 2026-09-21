@@ -25,6 +25,7 @@ namespace Bear {
 		AttachmentStoreOp storeOp = AttachmentStoreOp::Store;
 		RHIClearValue* clearValue = nullptr; // required when loadOp == Clear
 		bool isDepth = false;
+		uint32_t layer = UINT32_MAX; // array layer to render into; UINT32_MAX = full view
 	};
 	class RHICommandList {
 	public:

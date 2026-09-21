@@ -28,5 +28,8 @@ dxc.exe -T vs_6_6 -E main -spirv ntcVS.hlsl -Fo ntcVS.spv -I "..\..\extern\rtxnt
 "%GLSLC_PATH%" cullPhase1.comp -o cullPhase1.spv
 "%GLSLC_PATH%" cullPhase2.comp -o cullPhase2.spv
 "%GLSLC_PATH%" hiz.comp -o hiz.spv
+"%GLSLC_PATH%" shadow.vert -I "..\Renderer" -o shadowVert.spv
+"%GLSLC_PATH%" shadow.frag -I "..\Renderer" -o shadowFrag.spv
+"%GLSLC_PATH%" shadowCull.comp -I "..\Renderer" -o shadowCull.spv
 echo Done.
 pause

@@ -103,16 +103,15 @@ namespace Bear
 			renderObject.mesh = meshComponent.MeshRes;
 			renderObject.transform = transformComponent.GetWorldTransform();
 			renderObject.material = m_Registry.try_get<MaterialComponent>(entity) ? m_Registry.get<MaterialComponent>(entity).MaterialRes : nullptr;
-			// frustum culling check.
-			if (m_FrustumCull)
+			// NOTE: objects are deliberately NOT dropped here. The shadow pass renders its casters
+			// from this very list, so camera-visibility culling must live in the GPU culling pass
+			// (which only filters the colour draw set). Dropping culled objects here makes casters
+			// leaving the camera frustum stop casting, i.e. the shadows change as the camera moves.
+			// Keep the world AABB up to date for debug/inspection anyway.
+			if (transformComponent.WorldAABBDirty && meshComponent.MeshRes)
 			{
-				if (transformComponent.WorldAABBDirty && meshComponent.MeshRes)
-				{
-					transformComponent.WorldAABB = TransformAABB(meshComponent.MeshRes->GetAABB(), transformComponent.WorldTransform);
-					transformComponent.WorldAABBDirty = false;
-				}
-				if (!GetActiveCamera()->GetFrustum().Contains(transformComponent.WorldAABB))
-					continue;
+				transformComponent.WorldAABB = TransformAABB(meshComponent.MeshRes->GetAABB(), transformComponent.WorldTransform);
+				transformComponent.WorldAABBDirty = false;
 			}
 			ObjectsList.push_back(renderObject);
 			m_VisibleMeshEntities++;
@@ -151,6 +150,9 @@ namespace Bear
 		baseData.cameraPosition = glm::vec4(GetActiveCamera()->GetPosition(), 1.f);
 		baseData.viewMat = GetActiveCamera()->GetViewMatrix();
 		baseData.projMat = GetActiveCamera()->GetProjectionMatrix();
+		baseData.nearPlane = GetActiveCamera()->GetNearPlane();
+		baseData.farPlane = GetActiveCamera()->GetFarPlane();
+		baseData.shadowDebug = 0;
 		baseData.frameIndex = (m_FrameNum++) % UINT32_MAX;
 	}
 	Entity Scene::CreateEntity(const std::string& name)
@@ -307,12 +309,8 @@ namespace Bear
 
 	bool Scene::OnKeyPress(Event& event)
 	{
-		if (Input::IsKeyPressed(Key::Z))
-		{
-			m_FrustumCull = !m_FrustumCull;
-			BEAR_CORE_TRACE("The state of the FrustumCull : {}", m_FrustumCull);
-			return true;
-		}
+		// NOTE: the Z key used to toggle CPU camera-frustum culling here. Visibility culling now
+		// happens in the culling pass (Z/C toggle it there) so casters never depend on it.
 		if (Input::IsKeyPressed(Key::Q))
 		{
 			m_EditorMode = !m_EditorMode;

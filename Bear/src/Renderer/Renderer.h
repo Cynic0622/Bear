@@ -15,6 +15,7 @@ namespace Bear
 	class SkyboxPass;
 	class CullingPass;
 	class HiZPass;
+	class ShadowPass;
 }
 
 struct GLFWwindow;
@@ -84,6 +85,11 @@ namespace Bear {
 		std::unique_ptr<PbrPass> m_PbrPass; // PBR rendering pass
 		std::unique_ptr<CullingPass> m_CullingPass; // GPU frustum culling pass
 		std::unique_ptr<HiZPass> m_HiZPass; // Hi-Z pyramid build for occlusion culling
+		std::unique_ptr<ShadowPass> m_ShadowPass; // cascaded shadow maps
+		uint32_t m_ShadowDebug = 0; // 0 = off, 1 = shadow factor, 2 = cascade colors, 3 = raw map
+		// world-space bounds of all submitted casters, consumed by ShadowPass to size its depth range
+		glm::vec3 m_CasterBoundsMin{ 0.0f };
+		glm::vec3 m_CasterBoundsMax{ 0.0f };
 		RenderGraph m_RenderGraph; // frame graph: ordering + barrier planning
 		bool m_DumpGraphRequested = false;
 		std::unique_ptr<OitPass> m_OitPass; // Order Independent Transparency pass

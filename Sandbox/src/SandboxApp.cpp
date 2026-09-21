@@ -30,7 +30,9 @@ public:
 		});
 		guiLayer->SetRenderStatesProvider([sceneLayer]() -> Bear::RenderStates {
 			Bear::RenderStates states;
-			states.frustumCull = sceneLayer->IsFrustumCullingEnabled();
+			// visibility culling now lives in the culling pass (the scene submits every object so
+			// that shadow casters never depend on it); the toggle is shared by Z and C
+			states.frustumCull = Bear::Application::Get().GetRenderer()->IsGpuCullingEnabled();
 			states.gpuCulling = Bear::Application::Get().GetRenderer()->IsGpuCullingEnabled();
 			states.occlusionCulling = Bear::Application::Get().GetRenderer()->IsOcclusionCullingEnabled();
 			states.oitEnabled = Bear::Application::Get().GetRenderer()->IsOitEnabled();

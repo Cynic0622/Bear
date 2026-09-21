@@ -55,6 +55,11 @@ namespace Bear {
 		RHIDepthStencilState depthStencilState;
 		uint16_t subpassIndex = 0;
 
+		// depth bias (shadow mapping): enabled from the pipeline rather than the shader
+		bool depthBiasEnable = false;
+		float depthBiasConstant = 0.0f;
+		float depthBiasSlope = 0.0f;
+
 		bool vertexInput = true;
 
 		// dynamic rendering path (vkCmdBeginRendering): when enabled, the pipeline is created

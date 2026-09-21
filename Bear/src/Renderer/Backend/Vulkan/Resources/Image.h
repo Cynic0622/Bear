@@ -12,7 +12,7 @@ namespace Bear {
 
 	public:
 		Image(const Device& device, uint32_t width, uint32_t height, VkFormat format,
-			VkImageTiling tiling,VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, uint32_t mipLevels = 1);
+			VkImageTiling tiling,VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, uint32_t mipLevels = 1, uint32_t arrayLayers = 1);
 		// wraps an externally owned image/view (e.g. swapchain images); does not destroy them
 		Image(const Device& device, VkImage image, VkImageView view, uint32_t width, uint32_t height, VkFormat format);
 		~Image() override;
@@ -26,13 +26,17 @@ namespace Bear {
 		uint32_t GetWidth() const override;
 		uint32_t GetHeight() const override;
 		uint32_t GetMipLevels() const override;
+		uint32_t GetArrayLayers() const override { return m_ArrayLayers; }
 		PixelFormat GetFormat() const override;
 		void* GetMipView(uint32_t mipLevel) const override { return reinterpret_cast<void*>(GetMipViewVk(mipLevel)); }
+		void* GetLayerView(uint32_t layer) const override { return reinterpret_cast<void*>(GetLayerViewVk(layer)); }
 
 		inline VkImageView GetView() const { return m_ImageView; }
 		inline VkImage GetImage() const { return m_Image; }
 		// per-mip image view (levelCount = 1); falls back to the full view when out of range
 		VkImageView GetMipViewVk(uint32_t mipLevel) const;
+		// single-layer 2D view (used to render into one array layer); falls back to the full view
+		VkImageView GetLayerViewVk(uint32_t layer) const;
 		VkImageAspectFlags GetAspectMask() const { return GetAspectMask(m_Format); }
 		// inline VkFormat GetFormat() const { return m_Format; }
 
@@ -49,10 +53,13 @@ namespace Bear {
 		uint32_t m_Width = 0;
 		uint32_t m_Height = 0;
 		uint32_t m_MipLevels = 1;
+		uint32_t m_ArrayLayers = 1;
+		std::vector<VkImageView> m_LayerViews;
 	private:
 		void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VmaMemoryUsage memoryUsage);
 		void CreateImageView(VkFormat format);
 		void CreateMipViews();
+		void CreateLayerViews();
 		void Cleanup();
 		static VkImageAspectFlags GetAspectMask(VkFormat format);
 	};

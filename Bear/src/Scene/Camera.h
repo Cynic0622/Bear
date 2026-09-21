@@ -25,6 +25,8 @@ namespace Bear
 		const glm::mat4& GetViewMatrix() const { return m_ViewMatrix; }
 		const glm::mat4& GetProjectionMatrix() const { return m_ProjectionMatrix; }
 		const glm::mat4& GetViewProjectionMatrix() const { return m_ViewProjectionMatrix; }
+		float GetNearPlane() const { return m_ProjectionType == ProjectionType::Perspective ? m_PerspectiveNear : m_OrthographicNear; }
+		float GetFarPlane() const { return m_ProjectionType == ProjectionType::Perspective ? m_PerspectiveFar : m_OrthographicFar; }
 		// camera position and orientation
 		glm::vec3 GetUpDirection() const;
 		glm::vec3 GetRightDirection() const;

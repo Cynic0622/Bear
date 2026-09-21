@@ -80,6 +80,10 @@ namespace Bear
 		const std::vector<uint32_t>& GetRegionBases() const { return m_RegionBases; }
 		uint32_t GetObjectCount() const { return m_ObjectCount; }
 		uint32_t GetMaterialCount() const { return m_MaterialCount; }
+		// shared input pools reused by the shadow culling pass
+		RHIBuffer* GetAabbBuffer() const { return m_AabbBuffers[m_FrameIndex].get(); }
+		RHIBuffer* GetInputCommandsBuffer() const { return m_InputCommandsBuffers[m_FrameIndex].get(); }
+
 		RHIBuffer* GetOutputCommandsBuffer() const { return m_OutputCommandsBuffers[m_FrameIndex].get(); }   // OutA
 		RHIBuffer* GetCountersBuffer() const { return m_CountersBuffers[m_FrameIndex].get(); }               // countersA
 		RHIBuffer* GetRescuedCommandsBuffer() const { return m_RescuedCommandsBuffers[m_FrameIndex].get(); } // OutB
@@ -88,7 +92,10 @@ namespace Bear
 
 	private:
 		void CreatePipelines();
-		void EnsureBuffers(uint32_t objectCount, uint32_t materialCount);
+		// objectCount/materialCount size the draw-command and counter pools; aabbCount sizes the
+		// AABB pool, which every cull shader indexes by the *render object* index (firstInstance),
+		// not by the material-sorted command index.
+		void EnsureBuffers(uint32_t objectCount, uint32_t materialCount, uint32_t aabbCount);
 		void BuildCommandPool(const std::vector<RenderObject>& renderObjects);
 		void UpdateAabbBuffer(const std::vector<RenderObject>& renderObjects);
 
