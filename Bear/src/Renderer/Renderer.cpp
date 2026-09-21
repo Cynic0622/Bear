@@ -385,7 +385,7 @@ namespace Bear {
 		m_RenderContext->MAX_FRAMES_IN_FLIGHT = MAX_FRAMES_IN_FLIGHT;
 		m_RenderContext->baseDataDescriptorSetLayout = m_BaseDataDescriptorSetLayout.get();
 		m_RenderContext->sceneDataDescriptorSetLayout = m_SceneDataDescriptorSetLayout.get();
-		m_RenderContext->useTextureCompression = false;
+		m_RenderContext->useTextureCompression = m_TextureCompressionEnabled;
 
 		m_Resource = std::make_unique<ResourceManager>(m_RenderContext);
 
@@ -411,6 +411,25 @@ namespace Bear {
 	bool Renderer::IsOcclusionCullingEnabled() const
 	{
 		return m_CullingPass && m_CullingPass->IsOcclusionEnabled();
+	}
+	void Renderer::SetTextureCompressionEnabled(bool enabled)
+	{
+		if (m_TextureCompressionEnabled == enabled)
+			return;
+		if (!m_Device || !m_PbrPass || !m_RenderContext)
+			return;
+
+		m_TextureCompressionEnabled = enabled;
+		m_RenderContext->useTextureCompression = enabled;
+
+		// The two paths use different shaders and set 2 layouts, so the PBR pipeline is rebuilt.
+		// The old pipeline may still be referenced by frames that are in flight (this frame has
+		// not been submitted yet), so wait for the device to go idle before releasing it.
+		m_Device->WaitIdle();
+		m_PbrPass->Setup(m_RenderContext);
+
+		BEAR_CORE_INFO("Texture compression (NTC): {}", enabled ? "ON" : "OFF");
+		BEAR_CORE_INFO("NTC materials are compressed at creation time, so the model has to be reloaded to take effect.");
 	}
 	bool Renderer::OnWindowResize() const
 	{

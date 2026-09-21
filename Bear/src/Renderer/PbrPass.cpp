@@ -71,13 +71,12 @@ namespace Bear
 
 	void PbrPass::CreatePipeline()
 	{
-		std::vector<RHIPushConstantRange> pushConstantRanges = {
-			{ShaderStage::Vertex, sizeof(PerObjectPushConstants), 0}
-		};
 		const auto& baseDataDescriptorSetLayout = m_Context->baseDataDescriptorSetLayout;
 		const auto& sceneDataDescriptorSetLayout = m_Context->sceneDataDescriptorSetLayout;
+		// Neither pbr.vert nor ntcVS.hlsl uses push constants: the per-object model matrices come
+		// from the set 1 / binding 2 storage buffer, indexed by gl_InstanceIndex.
 		m_PbrPipelineLayout = m_Context->device->CreatePipelineLayout({ baseDataDescriptorSetLayout, sceneDataDescriptorSetLayout, m_DescriptorSetLayout.get()},
-			{ pushConstantRanges });
+			std::vector<RHIPushConstantRange>{});
 
 		RHIPipelineConfig pipelineConfig;
 		pipelineConfig.pipelineLayout = m_PbrPipelineLayout;

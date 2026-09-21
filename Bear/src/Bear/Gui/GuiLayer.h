@@ -45,6 +45,7 @@ namespace Bear {
         void SetOnInstanceSpreadChangeCallback(std::function<void(float)> callback);
         void SetDrawStatsProvider(std::function<RenderStats()> provider);
         void SetRenderStatesProvider(std::function<RenderStates()> provider);
+        void SetOnTextureCompressionChangeCallback(std::function<void(bool)> callback);
 
     private:
 
@@ -72,5 +73,6 @@ namespace Bear {
         std::function<void(float)> m_OnInstanceSpreadChange;
         std::function<RenderStats()> m_DrawStatsProvider;
         std::function<RenderStates()> m_RenderStatesProvider;
+        std::function<void(bool)> m_OnTextureCompressionChange;
     };
 }

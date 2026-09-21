@@ -51,6 +51,12 @@ namespace Bear {
 		bool IsOitEnabled() const { return OitEnabled; }
 		bool IsGpuCullingEnabled() const;
 		bool IsOcclusionCullingEnabled() const;
+		bool IsTextureCompressionEnabled() const { return m_TextureCompressionEnabled; }
+
+		// Toggles neural texture compression. Rebuilds the PBR pipeline and the set 2 layout;
+		// the caller still has to recreate the materials (SceneLayer::ReloadModel) because NTC
+		// materials are compressed when they are created.
+		void SetTextureCompressionEnabled(bool enabled);
 
 		void BeginFrame();
 		void Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData, const BaseData& baseData);
@@ -95,6 +101,7 @@ namespace Bear {
 		std::unique_ptr<OitPass> m_OitPass; // Order Independent Transparency pass
 
 		bool OitEnabled = false; // Toggle for Order Independent Transparency
+		bool m_TextureCompressionEnabled = false; // Toggle for neural texture compression
 
 		RenderStats m_FrameStats;
 

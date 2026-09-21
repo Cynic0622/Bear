@@ -59,6 +59,11 @@ namespace Bear {
         m_RenderStatesProvider = std::move(provider);
     }
 
+    void GuiLayer::SetOnTextureCompressionChangeCallback(std::function<void(bool)> callback)
+    {
+        m_OnTextureCompressionChange = std::move(callback);
+    }
+
     void GuiLayer::OnUpdate(float deltaTime) {
         float dtMs = deltaTime * 1000.0f;
 
@@ -115,6 +120,22 @@ namespace Bear {
                 (states.occlusionCulling && !states.gpuCulling) ? "  (inactive: GPU Culling off)" : "");
             ImGui::Text("OIT [X]: %s", states.oitEnabled ? "ON" : "OFF");
             ImGui::Text("Editor [Q]: %s", states.editorMode ? "ON" : "OFF");
+
+            // NTC materials are compressed when they are created, so the switch rebuilds the
+            // pipeline and asks the host to reload the model.
+            ImGui::SeparatorText("Texture Compression");
+            if (m_OnTextureCompressionChange)
+            {
+                bool textureCompression = states.textureCompression;
+                if (ImGui::Checkbox("Neural Texture Compression (NTC)", &textureCompression))
+                    m_OnTextureCompressionChange(textureCompression);
+                ImGui::SameLine();
+                ImGui::TextDisabled("(reloads the model; new materials are compressed first)");
+            }
+            else
+            {
+                ImGui::Text("Neural Texture Compression (NTC): %s", states.textureCompression ? "ON" : "OFF");
+            }
         }
         ImGui::SeparatorText("Frame Timing");
         ImGui::Text("Frame time: %.3f ms", dtMs);

@@ -23,6 +23,11 @@ public:
 		guiLayer->SetOnInstanceSpreadChangeCallback([sceneLayer](float spread) {
 			sceneLayer->SetInstanceSpread(spread);
 		});
+		guiLayer->SetOnTextureCompressionChangeCallback([sceneLayer](bool enabled) {
+			Bear::Application::Get().GetRenderer()->SetTextureCompressionEnabled(enabled);
+			// NTC materials are compressed at creation time, so the model has to be rebuilt.
+			sceneLayer->ReloadModel();
+		});
 		guiLayer->SetDrawStatsProvider([sceneLayer]() -> Bear::RenderStats {
 			auto stats = Bear::Application::Get().GetRenderer()->GetFrameStats();
 			stats.sceneObjects = sceneLayer->GetTotalMeshEntities();
@@ -37,6 +42,7 @@ public:
 			states.occlusionCulling = Bear::Application::Get().GetRenderer()->IsOcclusionCullingEnabled();
 			states.oitEnabled = Bear::Application::Get().GetRenderer()->IsOitEnabled();
 			states.editorMode = sceneLayer->IsEditorMode();
+			states.textureCompression = Bear::Application::Get().GetRenderer()->IsTextureCompressionEnabled();
 			return states;
 		});
 

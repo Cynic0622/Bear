@@ -25,5 +25,6 @@ namespace Bear
 		bool occlusionCulling = false; // Hi-Z occlusion culling, toggled with O
 		bool oitEnabled = false;   // toggled with X
 		bool editorMode = true;    // toggled with Q
+		bool textureCompression = false; // neural texture compression, toggled in the UI
 	};
 }
