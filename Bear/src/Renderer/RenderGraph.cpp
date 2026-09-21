@@ -169,7 +169,7 @@ namespace Bear
 		auto sameTextureConfig = [](const RHITextureConfig& a, const RHITextureConfig& b)
 		{
 			return a.width == b.width && a.height == b.height && a.format == b.format
-				&& a.usage == b.usage && a.mipLevels == b.mipLevels;
+				&& a.usage == b.usage && a.mipLevels == b.mipLevels && a.arrayLayers == b.arrayLayers;
 		};
 
 		// alias resources with identical descriptions whose life ranges do not overlap

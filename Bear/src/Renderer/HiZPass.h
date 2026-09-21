@@ -52,6 +52,10 @@ namespace Bear
 		// [frame-in-flight][mip level]; descriptors are only rewritten once per frame
 		// (a set must not be updated while it is bound in the command buffer being recorded)
 		std::vector<std::vector<std::unique_ptr<RHIDescriptorSet>>> m_DescriptorSets;
+		// depth image currently bound to each slot's level-0 sampled descriptor: the
+		// swapchain depth image changes per acquired image, so the binding must be refreshed
+		// whenever it changes, not only when the frame-in-flight slot changes
+		std::vector<RHIImage*> m_BoundDepth;
 		uint32_t m_LastBuiltFrame = UINT32_MAX;
 	};
 }

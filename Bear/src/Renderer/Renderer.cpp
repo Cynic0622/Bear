@@ -16,6 +16,7 @@
 #include "Core/ResourceManager.h"
 #include "Scene/Scene.h"
 #include "SkyboxPass.h"
+#include "ShadowPass.h"
 
 namespace Bear {
 	Renderer::Renderer(GLFWwindow* window, GraphicsAPI api)
@@ -32,6 +33,7 @@ namespace Bear {
 		m_UIPass.reset();
 		m_PbrPass.reset();
 		m_OitPass.reset();
+		m_ShadowPass.reset();
 	}
 	uint32_t Renderer::GetSwapchainImageCount() const
 	{
@@ -53,8 +55,40 @@ namespace Bear {
 	void Renderer::Submit(const std::vector<RenderObject>& renderObjects, const SceneData& sceneData, const BaseData& baseData)
 	{
 		auto frameIndex = m_Device->GetCurrentFrameIndex();
-		m_BaseDataUniformBuffer[frameIndex]->UploadData(&baseData, sizeof(baseData)); // set 0.
-		m_SceneDataUniformBuffer[frameIndex]->UploadData(&sceneData, sizeof(sceneData));
+
+		// cascaded shadow maps: compute the light matrices before uploading the frame data
+		BaseData baseDataCopy = baseData;
+		baseDataCopy.shadowDebug = m_ShadowDebug;
+		SceneData sceneDataCopy = sceneData;
+
+		// World-space bounds of every caster: ShadowPass uses them to extend the light ortho near
+		// plane toward the light, so blockers sitting above a cascade slice stay in the shadow map.
+		// AABB center/extent transformed by the object basis is conservative and costs one mat3
+		// per object (the object list is already traversed every frame).
+		glm::vec3 casterMin(1e30f);
+		glm::vec3 casterMax(-1e30f);
+		for (const auto& object : renderObjects)
+		{
+			const auto& local = object.mesh->GetAABB();
+			const glm::vec3 localCenter = 0.5f * (local.min + local.max);
+			const glm::vec3 localHalf = 0.5f * (local.max - local.min);
+			const glm::mat3 basis = glm::mat3(object.transform);
+			const glm::mat3 absBasis(glm::abs(basis[0]), glm::abs(basis[1]), glm::abs(basis[2]));
+			const glm::vec3 worldCenter = glm::vec3(object.transform * glm::vec4(localCenter, 1.0f));
+			const glm::vec3 worldHalf = absBasis * localHalf;
+			casterMin = glm::min(casterMin, worldCenter - worldHalf);
+			casterMax = glm::max(casterMax, worldCenter + worldHalf);
+		}
+		if (renderObjects.empty())
+			casterMin = casterMax = glm::vec3(0.0f);
+		m_CasterBoundsMin = casterMin;
+		m_CasterBoundsMax = casterMax;
+
+		m_ShadowPass->UpdateCascades(baseData.viewMat, baseData.projMat, baseData.nearPlane, baseData.farPlane,
+			glm::vec3(sceneData.dirLight.direction), m_CasterBoundsMin, m_CasterBoundsMax, sceneDataCopy);
+
+		m_BaseDataUniformBuffer[frameIndex]->UploadData(&baseDataCopy, sizeof(baseDataCopy)); // set 0.
+		m_SceneDataUniformBuffer[frameIndex]->UploadData(&sceneDataCopy, sizeof(sceneDataCopy));
 
 		size_t perObjectSize = renderObjects.size() * sizeof(glm::mat4);
 		auto& perObjBuf = m_PerObjectBuffer[frameIndex];
@@ -125,6 +159,22 @@ namespace Bear {
 			},
 			[this, renderObjects](RHICommandList& cmd) { m_CullingPass->Execute(&cmd, renderObjects); });
 
+		// Cascaded shadow maps: GPU culling per light frustum + depth-only render into the
+		// cascade array layers (transient, aliased with other frame-local resources)
+		const auto shadowMapHandle = m_RenderGraph.CreateTexture("shadow.cascades", m_ShadowPass->GetShadowMapConfig());
+		for (uint32_t cascade = 0; cascade < ShadowPass::kCascadeCount; ++cascade)
+		{
+			m_RenderGraph.AddPass(("Shadow.Cascade" + std::to_string(cascade)).c_str(),
+				[&](RenderGraph::PassBuilder& b)
+				{
+					b.Write(shadowMapHandle, { PipelineStage::EarlyFragmentTests | PipelineStage::LateFragmentTests, AccessFlags::DepthStencilAttachmentWrite, ImageLayout::DepthStencilAttachment });
+				},
+				[this, cascade, shadowMapHandle](RHICommandList& cmd)
+				{
+					m_ShadowPass->Execute(&cmd, cascade, *m_CullingPass, m_RenderGraph.GetTexture(shadowMapHandle));
+				});
+		}
+
 		// PBR stage 1: draws set A with cleared depth
 		m_PbrPass->ResetStats();
 		m_RenderGraph.AddPass("PBR.Primary",
@@ -132,6 +182,7 @@ namespace Bear {
 			{
 				b.Read(bufferA, { PipelineStage::DrawIndirect, AccessFlags::IndirectCommandRead });
 				b.Read(countersA, { PipelineStage::DrawIndirect, AccessFlags::IndirectCommandRead });
+				b.Read(shadowMapHandle, { PipelineStage::FragmentShader, AccessFlags::ShaderRead, ImageLayout::ShaderReadOnly });
 				b.Write(colorTarget, { PipelineStage::ColorAttachmentOutput, AccessFlags::ColorAttachmentWrite, ImageLayout::ColorAttachment });
 				b.Write(depthTarget, { PipelineStage::EarlyFragmentTests | PipelineStage::LateFragmentTests, AccessFlags::DepthStencilAttachmentWrite, ImageLayout::DepthStencilAttachment });
 			},
@@ -175,6 +226,7 @@ namespace Bear {
 				{
 					b.Read(bufferB, { PipelineStage::DrawIndirect, AccessFlags::IndirectCommandRead });
 					b.Read(countersB, { PipelineStage::DrawIndirect, AccessFlags::IndirectCommandRead });
+					b.Read(shadowMapHandle, { PipelineStage::FragmentShader, AccessFlags::ShaderRead, ImageLayout::ShaderReadOnly });
 					b.Write(colorTarget, { PipelineStage::ColorAttachmentOutput, AccessFlags::ColorAttachmentWrite, ImageLayout::ColorAttachment });
 					b.Write(depthTarget, { PipelineStage::EarlyFragmentTests | PipelineStage::LateFragmentTests, AccessFlags::DepthStencilAttachmentWrite, ImageLayout::DepthStencilAttachment });
 				},
@@ -246,6 +298,11 @@ namespace Bear {
 			[](RHICommandList&) {}, true, true);
 
 		m_RenderGraph.Compile();
+
+		// bind the (transient) shadow map now that Compile() allocated it
+		if (RHIImage* shadowImage = m_RenderGraph.GetTexture(shadowMapHandle))
+			m_SceneDataDescriptorSet[frameIndex]->UpdateTexture(3, *shadowImage, *m_ShadowPass->GetSampler());
+
 		if (m_DumpGraphRequested)
 		{
 			BEAR_CORE_INFO("Frame graph:\n{}", m_RenderGraph.Dump());
@@ -297,7 +354,8 @@ namespace Bear {
 		m_SceneDataDescriptorSetLayout = m_Device->CreateDescriptorSetLayout({
 			{0, DescriptorType::UniformBuffer, 1, ShaderStage::Vertex | ShaderStage::Fragment},
 			{1, DescriptorType::CombinedImageSampler, 1, ShaderStage::Fragment },
-			{2, DescriptorType::StorageBuffer, 1, ShaderStage::Vertex | ShaderStage::Compute }
+			{2, DescriptorType::StorageBuffer, 1, ShaderStage::Vertex | ShaderStage::Compute },
+			{3, DescriptorType::CombinedImageSampler, 1, ShaderStage::Fragment } // cascaded shadow map
 			});
 
 		std::string filePath = "assets/skybox/kloppenheim_06_puresky_4k.hdr";
@@ -341,6 +399,8 @@ namespace Bear {
 		m_CullingPass->Setup(m_RenderContext);
 		m_HiZPass = std::make_unique<HiZPass>();
 		m_HiZPass->Setup(m_RenderContext);
+		m_ShadowPass = std::make_unique<ShadowPass>();
+		m_ShadowPass->Setup(m_RenderContext);
 	}
 	
 	
@@ -371,7 +431,7 @@ namespace Bear {
 			BEAR_CORE_INFO("OIT: {}", OitEnabled ? "ON" : "OFF");
 			return true;
 		}
-		if (Input::IsKeyPressed(Key::C))
+		if (Input::IsKeyPressed(Key::C) || Input::IsKeyPressed(Key::Z))
 		{
 			m_CullingPass->SetEnabled(!m_CullingPass->IsEnabled());
 			BEAR_CORE_INFO("GPU Culling: {}", m_CullingPass->IsEnabled() ? "ON" : "OFF");
@@ -397,6 +457,15 @@ namespace Bear {
 		{
 			m_DumpGraphRequested = true;
 			BEAR_CORE_INFO("Dumping frame graph next frame...");
+			return true;
+		}
+		if (Input::IsKeyPressed(Key::H))
+		{
+			m_ShadowDebug = (m_ShadowDebug + 1) % 4;
+			const char* names[] = { "OFF", "shadow factor", "cascade colors", "raw shadow map" };
+			const auto& visible = m_ShadowPass->GetVisibleCounts();
+			BEAR_CORE_INFO("Shadow debug: {} (casters {} {} {} {})", names[m_ShadowDebug],
+				visible[0], visible[1], visible[2], visible[3]);
 			return true;
 		}
 		return false;

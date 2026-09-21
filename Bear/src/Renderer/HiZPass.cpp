@@ -94,6 +94,7 @@ namespace Bear
 				m_DescriptorSets[frame][level] = m_Context->device->CreateDescriptorSet(m_DescriptorSetLayout);
 			}
 		}
+		m_BoundDepth.assign(m_Context->MAX_FRAMES_IN_FLIGHT, nullptr);
 		m_LastBuiltFrame = UINT32_MAX;
 	}
 
@@ -126,10 +127,14 @@ namespace Bear
 	{
 		cmd->BindPipeline(*m_Pipeline);
 
-		// only rewrite descriptors on the first build of this frame; the second build
-		// (complete-depth refresh) reuses the same sets, which are already bound in the
-		// command buffer being recorded
-		const bool updateDescriptors = (m_LastBuiltFrame != frameIndex);
+		// Refresh the level-0 sampled binding whenever the depth image bound to this slot
+		// changes: the swapchain depth image differs per acquired image, and the frame graph
+		// only transitions the image of the current frame, so keying the refresh on the frame
+		// slot alone can leave a stale image bound (and a layout mismatch at submit time).
+		// Rewriting a slot's set here is safe - BeginFrame() has already waited on that slot's
+		// fence, so no in-flight command buffer references it any more; the first term keeps
+		// the guarantee for a repeated build of the same slot within one frame.
+		const bool updateDescriptors = (m_LastBuiltFrame != frameIndex) || (m_BoundDepth[frameIndex] != &depthImage);
 		m_LastBuiltFrame = frameIndex;
 
 		auto& descriptorSets = m_DescriptorSets[frameIndex];
@@ -146,6 +151,7 @@ namespace Bear
 				if (level == 0)
 				{
 					set->UpdateSampledImage(0, depthImage, *m_Sampler, 0, ImageLayout::ShaderReadOnly);
+					m_BoundDepth[frameIndex] = &depthImage;
 				}
 				else
 				{
@@ -190,6 +196,7 @@ namespace Bear
 		m_PipelineLayout.reset();
 		m_DescriptorSetLayout.reset();
 		m_DescriptorSets.clear();
+		m_BoundDepth.clear();
 		m_Pyramids[0].reset();
 		m_Pyramids[1].reset();
 		m_Sampler.reset();

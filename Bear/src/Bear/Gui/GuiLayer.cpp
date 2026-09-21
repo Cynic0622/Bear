@@ -110,8 +110,7 @@ namespace Bear {
         if (m_RenderStatesProvider)
         {
             states = m_RenderStatesProvider();
-            ImGui::Text("FrustumCull [Z]: %s", states.frustumCull ? "ON" : "OFF");
-            ImGui::Text("GPU Culling [C]: %s", states.gpuCulling ? "ON" : "OFF");
+            ImGui::Text("Frustum Culling [Z/C]: %s", states.gpuCulling ? "ON" : "OFF");
             ImGui::Text("Occlusion [O]: %s%s", states.occlusionCulling ? "ON" : "OFF",
                 (states.occlusionCulling && !states.gpuCulling) ? "  (inactive: GPU Culling off)" : "");
             ImGui::Text("OIT [X]: %s", states.oitEnabled ? "ON" : "OFF");

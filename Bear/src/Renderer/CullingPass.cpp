@@ -46,7 +46,10 @@ namespace Bear
 	void CullingPass::Setup(RenderContext* context)
 	{
 		m_Context = context;
-		m_Enabled = false; // GPU culling is opt-in
+		// Camera-visibility culling lives here (and only here): the scene submits every object so
+		// that the shadow pass always sees a complete caster set, and this pass filters the colour
+		// draw set. Occlusion culling (the Hi-Z phase 2) stays opt-in via the O key.
+		m_Enabled = true;
 
 		m_DescriptorSetLayout = m_Context->device->CreateDescriptorSetLayout({
 			{0, DescriptorType::StorageBuffer, 1, ShaderStage::Compute }, // AABBs
@@ -155,10 +158,12 @@ namespace Bear
 		}
 	}
 
-	void CullingPass::EnsureBuffers(uint32_t objectCount, uint32_t materialCount)
+	void CullingPass::EnsureBuffers(uint32_t objectCount, uint32_t materialCount, uint32_t aabbCount)
 	{
 		size_t cmdBytes = objectCount * sizeof(DrawIndexedIndirectCommand);
-		size_t aabbBytes = objectCount * sizeof(AabbUpload);
+		// the AABB pool is indexed by the render object index (firstInstance), so it must cover
+		// every render object, not just the opaque ones that make it into the command pool
+		size_t aabbBytes = aabbCount * sizeof(AabbUpload);
 		size_t counterBytes = (materialCount + 1) * sizeof(uint32_t);
 		size_t idBytes = objectCount * sizeof(uint32_t);
 		size_t regionBytes = materialCount * sizeof(uint32_t);
@@ -317,7 +322,7 @@ namespace Bear
 		if (m_ObjectCount == 0)
 			return;
 
-		EnsureBuffers(m_ObjectCount, m_MaterialCount);
+		EnsureBuffers(m_ObjectCount, m_MaterialCount, static_cast<uint32_t>(renderObjects.size()));
 
 		// read last time this frame slot ran (its fence has already signaled) for the UI stats
 		{
@@ -342,6 +347,13 @@ namespace Bear
 		m_RegionBaseBuffers[m_FrameIndex]->UploadData(m_RegionBases.data(), m_RegionBases.size() * sizeof(uint32_t), 0);
 
 		bool occlusion = IsOcclusionActive();
+
+		// The AABB pool is read by this pass *and* by the shadow pass' cull (which runs every
+		// frame, independently of m_Enabled). Both index it with firstInstance = renderObject
+		// index, so it must be filled even when camera frustum culling is disabled - otherwise
+		// the cullers test uninitialized/stale boxes and casters drop in and out as the fitted
+		// light planes move with the camera (visible as shadows swimming).
+		UpdateAabbBuffer(renderObjects);
 
 		if (!m_Enabled)
 		{
@@ -369,8 +381,6 @@ namespace Bear
 				set->UpdateSampledImage(8, *m_HiZImage, *m_HiZSampler, UINT32_MAX, ImageLayout::General);
 			return;
 		}
-
-		UpdateAabbBuffer(renderObjects);
 
 		// Keep the descriptor set bindings in sync in case buffers were recreated
 		auto& set = m_DescriptorSets[m_FrameIndex];

@@ -76,7 +76,9 @@ namespace Bear {
 
 			VkRenderingAttachmentInfo info{};
 			info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-			info.imageView = vkImage.GetMipViewVk(0);
+			info.imageView = attachment.layer != UINT32_MAX
+				? vkImage.GetLayerViewVk(attachment.layer)
+				: vkImage.GetMipViewVk(0);
 			info.imageLayout = ToVulkanImageLayout(attachment.layout);
 			info.loadOp = ToVulkanLoadOp(attachment.loadOp);
 			info.storeOp = ToVulkanStoreOp(attachment.storeOp);
@@ -367,7 +369,7 @@ namespace Bear {
 		barrier.subresourceRange.baseMipLevel = desc.baseMipLevel;
 		barrier.subresourceRange.levelCount = desc.levelCount;
 		barrier.subresourceRange.baseArrayLayer = 0;
-		barrier.subresourceRange.layerCount = 1;
+		barrier.subresourceRange.layerCount = vkImage.GetArrayLayers();
 		barrier.srcAccessMask = ToVulkanAccessFlags(desc.srcAccessMask);
 		barrier.dstAccessMask = ToVulkanAccessFlags(desc.dstAccessMask);
 

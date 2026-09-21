@@ -7,18 +7,19 @@
 
 namespace Bear {
 	Image::Image(const Device& device, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, 
-		VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, uint32_t mipLevels)
-		: m_Device(device), m_Format(format), m_Width(width), m_Height(height), m_MipLevels(mipLevels)
+		VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, uint32_t mipLevels, uint32_t arrayLayers)
+		: m_Device(device), m_Format(format), m_Width(width), m_Height(height), m_MipLevels(mipLevels), m_ArrayLayers(arrayLayers)
 	{
 		CreateImage(width, height, format, tiling, usage, memoryUsage);
 
 		CreateImageView(m_Format);
 		CreateMipViews();
+		CreateLayerViews();
 
 	}
 
 	Image::Image(const Device& device, VkImage image, VkImageView view, uint32_t width, uint32_t height, VkFormat format)
-		: m_Device(device), m_Format(format), m_Width(width), m_Height(height), m_MipLevels(1)
+		: m_Device(device), m_Format(format), m_Width(width), m_Height(height), m_MipLevels(1), m_ArrayLayers(1)
 	{
 		m_Image = image;
 		m_ImageView = view;
@@ -30,6 +31,10 @@ namespace Bear {
 		if (!m_OwnsResources)
 			return;
 
+		for (VkImageView view : m_LayerViews) {
+			vkDestroyImageView(m_Device.GetDevice(), view, nullptr);
+		}
+		m_LayerViews.clear();
 		for (VkImageView view : m_MipViews) {
 			vkDestroyImageView(m_Device.GetDevice(), view, nullptr);
 		}
@@ -76,7 +81,7 @@ namespace Bear {
 		imageInfo.extent.height = height;
 		imageInfo.extent.depth = 1;
 		imageInfo.mipLevels = m_MipLevels;
-		imageInfo.arrayLayers = 1;
+		imageInfo.arrayLayers = m_ArrayLayers;
 		imageInfo.format = format;
 		imageInfo.tiling = tiling;
 		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -97,12 +102,12 @@ namespace Bear {
 		VkImageViewCreateInfo viewInfo = {};
 		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		viewInfo.image = m_Image;
-		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		viewInfo.viewType = m_ArrayLayers > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
 		viewInfo.format = m_Format;
 		viewInfo.subresourceRange.baseMipLevel = 0;
 		viewInfo.subresourceRange.levelCount = m_MipLevels;
 		viewInfo.subresourceRange.baseArrayLayer = 0;
-		viewInfo.subresourceRange.layerCount = 1;
+		viewInfo.subresourceRange.layerCount = m_ArrayLayers;
 		viewInfo.subresourceRange.aspectMask = GetAspectMask(format); // Determine aspect mask based on format
 		BEAR_CORE_ASSERT(vkCreateImageView(m_Device.GetDevice(), &viewInfo, nullptr, &m_ImageView) == VK_SUCCESS, "Failed to create Vulkan image view!");
 	}
@@ -115,14 +120,36 @@ namespace Bear {
 			VkImageViewCreateInfo viewInfo = {};
 			viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 			viewInfo.image = m_Image;
-			viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+			viewInfo.viewType = m_ArrayLayers > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
 			viewInfo.format = m_Format;
 			viewInfo.subresourceRange.baseMipLevel = level;
 			viewInfo.subresourceRange.levelCount = 1;
 			viewInfo.subresourceRange.baseArrayLayer = 0;
-			viewInfo.subresourceRange.layerCount = 1;
+			viewInfo.subresourceRange.layerCount = m_ArrayLayers;
 			viewInfo.subresourceRange.aspectMask = GetAspectMask(m_Format);
 			BEAR_CORE_ASSERT(vkCreateImageView(m_Device.GetDevice(), &viewInfo, nullptr, &m_MipViews[level]) == VK_SUCCESS, "Failed to create per-mip image view!");
+		}
+	}
+
+	void Image::CreateLayerViews()
+	{
+		if (m_ArrayLayers <= 1)
+			return;
+
+		m_LayerViews.resize(m_ArrayLayers, VK_NULL_HANDLE);
+		for (uint32_t layer = 0; layer < m_ArrayLayers; ++layer)
+		{
+			VkImageViewCreateInfo viewInfo = {};
+			viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+			viewInfo.image = m_Image;
+			viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+			viewInfo.format = m_Format;
+			viewInfo.subresourceRange.baseMipLevel = 0;
+			viewInfo.subresourceRange.levelCount = 1;
+			viewInfo.subresourceRange.baseArrayLayer = layer;
+			viewInfo.subresourceRange.layerCount = 1;
+			viewInfo.subresourceRange.aspectMask = GetAspectMask(m_Format);
+			BEAR_CORE_ASSERT(vkCreateImageView(m_Device.GetDevice(), &viewInfo, nullptr, &m_LayerViews[layer]) == VK_SUCCESS, "Failed to create per-layer image view!");
 		}
 	}
 
@@ -130,6 +157,13 @@ namespace Bear {
 	{
 		if (mipLevel < m_MipViews.size())
 			return m_MipViews[mipLevel];
+		return m_ImageView;
+	}
+
+	VkImageView Image::GetLayerViewVk(uint32_t layer) const
+	{
+		if (layer < m_LayerViews.size())
+			return m_LayerViews[layer];
 		return m_ImageView;
 	}
 

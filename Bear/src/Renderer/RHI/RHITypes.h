@@ -365,6 +365,7 @@ namespace Bear
 		PixelFormat format = PixelFormat::Unknown;
 		ImageUsage usage = ImageUsage::None;
 		uint32_t mipLevels = 1;
+		uint32_t arrayLayers = 1; // 2D array textures (e.g. CSM cascades)
 
 	};
 

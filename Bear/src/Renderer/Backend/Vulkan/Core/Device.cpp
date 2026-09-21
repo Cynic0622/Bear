@@ -209,6 +209,9 @@ namespace Bear {
 		rasterizationInfo.cullMode = ToVulkanCullMode(config.cullMode);
 		rasterizationInfo.frontFace = ToVulkanFrontFace(config.frontFace);
 		rasterizationInfo.lineWidth = 1.0f;
+		rasterizationInfo.depthBiasEnable = config.depthBiasEnable ? VK_TRUE : VK_FALSE;
+		rasterizationInfo.depthBiasConstantFactor = config.depthBiasConstant;
+		rasterizationInfo.depthBiasSlopeFactor = config.depthBiasSlope;
 
 		VkPipelineMultisampleStateCreateInfo multisampleInfo{};
 		multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
@@ -475,7 +478,7 @@ namespace Bear {
 			vkUsage = ToVulkanImageUsage(config.usage);
 		if (config.mipLevels > 1)
 			vkUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-		return std::make_unique<Image>(*this, config.width, config.height, vkFormat, VK_IMAGE_TILING_OPTIMAL, vkUsage, VMA_MEMORY_USAGE_GPU_ONLY, config.mipLevels);
+		return std::make_unique<Image>(*this, config.width, config.height, vkFormat, VK_IMAGE_TILING_OPTIMAL, vkUsage, VMA_MEMORY_USAGE_GPU_ONLY, config.mipLevels, config.arrayLayers);
 	}
 	std::shared_ptr<RHISampler> Device::CreateSampler(const RHISamplerConfig& config)
 	{
