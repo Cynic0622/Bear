@@ -91,6 +91,16 @@ namespace Bear {
 	}
 	void Swapchain::Recreate()
 	{
+		// Refuse to build a swapchain for a minimized (0x0) framebuffer:
+		// VUID-VkSwapchainCreateInfoKHR-imageExtent-01689 requires a non-zero imageExtent. The render
+		// loop skips frames while the window is minimized, so the old swapchain stays untouched until
+		// a resize with a real size arrives.
+		int framebufferWidth = 0, framebufferHeight = 0;
+		glfwGetFramebufferSize(static_cast<GLFWwindow*>(m_Device.GetSurface().GetNativeWindow()),
+			&framebufferWidth, &framebufferHeight);
+		if (framebufferWidth <= 0 || framebufferHeight <= 0)
+			return;
+
 		// ���ؽ�֮ǰ���ȴ��豸���У�ȷ��������Դ�����ڱ�ʹ��
 		vkDeviceWaitIdle(m_Device.GetDevice());
 		Cleanup();

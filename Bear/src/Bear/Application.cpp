@@ -5,6 +5,9 @@
 #include "Renderer/Renderer.h"
 #include "Renderer/RHI/RHITypes.h"
 
+#include <chrono>
+#include <thread>
+
 namespace Bear
 {
 	Application* Application::s_Instance = nullptr;
@@ -50,10 +53,21 @@ namespace Bear
 	void Application::Run()
 	{
 		float deltaTime = 0;
+		float lastTime = static_cast<float>(glfwGetTime());
 		while (m_Running)
 		{
+			// Minimized: the framebuffer is 0x0, so there is no valid swapchain to draw or present
+			// into. Keep pumping events (that is how the restore is noticed) and wait for one.
+			if (m_Window->IsMinimized())
+			{
+				m_Window->OnUpdate();
+				// Do not carry the minimized period into the next delta time.
+				lastTime = static_cast<float>(glfwGetTime());
+				std::this_thread::sleep_for(std::chrono::milliseconds(16));
+				continue;
+			}
+
 			// Calculate delta time
-			static float lastTime = 0;
 			float currentTime = static_cast<float>(glfwGetTime());
 			deltaTime = currentTime - lastTime;
 			m_Renderer->BeginFrame();
@@ -94,7 +108,11 @@ namespace Bear
 
 	bool Application::OnWindowResize(WindowResizeEvent& e)
 	{
-		BEAR_CORE_ASSERT(e.GetWidth() > 0 && e.GetHeight() > 0, "Window resize event with invalid dimensions!");
+		// The window layer only reports real sizes (>= 1x1); guard anyway instead of asserting, so a
+		// minimized window can never reach the swapchain as a 0x0 extent.
+		if (e.GetWidth() <= 0 || e.GetHeight() <= 0)
+			return false;
+
 		BEAR_CORE_TRACE("WindowResizeEvent: {0}, {1}", e.GetWidth(), e.GetHeight());
 		m_Renderer->OnWindowResize();
 		return false;

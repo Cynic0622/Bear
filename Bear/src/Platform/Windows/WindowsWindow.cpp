@@ -22,7 +22,13 @@ namespace Bear {
 		data.Width = width; // 更新宽度
 		data.Height = height; // 更新高度
 		//BEAR_CLIENT_INFO("Window resized to {0}, {1}", width, height);
-		
+
+		// A minimized window reports 0x0 here. That is not a resize: creating a swapchain with a zero
+		// extent violates VUID-VkSwapchainCreateInfoKHR-imageExtent-01689, so only publish real sizes
+		// and let the main loop skip frames while IsMinimized() is true.
+		if (width <= 0 || height <= 0)
+			return;
+
 		// 触发窗口大小改变事件
 		WindowResizeEvent event(width, height);
 		data.EventCallback(event);
