@@ -3,19 +3,50 @@
 #include "Texture.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
+#include <condition_variable>
 #include <cstdint>
+#include <deque>
 #include <filesystem>
 #include <iomanip>
+#include <mutex>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace Bear
 {
+	// -----------------------------------------------------------------------------------------
+	// Background compression
+	//
+	// NTC compression is a long CUDA job (100k training steps by default), so it runs on a worker
+	// thread instead of blocking the frame. The worker only ever touches this struct; the material
+	// itself stays owned by the main thread, which is why the signals are shared pointers - the job
+	// must remain safe to touch even after the material that started it is gone - which is why the
+	// worker never dereferences the material, only this struct.
+	// -----------------------------------------------------------------------------------------
+	struct NtcCompressionJob
+	{
+		std::string materialName;
+		std::string filePath;
+		NtcChannelPlan plan;
+		std::unordered_map<int, std::shared_ptr<Texture>> textures; // keeps the source pixels alive
+		int width = 1;
+		int height = 1;
+		int mips = 1;
+
+		std::vector<uint8_t> compressedData;
+		bool ok = false;
+
+		std::shared_ptr<std::atomic<bool>> cancelled;
+		std::shared_ptr<std::atomic<bool>> finished;
+	};
+
 	namespace
 	{
-		// 压缩参数。它们参与缓存文件名的指纹，改了以后不会命中旧结果。
+		// Compression settings; they are part of the cache file fingerprint.
 		constexpr float kNtcExpectedBitsPerPixel = 4.0f;
 		constexpr int   kNtcNetworkVersion = NTC_NETWORK_LARGE;
 		constexpr int   kNtcTrainingSteps = 100000;
@@ -28,15 +59,15 @@ namespace Bear
 			return it == textures.end() ? nullptr : it->second.get();
 		}
 
-		// NTC 的失败基本都可恢复（缓存文件不合法、参数越界），而 BEAR_CORE_ERROR 结尾带
-		// __debugbreak()，所以这里只记录错误、不打断执行。
+		// Failures here are recoverable (bad cache file, out of range args) and BEAR_CORE_ERROR
+		// ends with __debugbreak(), so log without interrupting.
 		void LogNtcFailure(const char* what, ntc::Status status)
 		{
 			::Bear::Log::GetCoreLogger()->error("NTC: {} failed, code = {} : {}",
 				what, ntc::StatusToString(status), ntc::GetLastErrorMessage());
 		}
 
-		// 语义通道在纹理集里的色彩空间：基色/自发光是 sRGB 数据，其余是线性数据。
+		// Color space of a semantic channel: base color/emissive are sRGB data, the rest linear.
 		ntc::ColorSpace RoleColorSpace(NtcChannelRole role)
 		{
 			switch (role)
@@ -49,7 +80,7 @@ namespace Bear
 			}
 		}
 
-		// 纹理集里某个通道的色彩空间（从布局计划反查它属于哪个语义）。
+		// Color space of a texture set channel (looks up which semantic owns it).
 		ntc::ColorSpace ChannelColorSpace(const NtcChannelPlan& plan, int channel)
 		{
 			for (int role = 0; role < kNtcChannelRoleCount; ++role)
@@ -58,27 +89,402 @@ namespace Bear
 						return RoleColorSpace(static_cast<NtcChannelRole>(role));
 			return ntc::ColorSpace::Linear;
 		}
+
+		// The set follows the largest input (NTC resamples smaller images up) and uses the full
+		// mip chain.
+		void ComputeTextureSetSize(const NtcChannelPlan& plan,
+			const std::unordered_map<int, std::shared_ptr<Texture>>& textures,
+			int& outWidth, int& outHeight, int& outMips)
+		{
+			uint32_t width = 1, height = 1;
+			for (const NtcChannelWrite& write : plan.writes)
+			{
+				const Texture* texture = ResolveTexture(textures, write.textureIndex);
+				if (!texture)
+					continue;
+				width = (std::max)(width, texture->GetWidth());
+				height = (std::max)(height, texture->GetHeight());
+			}
+
+			const uint32_t smallest = (std::min)(width, height);
+			int mips = smallest > 1
+				? static_cast<int>(std::floor(std::log2(static_cast<double>(smallest)))) + 1
+				: 1;
+
+			outWidth = static_cast<int>(width);
+			outHeight = static_cast<int>(height);
+			outMips = (std::min)(mips, NTC_MAX_MIPS);
+		}
+
+#ifdef BEAR_DEBUG
+		void LogTextureSetContents(ntc::TextureSetWrapper& textureSet, const char* stage)
+		{
+			if (!textureSet)
+				return;
+			for (int index = 0; index < textureSet->GetTextureCount(); ++index)
+			{
+				ntc::ITextureMetadata* textureMetadata = textureSet->GetTexture(index);
+				if (!textureMetadata)
+					continue;
+				const char* name = textureMetadata->GetName();
+				BEAR_CORE_INFO("NTC [{}] texture[{}] '{}': channels {}..{}, block compression {}, RGB {}, alpha {}",
+					stage, index, name ? name : "?",
+					textureMetadata->GetFirstChannel(),
+					textureMetadata->GetFirstChannel() + textureMetadata->GetNumChannels() - 1,
+					ntc::BlockCompressedFormatToString(textureMetadata->GetBlockCompressedFormat()),
+					ntc::ColorSpaceToString(textureMetadata->GetRgbColorSpace()),
+					ntc::ColorSpaceToString(textureMetadata->GetAlphaColorSpace()));
+			}
+		}
+#endif
+
+		// --- job queue: a single worker keeps CUDA memory bounded and jobs ordered ---------------
+		std::mutex g_QueueMutex;
+		std::condition_variable g_QueueCv;
+		std::deque<std::shared_ptr<NtcCompressionJob>> g_Queue;
+		bool g_QueueStopping = false;
+		std::atomic<bool> g_ShuttingDown{ false };
+
+		void MarkJobFinished(const std::shared_ptr<NtcCompressionJob>& job)
+		{
+			job->finished->store(true);
+		}
+
+		// Runs on the worker thread. Writes only into 'job' - never into the material.
+		void RunCompressionJob(const std::shared_ptr<NtcCompressionJob>& job)
+		{
+			if (job->cancelled->load())
+				return;
+
+			const NtcChannelPlan& plan = job->plan;
+			const std::unordered_map<int, std::shared_ptr<Texture>>& textures = job->textures;
+
+			// The worker owns this context: it is created and destroyed on the same thread, and the
+			// main thread never touches it (the material creates its own for the upload step).
+			ntc::IContext* context = nullptr;
+			ntc::Status ntcStatus = ntc::CreateContext(&context, ntc::ContextParameters{});
+			if (ntcStatus != ntc::Status::Ok)
+			{
+				LogNtcFailure("CreateContext", ntcStatus);
+				return;
+			}
+			struct ContextGuard
+			{
+				ntc::IContext* context;
+				~ContextGuard() { if (context) ntc::DestroyContext(context); }
+			} contextGuard{ context };
+
+			ntc::TextureSetWrapper textureSet(context);
+
+			ntc::TextureSetDesc textureSetDesc;
+			textureSetDesc.channels = plan.totalChannels;
+			textureSetDesc.width = job->width;
+			textureSetDesc.height = job->height;
+			// Full mip chain: compression, file and runtime LOD selection all become multi-scale.
+			// Only mip0 is written here; GenerateMips() derives the rest by resampling.
+			textureSetDesc.mips = job->mips;
+
+			ntc::TextureSetFeatures features;
+			ntcStatus = context->CreateTextureSet(textureSetDesc, features, textureSet.ptr());
+			if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("CreateTextureSet", ntcStatus); return; }
+
+			// Target bit rate and network size.
+			float actualBitsPerPixel = 0.f;
+			ntc::LatentShape latentShape;
+			ntcStatus = ntc::PickLatentShape(kNtcExpectedBitsPerPixel, kNtcNetworkVersion, actualBitsPerPixel, latentShape);
+			if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("PickLatentShape", ntcStatus); return; }
+			ntcStatus = textureSet->SetLatentShape(latentShape, kNtcNetworkVersion);
+			if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("SetLatentShape", ntcStatus); return; }
+
+			BEAR_CORE_INFO("NTC: compressing '{}' ({}x{}, {} channels, {} mips, target {:.2f} bpp -> {:.2f}) on a background thread.",
+				job->materialName, job->width, job->height, plan.totalChannels, job->mips,
+				kNtcExpectedBitsPerPixel, actualBitsPerPixel);
+
+			const std::vector<uint8_t> placeholderPixel{ 0, 0, 0, 255 };
+			for (const NtcChannelWrite& write : plan.writes)
+			{
+				const Texture* texture = ResolveTexture(textures, write.textureIndex);
+
+				ntc::WriteChannelsParameters writeParams;
+				writeParams.mipLevel = 0;
+				writeParams.firstChannel = write.firstChannel;
+				writeParams.numChannels = write.numChannels;
+				writeParams.addressSpace = ntc::AddressSpace::Host;
+				writeParams.channelFormat = ntc::ChannelFormat::UNORM8;
+				writeParams.pixelStride = 4; // Texture::GetImageData() is always RGBA padded
+				if (texture)
+				{
+					const std::vector<unsigned char>& pixels = texture->GetImageData();
+					writeParams.pData = pixels.data() + write.localChannel;
+					writeParams.width = static_cast<int>(texture->GetWidth());
+					writeParams.height = static_cast<int>(texture->GetHeight());
+					writeParams.rowPitch = static_cast<size_t>(texture->GetWidth()) * 4;
+				}
+				else
+				{
+					writeParams.pData = placeholderPixel.data();
+					writeParams.width = 1;
+					writeParams.height = 1;
+					writeParams.rowPitch = 4;
+				}
+
+				ntc::ColorSpace colorSpaces[kNtcRoleMaxComponents + 1];
+				for (int i = 0; i < write.numChannels; ++i)
+					colorSpaces[i] = ChannelColorSpace(plan, write.firstChannel + i);
+				writeParams.srcColorSpaces = colorSpaces;
+				writeParams.dstColorSpaces = colorSpaces;
+
+				ntcStatus = textureSet->WriteChannels(writeParams);
+				if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("WriteChannels", ntcStatus); return; }
+			}
+
+			// Register metadata per source texture (contiguous ranges of one image merge).
+			{
+				struct TextureRange { int textureIndex; int firstChannel; int numChannels; };
+				std::vector<TextureRange> ranges;
+				for (const NtcChannelWrite& write : plan.writes)
+				{
+					if (write.textureIndex < 0)
+						continue;
+					if (!ranges.empty() && ranges.back().textureIndex == write.textureIndex &&
+						ranges.back().firstChannel + ranges.back().numChannels == write.firstChannel)
+						ranges.back().numChannels += write.numChannels;
+					else
+						ranges.push_back({ write.textureIndex, write.firstChannel, write.numChannels });
+				}
+
+				for (const TextureRange& range : ranges)
+				{
+					ntc::ITextureMetadata* metadata = textureSet->AddTexture();
+					if (!metadata)
+						continue;
+					const Texture* texture = ResolveTexture(textures, range.textureIndex);
+					if (texture)
+						metadata->SetName(texture->GetName().c_str());
+					metadata->SetChannels(range.firstChannel, range.numChannels);
+					metadata->SetRgbColorSpace(ChannelColorSpace(plan, range.firstChannel));
+					metadata->SetAlphaColorSpace(range.numChannels > 3
+						? ChannelColorSpace(plan, range.firstChannel + 3)
+						: ntc::ColorSpace::Linear);
+				}
+			}
+
+			// Only mip0 was written; this downsamples the rest of the input mip chain.
+			ntcStatus = textureSet->GenerateMips();
+			if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("GenerateMips", ntcStatus); return; }
+
+			ntc::CompressionSettings compSettings;
+			compSettings.trainingSteps = kNtcTrainingSteps;
+			ntcStatus = textureSet->BeginCompression(compSettings);
+			if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("BeginCompression", ntcStatus); return; }
+
+			ntc::CompressionStats stats;
+			do
+			{
+				if (job->cancelled->load() || g_ShuttingDown.load())
+				{
+					BEAR_CORE_INFO("NTC: compression of '{}' cancelled.", job->materialName);
+					return;
+				}
+
+				ntcStatus = textureSet->RunCompressionSteps(&stats);
+				if (ntcStatus != ntc::Status::Ok && ntcStatus != ntc::Status::Incomplete)
+				{
+					LogNtcFailure("RunCompressionSteps", ntcStatus);
+					return;
+				}
+				BEAR_CORE_INFO("NTC '{}': step {}/{}, loss = {:.6f} (PSNR {:.2f} dB)",
+					job->materialName, stats.currentStep, compSettings.trainingSteps, stats.loss, ntc::LossToPSNR(stats.loss));
+			} while (ntcStatus == ntc::Status::Incomplete);
+
+			ntcStatus = textureSet->FinalizeCompression();
+			if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("FinalizeCompression", ntcStatus); return; }
+
+#ifdef BEAR_DEBUG
+			LogTextureSetContents(textureSet, "compressed");
+#endif
+
+			ntcStatus = textureSet->SaveToFile(job->filePath.c_str());
+			if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("SaveToFile", ntcStatus); return; }
+
+			size_t streamSize = static_cast<size_t>(textureSet->GetOutputStreamSize());
+			job->compressedData.resize(streamSize);
+			ntcStatus = textureSet->SaveToMemory(job->compressedData.data(), &streamSize);
+			if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("SaveToMemory", ntcStatus); return; }
+
+			job->ok = true;
+		}
+
+		void WorkerLoop()
+		{
+			for (;;)
+			{
+				std::shared_ptr<NtcCompressionJob> job;
+				{
+					std::unique_lock<std::mutex> lock(g_QueueMutex);
+					g_QueueCv.wait(lock, [] { return g_QueueStopping || !g_Queue.empty(); });
+					if (g_Queue.empty())
+						return; // stopping and drained
+					job = std::move(g_Queue.front());
+					g_Queue.pop_front();
+				}
+
+				RunCompressionJob(job);
+				MarkJobFinished(job);
+			}
+		}
+
+		// Started on first use; destroyed (and joined) at process exit.
+		struct CompressionWorker
+		{
+			CompressionWorker() : thread(WorkerLoop) {}
+			~CompressionWorker()
+			{
+				// Wake the running job (it checks this between training steps) and release anything
+				// still queued, so no material can be left waiting on a job that will never run.
+				g_ShuttingDown.store(true);
+				{
+					std::lock_guard<std::mutex> lock(g_QueueMutex);
+					g_QueueStopping = true;
+					for (const auto& job : g_Queue)
+					{
+						job->cancelled->store(true);
+						MarkJobFinished(job);
+					}
+					g_Queue.clear();
+				}
+				g_QueueCv.notify_all();
+				if (thread.joinable())
+					thread.join();
+			}
+			std::thread thread;
+		};
+
+		void EnsureWorkerStarted()
+		{
+			static CompressionWorker worker;
+			(void)worker;
+		}
 	}
 
 	NtcMaterial::NtcMaterial(RHIDevice& device, const MaterialDescription& desc, const std::unordered_map<int, std::shared_ptr<Texture>>& textures)
-		:m_Device(device), m_TextureSet(nullptr)
+		: m_Device(device), m_TextureSet(nullptr)
 	{
 		m_DescriptorSetLayout = device.CreateDescriptorSetLayout(GetDescriptorSetLayoutBinding());
 		m_DescriptorSets = device.CreateDescriptorSet(m_DescriptorSetLayout);
+		networkVersion = kNtcNetworkVersion;
 
-		ntc::ContextParameters contextParams;
-		ntc::Status ntcStatus = ntc::CreateContext(&m_NtcContext, contextParams);
-		if (ntcStatus != ntc::Status::Ok)
+		// Fix the channel layout first: both the write plan and the shader-side slot map derive
+		// from it.
+		BuildChannelPlan(desc, textures);
+
+		// Materials without textures (e.g. the glass materials in TransmissionTest) still need a
+		// valid texture set: one 1x1 dummy channel that no slot references.
+		if (m_ChannelPlan.writes.empty())
 		{
-			LogNtcFailure("CreateContext", ntcStatus);
+			BEAR_CORE_INFO("NTC: material '{}' has no textures, compressing a constant texture set.", desc.name);
+			m_ChannelPlan.writes.push_back(NtcChannelWrite{ -1, 0, 1, 0 });
+			m_ChannelPlan.totalChannels = 1;
+		}
+
+		if (m_ChannelPlan.totalChannels > NTC_MAX_CHANNELS)
+		{
+			::Bear::Log::GetCoreLogger()->error("NTC: material '{}' needs {} channels but the limit is {}.",
+				desc.name, m_ChannelPlan.totalChannels, NTC_MAX_CHANNELS);
 			return;
 		}
-		m_TextureSet = ntc::TextureSetWrapper(m_NtcContext);
 
-		// 先把通道布局定下来：写入计划与渲染侧的槽位映射都由它派生。
-		BuildChannelPlan(desc, textures);
-		CompressTextures(desc, textures);
-		UploadTextures();
+		int width = 1, height = 1, mips = 1;
+		ComputeTextureSetSize(m_ChannelPlan, textures, width, height, mips);
+		const std::string filePath = GetCompressedFilePath(desc, textures, mips);
+
+		// Cached result: parsing a few hundred KB is fast, keep it on this thread.
+		if (std::filesystem::exists(filePath))
+		{
+			BEAR_CORE_INFO("NTC: '{}' is already compressed, loading '{}'.", desc.name, filePath);
+			if (LoadCompressedFile(filePath))
+			{
+				UploadTextures();
+				m_Uploaded = true;
+				return;
+			}
+			::Bear::Log::GetCoreLogger()->error("NTC: failed to load '{}', recompressing it.", filePath);
+		}
+
+		// No cache: compress on the worker thread. IsReady() does the GPU upload on the main thread
+		// once the worker is done.
+		StartCompression(desc, textures, filePath, width, height, mips);
+	}
+
+	NtcMaterial::~NtcMaterial()
+	{
+		// Ask the worker to abandon this job. No join is needed: the worker only ever touches the
+		// job struct (which owns copies of everything it needs), never this material, so the job may
+		// safely outlive us - the queue keeps it alive until the worker picks it up and skips it.
+		if (m_CompressionJob)
+			m_CompressionJob->cancelled->store(true);
+	}
+
+	bool NtcMaterial::IsReady()
+	{
+		if (m_Uploaded)
+			return true;
+		if (!m_CompressionJob || !m_CompressionJob->finished->load())
+			return false;
+
+		if (m_CompressionJob->ok)
+		{
+			m_CompressedData = std::move(m_CompressionJob->compressedData);
+			m_CompressionJob.reset();
+
+			// The material's descriptor set is shared by every frame in flight, and the buffers it
+			// points at are about to be replaced: wait for the GPU before swapping them.
+			m_Device.WaitIdle();
+			UploadTextures();
+			m_Uploaded = true;
+		}
+		else
+		{
+			// Compression failed (the worker logged why): stay invisible instead of binding a
+			// descriptor set without data behind it.
+			m_CompressionJob.reset();
+		}
+		return m_Uploaded;
+	}
+
+	void NtcMaterial::StartCompression(const MaterialDescription& desc,
+		const std::unordered_map<int, std::shared_ptr<Texture>>& textures,
+		const std::string& filePath, int width, int height, int mips)
+	{
+		auto job = std::make_shared<NtcCompressionJob>();
+		job->materialName = desc.name;
+		job->filePath = filePath;
+		job->plan = m_ChannelPlan;
+		job->width = width;
+		job->height = height;
+		job->mips = mips;
+		job->cancelled = std::make_shared<std::atomic<bool>>(false);
+		job->finished = std::make_shared<std::atomic<bool>>(false);
+
+		// Keep only the textures the plan uses: the worker needs their CPU pixels, and
+		// ResourceManager releases them once it returns.
+		for (const NtcChannelWrite& write : m_ChannelPlan.writes)
+		{
+			if (write.textureIndex < 0)
+				continue;
+			const auto it = textures.find(write.textureIndex);
+			if (it != textures.end() && it->second)
+				job->textures.emplace(write.textureIndex, it->second);
+		}
+
+		m_CompressionJob = job;
+
+		EnsureWorkerStarted();
+		{
+			std::lock_guard<std::mutex> lock(g_QueueMutex);
+			g_Queue.push_back(job);
+		}
+		g_QueueCv.notify_one();
 	}
 
 	void NtcMaterial::BuildChannelPlan(const MaterialDescription& desc, const std::unordered_map<int, std::shared_ptr<Texture>>& textures)
@@ -92,21 +498,21 @@ namespace Bear
 			NtcSourceTexture source;
 			source.role = role;
 			source.textureIndex = textureIndex;
-			// GetChannels() 是图片文件本身的有意义分量数（1..4），与补齐成 RGBA 的缓冲区区分开。
+			// GetChannels() is the file's own component count (1..4), not the RGBA-padded buffer.
 			source.channels = static_cast<uint8_t>(std::clamp<int>(texture->GetChannels(), 1, 4));
 			sources.push_back(source);
 		};
 
 		addSource(NtcChannelRole::BaseColor, desc.baseColorTextureIndex);
-		addSource(NtcChannelRole::Metalness, desc.metallicRoughnessTextureIndex); // metallicRoughness 贴图
+		addSource(NtcChannelRole::Metalness, desc.metallicRoughnessTextureIndex); // metallicRoughness
 		addSource(NtcChannelRole::Normal, desc.normalTextureIndex);
 		addSource(NtcChannelRole::Occlusion, desc.occlusionTextureIndex);
 		addSource(NtcChannelRole::Emissive, desc.emissiveTextureIndex);
 
 		m_ChannelPlan = BuildNtcChannelPlan(sources, desc.isTransparent);
 
-		// 没有贴图的语义用材质因子兜底。着色器读基色/自发光时不做色彩空间解码（与贴图路径的
-		// 存储值保持一致），所以这里把线性因子编码成 sRGB 存储值。
+		// Semantics without a texture fall back to the material factors. The shader consumes base
+		// color/emissive without decoding, so linear factors are encoded to sRGB storage values.
 		for (int c = 0; c < 3; ++c)
 			m_SlotConstants.baseColor[c] = NtcEncodeSrgb(desc.baseColorFactor[c]);
 		m_SlotConstants.opacity = desc.baseColorFactor.a;
@@ -153,11 +559,13 @@ namespace Bear
 		return s_DescriptorSetLayoutBinding;
 	}
 
-	std::string NtcMaterial::GetCompressedFilePath(const MaterialDescription& desc, const std::unordered_map<int, std::shared_ptr<Texture>>& textures) const
+	std::string NtcMaterial::GetCompressedFilePath(const MaterialDescription& desc,
+		const std::unordered_map<int, std::shared_ptr<Texture>>& textures, int mipCount) const
 	{
-		// 文件名 = 材质名 + 布局版本 + 源数据指纹。布局方式、源贴图或压缩参数变了都不会命中旧结果，
-		// 也不会出现不同材质（例如 Sponza 里几个未命名材质）共用同一个文件的情况。
-		// 注意：贴图像素被原地修改、但尺寸与通道数不变的情况检测不到，见后续的缓存失效任务。
+		// Name = material name + layout version + source fingerprint: a changed layout, texture or
+		// compression setting never reuses an old result, and different materials (e.g. the unnamed
+		// ones in Sponza) never share a file. Pixel edits that keep size and channel count are not
+		// detected - see the cache invalidation follow-up.
 		uint64_t hash = 14695981039346656037ull; // FNV-1a
 		auto mix = [&hash](uint64_t value)
 		{
@@ -169,8 +577,10 @@ namespace Bear
 		mix(static_cast<uint64_t>(kNtcNetworkVersion));
 		mix(static_cast<uint64_t>(kNtcExpectedBitsPerPixel * 100.0f));
 		mix(static_cast<uint64_t>(kNtcTrainingSteps));
+		mix(static_cast<uint64_t>(mipCount)); // the mip chain length changes the content
 		mix(desc.isTransparent ? 1ull : 0ull);
-		// 材质因子会作为常量进入纹理集，所以它们也影响结果（尤其是完全没有贴图的材质）。
+		// Material factors become constants in the set, so they matter too (matters most for
+		// materials without textures).
 		for (int c = 0; c < 3; ++c)
 			mix(static_cast<uint64_t>(m_SlotConstants.baseColor[c] * 1000.0f));
 		mix(static_cast<uint64_t>(m_SlotConstants.opacity * 1000.0f));
@@ -197,7 +607,7 @@ namespace Bear
 			mix(static_cast<uint64_t>(texture->GetChannels()));
 		}
 
-		// 材质名可能为空或含路径分隔符，统一清洗成安全的名字。
+		// Material names may be empty or contain path separators: sanitize them.
 		std::string name = desc.name.empty() ? std::string("unnamed") : desc.name;
 		for (char& c : name)
 			if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_')
@@ -210,198 +620,45 @@ namespace Bear
 		return fileName.str();
 	}
 
-	void NtcMaterial::CompressTextures(const MaterialDescription& desc, const std::unordered_map<int, std::shared_ptr<Texture>>& textures)
+	bool NtcMaterial::LoadCompressedFile(const std::string& filePath)
 	{
+		EnsureContext();
 		if (!m_NtcContext)
-			return;
+			return false;
 
-		if (m_ChannelPlan.totalChannels > NTC_MAX_CHANNELS)
-		{
-			::Bear::Log::GetCoreLogger()->error("NTC: material '{}' needs {} channels but the limit is {}.",
-				desc.name, m_ChannelPlan.totalChannels, NTC_MAX_CHANNELS);
-			return;
-		}
+		ntc::FileStreamWrapper inputFile(m_NtcContext);
+		ntc::Status ntcStatus = m_NtcContext->OpenFile(filePath.c_str(), false, inputFile.ptr());
+		if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("OpenFile", ntcStatus); return false; }
 
-		const std::string filePath = GetCompressedFilePath(desc, textures);
-		ntc::Status ntcStatus;
-
-		// --- 已有压缩结果就复用 ---
-		if (std::filesystem::exists(filePath))
-		{
-			BEAR_CORE_INFO("NTC: '{}' is already compressed, loading '{}'.", desc.name, filePath);
-
-			ntc::FileStreamWrapper inputFile(m_NtcContext);
-			ntcStatus = m_NtcContext->OpenFile(filePath.c_str(), false, inputFile.ptr());
-			if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("OpenFile", ntcStatus); return; }
-
-			m_TextureSet = ntc::TextureSetWrapper(m_NtcContext);
-			ntc::TextureSetFeatures features;
-			ntcStatus = m_NtcContext->CreateCompressedTextureSetFromStream(inputFile, features, m_TextureSet.ptr());
-			if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("CreateCompressedTextureSetFromStream", ntcStatus); return; }
-
-			size_t streamSize = static_cast<size_t>((std::max)(inputFile->Size(), m_TextureSet->GetOutputStreamSize()));
-			m_CompressedData.resize(streamSize);
-			ntcStatus = m_TextureSet->SaveToMemory(m_CompressedData.data(), &streamSize);
-			if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("SaveToMemory", ntcStatus); return; }
-
-			LogTextureSet("loaded");
-			return;
-		}
-
-		// --- 压缩 ---
 		m_TextureSet = ntc::TextureSetWrapper(m_NtcContext);
-
-		// 没有任何贴图的材质（例如 TransmissionTest 里的玻璃材质）：仍然要有一个合法的纹理集，
-		// 这里塞一个 1x1 的哑通道占位，所有语义都由常量提供，该通道不会被任何槽位引用。
-		if (m_ChannelPlan.writes.empty())
-		{
-			BEAR_CORE_INFO("NTC: material '{}' has no textures, compressing a constant texture set.", desc.name);
-			m_ChannelPlan.writes.push_back(NtcChannelWrite{ -1, 0, 1, 0 });
-			m_ChannelPlan.totalChannels = 1;
-		}
-
-		// 纹理集尺寸取输入里最大的那张，NTC 会把小图重采样上去（CopyImageKernel 走双线性重采样）。
-		uint32_t width = 1, height = 1;
-		for (const NtcChannelWrite& write : m_ChannelPlan.writes)
-		{
-			const Texture* texture = ResolveTexture(textures, write.textureIndex);
-			if (!texture)
-				continue;
-			width = (std::max)(width, texture->GetWidth());
-			height = (std::max)(height, texture->GetHeight());
-		}
-
-		ntc::TextureSetDesc textureSetDesc;
-		textureSetDesc.channels = m_ChannelPlan.totalChannels;
-		textureSetDesc.width = static_cast<int>(width);
-		textureSetDesc.height = static_cast<int>(height);
-		// TODO: mip 链固定为 1（着色器按 LOD 采样，但文件里只有 mip0）。开启前需要重新评估
-		//       压缩时间、文件大小与画质。
-		textureSetDesc.mips = 1;
-
 		ntc::TextureSetFeatures features;
-		ntcStatus = m_NtcContext->CreateTextureSet(textureSetDesc, features, m_TextureSet.ptr());
-		if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("CreateTextureSet", ntcStatus); return; }
+		ntcStatus = m_NtcContext->CreateCompressedTextureSetFromStream(inputFile, features, m_TextureSet.ptr());
+		if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("CreateCompressedTextureSetFromStream", ntcStatus); return false; }
 
-		// 目标码率与网络规模。
-		networkVersion = kNtcNetworkVersion;
-		float actualBitsPerPixel = 0.f;
-		ntc::LatentShape latentShape;
-		ntcStatus = ntc::PickLatentShape(kNtcExpectedBitsPerPixel, networkVersion, actualBitsPerPixel, latentShape);
-		if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("PickLatentShape", ntcStatus); return; }
-		ntcStatus = m_TextureSet->SetLatentShape(latentShape, networkVersion);
-		if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("SetLatentShape", ntcStatus); return; }
-
-		BEAR_CORE_INFO("NTC: compressing '{}' ({}x{}, {} channels, target {:.2f} bpp -> {:.2f}).",
-			desc.name, width, height, m_ChannelPlan.totalChannels, kNtcExpectedBitsPerPixel, actualBitsPerPixel);
-
-		const std::vector<uint8_t> placeholderPixel{ 0, 0, 0, 255 };
-		for (const NtcChannelWrite& write : m_ChannelPlan.writes)
-		{
-			const Texture* texture = ResolveTexture(textures, write.textureIndex);
-
-			ntc::WriteChannelsParameters writeParams;
-			writeParams.mipLevel = 0;
-			writeParams.firstChannel = write.firstChannel;
-			writeParams.numChannels = write.numChannels;
-			writeParams.addressSpace = ntc::AddressSpace::Host;
-			writeParams.channelFormat = ntc::ChannelFormat::UNORM8;
-			writeParams.pixelStride = 4; // Texture::GetImageData() 永远按 RGBA 补齐成 4 字节/像素
-			if (texture)
-			{
-				const std::vector<unsigned char>& pixels = texture->GetImageData();
-				writeParams.pData = pixels.data() + write.localChannel;
-				writeParams.width = static_cast<int>(texture->GetWidth());
-				writeParams.height = static_cast<int>(texture->GetHeight());
-				writeParams.rowPitch = static_cast<size_t>(texture->GetWidth()) * 4;
-			}
-			else
-			{
-				writeParams.pData = placeholderPixel.data();
-				writeParams.width = 1;
-				writeParams.height = 1;
-				writeParams.rowPitch = 4;
-			}
-
-			ntc::ColorSpace colorSpaces[kNtcRoleMaxComponents + 1];
-			for (int i = 0; i < write.numChannels; ++i)
-				colorSpaces[i] = ChannelColorSpace(m_ChannelPlan, write.firstChannel + i);
-			writeParams.srcColorSpaces = colorSpaces;
-			writeParams.dstColorSpaces = colorSpaces;
-
-			ntcStatus = m_TextureSet->WriteChannels(writeParams);
-			if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("WriteChannels", ntcStatus); return; }
-		}
-
-		// 按源贴图登记元数据（同一张贴图的连续通道段合并成一条）。
-		{
-			struct TextureRange { int textureIndex; int firstChannel; int numChannels; };
-			std::vector<TextureRange> ranges;
-			for (const NtcChannelWrite& write : m_ChannelPlan.writes)
-			{
-				if (write.textureIndex < 0)
-					continue;
-				if (!ranges.empty() && ranges.back().textureIndex == write.textureIndex &&
-					ranges.back().firstChannel + ranges.back().numChannels == write.firstChannel)
-					ranges.back().numChannels += write.numChannels;
-				else
-					ranges.push_back({ write.textureIndex, write.firstChannel, write.numChannels });
-			}
-
-			for (const TextureRange& range : ranges)
-			{
-				ntc::ITextureMetadata* metadata = m_TextureSet->AddTexture();
-				if (!metadata)
-					continue;
-				const Texture* texture = ResolveTexture(textures, range.textureIndex);
-				if (texture)
-					metadata->SetName(texture->GetName().c_str());
-				metadata->SetChannels(range.firstChannel, range.numChannels);
-				metadata->SetRgbColorSpace(ChannelColorSpace(m_ChannelPlan, range.firstChannel));
-				metadata->SetAlphaColorSpace(range.numChannels > 3
-					? ChannelColorSpace(m_ChannelPlan, range.firstChannel + 3)
-					: ntc::ColorSpace::Linear);
-			}
-		}
-
-		// 输入贴图的 mip 链（纹理集本身目前仍是单 mip）。
-		ntcStatus = m_TextureSet->GenerateMips();
-		if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("GenerateMips", ntcStatus); return; }
-
-		ntc::CompressionSettings compSettings;
-		compSettings.trainingSteps = kNtcTrainingSteps;
-		ntcStatus = m_TextureSet->BeginCompression(compSettings);
-		if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("BeginCompression", ntcStatus); return; }
-
-		ntc::CompressionStats stats;
-		do
-		{
-			ntcStatus = m_TextureSet->RunCompressionSteps(&stats);
-			if (ntcStatus != ntc::Status::Ok && ntcStatus != ntc::Status::Incomplete)
-			{
-				LogNtcFailure("RunCompressionSteps", ntcStatus);
-				return;
-			}
-			BEAR_CORE_INFO("NTC '{}': step {}/{}, loss = {:.6f} (PSNR {:.2f} dB)",
-				desc.name, stats.currentStep, compSettings.trainingSteps, stats.loss, ntc::LossToPSNR(stats.loss));
-		} while (ntcStatus == ntc::Status::Incomplete);
-
-		ntcStatus = m_TextureSet->FinalizeCompression();
-		if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("FinalizeCompression", ntcStatus); return; }
-
-		LogTextureSet("compressed");
-
-		ntcStatus = m_TextureSet->SaveToFile(filePath.c_str());
-		if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("SaveToFile", ntcStatus); return; }
-
-		size_t streamSize = static_cast<size_t>(m_TextureSet->GetOutputStreamSize());
+		size_t streamSize = static_cast<size_t>((std::max)(inputFile->Size(), m_TextureSet->GetOutputStreamSize()));
 		m_CompressedData.resize(streamSize);
 		ntcStatus = m_TextureSet->SaveToMemory(m_CompressedData.data(), &streamSize);
-		if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("SaveToMemory", ntcStatus); return; }
+		if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("SaveToMemory", ntcStatus); return false; }
+
+		LogTextureSet("loaded");
+		return true;
+	}
+
+	void NtcMaterial::EnsureContext()
+	{
+		if (m_NtcContext)
+			return;
+		ntc::Status ntcStatus = ntc::CreateContext(&m_NtcContext, ntc::ContextParameters{});
+		if (ntcStatus != ntc::Status::Ok)
+		{
+			LogNtcFailure("CreateContext", ntcStatus);
+			m_NtcContext = nullptr;
+		}
 	}
 
 	void NtcMaterial::UploadTextures()
 	{
+		EnsureContext();
 		if (!m_NtcContext || m_CompressedData.empty())
 		{
 			::Bear::Log::GetCoreLogger()->error("NTC: no compressed data to upload.");
@@ -416,7 +673,8 @@ namespace Bear
 		ntcStatus = m_NtcContext->CreateTextureSetMetadataFromStream(memStream, textureSetMetadata.ptr());
 		if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("CreateTextureSetMetadataFromStream", ntcStatus); return; }
 
-		// 把纹理集的通道重排到渲染端读取的语义槽位；缺数据的槽位填常量。
+		// Shuffle the set channels into the semantic slots the shader reads; missing ones get
+		// constants.
 		std::array<ntc::ShuffleSource, NTC_MAX_CHANNELS> channelMap = BuildShuffleMap();
 		ntcStatus = textureSetMetadata->ShuffleInferenceOutputs(channelMap.data());
 		if (ntcStatus != ntc::Status::Ok) { LogNtcFailure("ShuffleInferenceOutputs", ntcStatus); return; }
@@ -454,7 +712,7 @@ namespace Bear
 	std::array<ntc::ShuffleSource, NTC_MAX_CHANNELS> NtcMaterial::BuildShuffleMap() const
 	{
 		std::array<ntc::ShuffleSource, NTC_MAX_CHANNELS> channelMap;
-		// 默认全是常量，随后把有源数据的语义槽位接到纹理集对应的通道上。
+		// Everything starts as a constant; slots with source data are then pointed at their channel.
 		channelMap.fill(ntc::ShuffleSource::Constant(1.f));
 
 		for (int role = 0; role < kNtcChannelRoleCount; ++role)
@@ -473,7 +731,7 @@ namespace Bear
 			}
 		}
 
-		// 本引擎还没有透射贴图，固定走常量（0 = 不透明介质）。
+		// No transmission texture in this engine yet: always a constant (0 = opaque medium).
 		channelMap[CHANNEL_TRANSMISSION] = ntc::ShuffleSource::Constant(m_SlotConstants.transmission);
 		return channelMap;
 	}
@@ -481,22 +739,7 @@ namespace Bear
 	void NtcMaterial::LogTextureSet(const char* stage) const
 	{
 #ifdef BEAR_DEBUG
-		if (!m_TextureSet)
-			return;
-		for (int index = 0; index < m_TextureSet->GetTextureCount(); ++index)
-		{
-			ntc::ITextureMetadata* textureMetadata = m_TextureSet->GetTexture(index);
-			if (!textureMetadata)
-				continue;
-			const char* name = textureMetadata->GetName();
-			BEAR_CORE_INFO("NTC [{}] texture[{}] '{}': channels {}..{}, block compression {}, RGB {}, alpha {}",
-				stage, index, name ? name : "?",
-				textureMetadata->GetFirstChannel(),
-				textureMetadata->GetFirstChannel() + textureMetadata->GetNumChannels() - 1,
-				ntc::BlockCompressedFormatToString(textureMetadata->GetBlockCompressedFormat()),
-				ntc::ColorSpaceToString(textureMetadata->GetRgbColorSpace()),
-				ntc::ColorSpaceToString(textureMetadata->GetAlphaColorSpace()));
-		}
+		LogTextureSetContents(const_cast<ntc::TextureSetWrapper&>(m_TextureSet), stage);
 #else
 		(void)stage;
 #endif

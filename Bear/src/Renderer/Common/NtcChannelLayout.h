@@ -1,20 +1,21 @@
 #pragma once
 // ============================================================================
-// NTC 通道布局契约
+// NTC channel layout contract
 //
-// LibNTC 里的纹理集只是一段按顺序排列的通道：网络输出的第 i 个通道，就对应
-// WriteChannels 写进去的第 i 个通道。而渲染端(ntcPS.hlsl)读取的是一组固定的
-// 语义槽位（见 NtcChannelMapping.h），两者的对应关系由 ShuffleInferenceOutputs
-// 在装载时重排产生。
+// A LibNTC texture set is just an ordered run of channels: inference output i
+// corresponds to the i-th channel written with WriteChannels. The shader (ntcPS)
+// reads a fixed set of semantic slots (see NtcChannelMapping.h) and
+// ShuffleInferenceOutputs rewires one into the other at load time.
 //
-// 于是"写入的通道顺序"和"读取的语义槽位"必须来自同一处定义。以前写入顺序是
-// 由源贴图的文件通道数累加得到的（RGBA 占 4 格、灰度占 1 格），而槽位是硬编码
-// 常量，一旦两者不一致就会静默错位：材质照常压缩、照常渲染，只是各个通道的
-// 语义全错了。
+// The write order and the slot mapping therefore have to come from one definition.
+// Deriving the write order from each image's channel count (4 for RGBA, 1 for
+// grayscale) while hardcoding the slots silently shifted every channel after the
+// first non-RGB map: materials still compressed and rendered, just with the wrong
+// meaning per channel.
 //
-// 这个文件就是那个唯一定义：
-//   BuildNtcChannelPlan()  ->  写入计划（每次 WriteChannels 的源/目标通道段）
-//   同一份计划             ->  shuffle 映射（语义槽位 -> 纹理集通道）
+// This file is that single definition:
+//   BuildNtcChannelPlan()  ->  write plan (source/target ranges per WriteChannels)
+//   the same plan          ->  shuffle map (semantic slot -> texture set channel)
 // ============================================================================
 
 #include "NtcChannelMapping.h"
@@ -26,7 +27,7 @@
 
 namespace Bear
 {
-	// 材质的语义通道。槽位号定义在 NtcChannelMapping.h。
+	// Semantic channels of a material. Slot numbers live in NtcChannelMapping.h.
 	enum class NtcChannelRole : uint8_t
 	{
 		BaseColor = 0,
@@ -40,25 +41,25 @@ namespace Bear
 	};
 
 	inline constexpr int kNtcChannelRoleCount = static_cast<int>(NtcChannelRole::Count);
-	inline constexpr int kNtcRoleMaxComponents = 3; // 基色/法线/自发光是 3 分量，其余是 1 分量
+	inline constexpr int kNtcRoleMaxComponents = 3; // base color/normal/emissive are 3, the rest 1
 
-	// 材质里实际存在的一张源贴图。
+	// One source texture that actually exists in the material.
 	struct NtcSourceTexture
 	{
 		NtcChannelRole role = NtcChannelRole::BaseColor;
 		int textureIndex = -1;
-		// 图片文件本身的通道数（1..4）。注意它描述的是源数据里"有意义的分量数"，
-		// 而 Texture::GetImageData() 永远按 RGBA 补齐成 4 字节/像素。
+		// Meaningful components in the source data (1..4). Note that
+		// Texture::GetImageData() is always padded to 4 bytes per pixel.
 		uint8_t channels = 0;
 	};
 
-	// 一次 ITextureSet::WriteChannels 调用。
+	// One ITextureSet::WriteChannels call.
 	struct NtcChannelWrite
 	{
-		int textureIndex = -1;   // -1 表示不来自任何贴图（占位用的哑通道）
-		int localChannel = 0;    // 从源图（RGBA 补齐后）的第几个分量开始取
+		int textureIndex = -1;   // -1: not from a texture (dummy channel used for placeholder sets)
+		int localChannel = 0;    // first component to take from the padded source image
 		int numChannels = 0;
-		int firstChannel = 0;    // 落在 NTC 纹理集里的起始通道
+		int firstChannel = 0;    // first channel in the NTC texture set
 	};
 
 	inline std::array<std::array<int, kNtcRoleMaxComponents>, kNtcChannelRoleCount> MakeEmptySourceChannelTable()
@@ -69,18 +70,18 @@ namespace Bear
 		return table;
 	}
 
-	// 通道布局计划。
+	// Channel layout plan.
 	struct NtcChannelPlan
 	{
 		std::vector<NtcChannelWrite> writes;
-		// sourceChannel[role][component] = 纹理集里的通道号；-1 表示该语义没有源数据，
-		// 渲染时用常量代替。
+		// sourceChannel[role][component] = channel in the texture set, or -1 when the semantic has
+		// no source data (the shader then uses a constant).
 		std::array<std::array<int, kNtcRoleMaxComponents>, kNtcChannelRoleCount> sourceChannel = MakeEmptySourceChannelTable();
 		int totalChannels = 0;
 	};
 
-	// 语义槽位缺失时写入的常量。注意这些值处在"纹理集存储空间"里：着色器拿到后
-	// 直接使用（法线是 *2-1 之前的值，所以中性法线是 (0.5, 0.5, 1)）。
+	// Constants used when a semantic has no source data. These are values in texture set storage
+	// space: the shader uses them as-is (normals are pre *2-1, so neutral is (0.5, 0.5, 1)).
 	struct NtcSlotConstants
 	{
 		float baseColor[3] = { 1.f, 1.f, 1.f };
@@ -93,8 +94,8 @@ namespace Bear
 		float transmission = 0.f;
 	};
 
-	// 线性 -> sRGB 编码。着色器读基色/自发光时不做解码（沿用纹理路径的存储值），
-	// 所以只有因子、没有贴图时要把线性因子编码成同样的存储值。
+	// Linear -> sRGB. The shader consumes base color/emissive as stored values without decoding, so
+	// factors used in place of a texture have to be encoded the same way.
 	inline float NtcEncodeSrgb(float linear)
 	{
 		if (linear <= 0.f)
@@ -105,7 +106,7 @@ namespace Bear
 		                            : 1.055f * std::pow(linear, 1.f / 2.4f) - 0.055f;
 	}
 
-	// 语义分量对应的 NTC 推理输出槽位；-1 表示该分量没有独立槽位。
+	// NTC inference slot for a semantic component, or -1 when it has no dedicated slot.
 	inline int NtcCanonicalSlot(NtcChannelRole role, int component)
 	{
 		switch (role)
@@ -137,14 +138,14 @@ namespace Bear
 	}
 
 	// ------------------------------------------------------------------------
-	// 生成写入计划。
+	// Builds the write plan.
 	//
-	// sources 需要按语义给出材质里实际存在的源贴图（不存在的语义不要放进来）。
-	// sources 的顺序不影响结果，同一个 textureIndex 出现多次是允许的（ORM 打包的
-	// 材质里 occlusion 与 metallicRoughness 常常指向同一张图）。
+	// 'sources' lists the source textures the material actually has (skip missing semantics).
+	// Order does not matter; the same textureIndex may appear twice (ORM-packed materials point
+	// occlusion and metallicRoughness at the same image).
 	//
-	// useOpacity：材质是否会用到基色的 alpha（glTF alphaMode == BLEND）。为 false 时
-	// 不会为 alpha 单独占用通道。
+	// 'useOpacity': whether base color alpha is used (glTF alphaMode == BLEND). When false no
+	// channel is reserved for alpha.
 	// ------------------------------------------------------------------------
 	inline NtcChannelPlan BuildNtcChannelPlan(const std::vector<NtcSourceTexture>& sources, bool useOpacity)
 	{
@@ -177,13 +178,13 @@ namespace Bear
 			plan.sourceChannel[static_cast<int>(role)][component] = channel;
 		};
 
-		// --- 基色（+ 可选的不透明） ---
+		// --- base color (+ optional opacity) ---
 		if (const NtcSourceTexture* base = find(NtcChannelRole::BaseColor))
 		{
 			const bool hasAlpha = (base->channels == 4 || base->channels == 2);
 			if (base->channels >= 3)
 			{
-				// RGB 与 alpha 在 RGBA 数据里是连续的，可以合并成一次写入。
+				// RGB and alpha are contiguous in RGBA data: one write covers both.
 				const int count = (useOpacity && base->channels == 4) ? 4 : 3;
 				const int first = addWrite(base->textureIndex, 0, count);
 				for (int c = 0; c < 3; ++c)
@@ -193,7 +194,7 @@ namespace Bear
 			}
 			else
 			{
-				// 灰度（1 通道）或灰度+alpha（2 通道）：RGB 由同一个通道广播得到。
+				// Grayscale (1 channel) or grayscale+alpha (2): RGB is broadcast from one channel.
 				const int firstGray = addWrite(base->textureIndex, 0, 1);
 				for (int c = 0; c < 3; ++c)
 					setSource(NtcChannelRole::BaseColor, c, firstGray);
@@ -202,13 +203,13 @@ namespace Bear
 			}
 		}
 
-		// --- 金属度 / 粗糙度 / 遮蔽 ---
+		// --- metalness / roughness / occlusion ---
 		const NtcSourceTexture* metalRough = find(NtcChannelRole::Metalness);
 		const NtcSourceTexture* occlusion = find(NtcChannelRole::Occlusion);
-		// glTF 里 metallicRoughness 贴图是 G=粗糙度、B=金属度，R 通道是**未使用的**；遮蔽只可能
-		// 来自 occlusionTexture。ORM 打包的资产会把 occlusionTexture 指向同一张图，此时它的 R
-		// 通道才是遮蔽。没有 occlusionTexture 时不写遮蔽通道，着色器取常量 1.0 —— 与 pbr.frag
-		// 在没有遮蔽贴图时绑定 1x1 白色默认贴图的行为一致。
+		// glTF metallicRoughness packs G=roughness, B=metalness and leaves R unused; occlusion only
+		// ever comes from occlusionTexture. ORM-packed assets point that texture at the same image,
+		// and then its R channel is the AO. Without an occlusion texture there is no AO channel and
+		// the shader uses the constant 1.0, matching pbr.frag's white default texture.
 		const bool occlusionFromMetalRough = (occlusion != nullptr) && (metalRough != nullptr) &&
 			(occlusion->textureIndex == metalRough->textureIndex);
 		if (metalRough)
@@ -225,17 +226,17 @@ namespace Bear
 			}
 			else
 			{
-				// 单通道图按粗糙度处理（金属度用常量）。
+				// Single channel image: treat it as roughness (metalness stays a constant).
 				setSource(NtcChannelRole::Roughness, 0, addWrite(metalRough->textureIndex, 0, 1));
 			}
 		}
 		if (occlusion && !occlusionFromMetalRough)
 		{
-			// 独立的遮蔽贴图：只取它的 R 通道。
+			// Separate occlusion texture: take its R channel only.
 			setSource(NtcChannelRole::Occlusion, 0, addWrite(occlusion->textureIndex, 0, 1));
 		}
 
-		// --- 法线 ---
+		// --- normal ---
 		if (const NtcSourceTexture* normal = find(NtcChannelRole::Normal))
 		{
 			if (normal->channels >= 3)
@@ -246,15 +247,15 @@ namespace Bear
 			}
 			else if (normal->channels == 2)
 			{
-				// 双通道法线（X、Y），Z 用中性常量。
+				// Two-channel normal (X, Y): Z falls back to the neutral constant.
 				const int first = addWrite(normal->textureIndex, 0, 2);
 				setSource(NtcChannelRole::Normal, 0, first + 0);
 				setSource(NtcChannelRole::Normal, 1, first + 1);
 			}
-			// 单通道数据没有明确语义，按缺失处理、走中性常量。
+			// One channel has no defined meaning here: treat the normal as missing.
 		}
 
-		// --- 自发光 ---
+		// --- emissive ---
 		if (const NtcSourceTexture* emissive = find(NtcChannelRole::Emissive))
 		{
 			if (emissive->channels >= 3)

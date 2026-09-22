@@ -49,6 +49,11 @@ namespace Bear {
 		virtual void SetTransparent(bool isTransparent) {}
 		virtual bool IsTransparent() const { return false; }
 
+		// Returns false while the material's data is still being produced (e.g. neural texture
+		// compression running on a background thread). Not-ready materials are left out of the draw
+		// sets, so nothing ever binds a descriptor set that has no valid data behind it yet.
+		virtual bool IsReady() { return true; }
+
 		// getters
 		virtual RHIDescriptorSetLayout* GetDescriptorSetLayout() { return nullptr; }
 		virtual RHIDescriptorSet* GetDescriptorSet() { return nullptr; }

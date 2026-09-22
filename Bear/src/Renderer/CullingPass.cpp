@@ -228,7 +228,10 @@ namespace Bear
 		opaqueIdx.reserve(renderObjects.size());
 		for (size_t i = 0; i < renderObjects.size(); ++i)
 		{
-			if (!renderObjects[i].material->IsTransparent())
+			// Materials that are still being prepared (neural texture compression running on a
+			// background thread) have no data behind their descriptor set yet, so they are left out
+			// of the command pool. The shadow pass consumes this same pool, so its casters follow.
+			if (renderObjects[i].material->IsReady() && !renderObjects[i].material->IsTransparent())
 				opaqueIdx.push_back(i);
 		}
 
