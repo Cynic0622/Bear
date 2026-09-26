@@ -23,11 +23,29 @@
 #include "Sync/Fence.h"
 #include "Sync/Semaphore.h"
 #include "Resources/Image.h"
+
+#include <cstdlib>
+
 namespace Bear {
+
+	namespace
+	{
+		// Validation layers are enabled by default. BEAR_VALIDATION=0 turns them off, which is what
+		// profiling wants: validation distorts GPU timings and reacts to what injected tools do
+		// (for example, Nsight's capture layer imports host memory, which trips a validation error).
+		bool AreValidationLayersEnabled()
+		{
+			const char* value = std::getenv("BEAR_VALIDATION");
+			if (value == nullptr || *value == '\0')
+				return true;
+			return value[0] != '0';
+		}
+	}
 
 	Bear::Device::Device(GLFWwindow* window)
 	{
-		m_Instance = std::make_unique<Instance>("app", "engine", true);
+		m_Instance = std::make_unique<Instance>("app", "engine", AreValidationLayersEnabled());
+		BEAR_CORE_INFO("Vulkan validation layers: {}", m_Instance->IsValidationEnabled() ? "enabled" : "disabled");
 		m_Surface = std::make_unique<Surface>(*m_Instance, window);
 		PickPhysicalDevice(m_Instance->GetHandle(), m_Surface->GetHandle());
 		CreateLogicalDevice(m_Instance->GetHandle(), m_Surface->GetHandle());
